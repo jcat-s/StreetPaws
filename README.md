@@ -152,12 +152,34 @@ interface Report {
 
 ## 🚀 Deployment
 
+### GitHub Pages (Recommended)
+
+1. **Update the repository name** in `vite.config.ts`:
+   ```typescript
+   base: process.env.NODE_ENV === 'production' ? '/your-repo-name/' : '/',
+   ```
+   Replace `your-repo-name` with your actual GitHub repository name.
+
+2. **Push to GitHub**:
+   ```bash
+   git add .
+   git commit -m "Initial commit"
+   git push origin main
+   ```
+
+3. **Enable GitHub Pages**:
+   - Go to your repository on GitHub
+   - Click "Settings" → "Pages"
+   - Set "Source" to "Deploy from a branch"
+   - Choose branch: `gh-pages`, folder: `/ (root)`
+   - Save. The site will update whenever you push to `main`
+
 ### Build for Production
 ```bash
 npm run build
 ```
 
-### Deploy to Firebase Hosting
+### Deploy to Firebase Hosting (Alternative)
 ```bash
 npm install -g firebase-tools
 firebase login

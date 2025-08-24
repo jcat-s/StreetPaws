@@ -20,9 +20,10 @@ interface AbusedAnimalFormData {
 interface AbusedAnimalFormProps {
   onBack: () => void
   onClose: () => void
+  onSubmitSuccess: () => void
 }
 
-const AbusedAnimalForm = ({ onBack, onClose }: AbusedAnimalFormProps) => {
+const AbusedAnimalForm = ({ onBack, onClose, onSubmitSuccess }: AbusedAnimalFormProps) => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [filePreviews, setFilePreviews] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -36,20 +37,20 @@ const AbusedAnimalForm = ({ onBack, onClose }: AbusedAnimalFormProps) => {
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || [])
-    
+
     files.forEach(file => {
       if (file.size > 150 * 1024 * 1024) { // 150MB limit
         toast.error(`${file.name} is too large. File size must be less than 150MB`)
         return
       }
-      
+
       if (!['image/jpeg', 'image/png', 'video/mp4'].includes(file.type)) {
         toast.error(`${file.name} is not a supported file type. Please upload JPEG, PNG, or MP4 files`)
         return
       }
 
       setUploadedFiles(prev => [...prev, file])
-      
+
       const reader = new FileReader()
       reader.onload = (e) => {
         setFilePreviews(prev => [...prev, e.target?.result as string])
@@ -66,16 +67,21 @@ const AbusedAnimalForm = ({ onBack, onClose }: AbusedAnimalFormProps) => {
   const onSubmit = async (data: AbusedAnimalFormData) => {
     setIsSubmitting(true)
     try {
-      // Here you would typically upload the files and submit the form data
-      console.log('Abused animal report data:', data)
-      console.log('Uploaded files:', uploadedFiles)
-      
-      toast.success('Abuse report submitted successfully!')
+      // Add your form submission logic here
+      // For example: await submitAbusedAnimalReport(data, uploadedFiles)
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Call the success handler
+      onSubmitSuccess()
+
+      // Reset form
       reset()
       setUploadedFiles([])
       setFilePreviews([])
-      onClose()
     } catch (error) {
+      console.error('Error submitting form:', error)
       toast.error('Failed to submit report. Please try again.')
     } finally {
       setIsSubmitting(false)
@@ -369,4 +375,4 @@ const AbusedAnimalForm = ({ onBack, onClose }: AbusedAnimalFormProps) => {
   )
 }
 
-export default AbusedAnimalForm 
+export default AbusedAnimalForm

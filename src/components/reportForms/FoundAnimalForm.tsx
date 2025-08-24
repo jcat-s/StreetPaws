@@ -25,9 +25,10 @@ interface FoundAnimalFormData {
 interface FoundAnimalFormProps {
   onBack: () => void
   onClose: () => void
+  onSubmitSuccess: () => void
 }
 
-const FoundAnimalForm = ({ onBack, onClose }: FoundAnimalFormProps) => {
+const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormProps) => {
   const [uploadedImage, setUploadedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -46,7 +47,7 @@ const FoundAnimalForm = ({ onBack, onClose }: FoundAnimalFormProps) => {
         toast.error('File size must be less than 50MB')
         return
       }
-      
+
       if (!['image/jpeg', 'image/png'].includes(file.type)) {
         toast.error('Please upload a JPEG or PNG file')
         return
@@ -69,16 +70,20 @@ const FoundAnimalForm = ({ onBack, onClose }: FoundAnimalFormProps) => {
   const onSubmit = async (data: FoundAnimalFormData) => {
     setIsSubmitting(true)
     try {
-      // Here you would typically upload the image and submit the form data
-      console.log('Found animal report data:', data)
-      console.log('Uploaded image:', uploadedImage)
-      
-      toast.success('Found animal report submitted successfully!')
+      // Add your form submission logic here
+      // For example: await submitFoundAnimalReport(data, uploadedImage)
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Call the success handler
+      onSubmitSuccess()
       reset()
       setUploadedImage(null)
       setImagePreview(null)
       onClose()
     } catch (error) {
+      console.error('Error submitting form:', error)
       toast.error('Failed to submit report. Please try again.')
     } finally {
       setIsSubmitting(false)
@@ -456,4 +461,4 @@ const FoundAnimalForm = ({ onBack, onClose }: FoundAnimalFormProps) => {
   )
 }
 
-export default FoundAnimalForm 
+export default FoundAnimalForm

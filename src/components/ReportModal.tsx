@@ -9,11 +9,17 @@ type ReportType = 'lost' | 'found' | 'abused' | null
 
 const ReportModal = () => {
   const [reportType, setReportType] = useState<ReportType>(null)
+  const [isSubmitted, setIsSubmitted] = useState(false)
   const { isReportModalOpen, closeReportModal } = useModalStore()
 
   const handleClose = () => {
     setReportType(null)
+    setIsSubmitted(false)
     closeReportModal()
+  }
+
+  const handleSubmitSuccess = () => {
+    setIsSubmitted(true)
   }
 
   if (!isReportModalOpen) return null
@@ -24,7 +30,9 @@ const ReportModal = () => {
         <div className="p-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Submit a Report</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isSubmitted ? 'Thank You!' : 'Submit a Report'}
+            </h2>
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600"
@@ -33,13 +41,44 @@ const ReportModal = () => {
             </button>
           </div>
 
+          {/* Success Message */}
+          {isSubmitted && (
+            <div className="text-center py-8">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <svg
+                  className="h-8 w-8 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Report Submitted Successfully!</h3>
+              <p className="text-gray-600 mb-6">
+                Your report has been received. We'll review it and get back to you soon.
+              </p>
+              <button
+                onClick={handleClose}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                Done
+              </button>
+            </div>
+          )}
+
           {/* Report Type Selection */}
-          {!reportType && (
+          {!reportType && !isSubmitted && (
             <div className="space-y-4">
               <p className="text-gray-600 text-center mb-6">
                 Please select the type of report you would like to submit:
               </p>
-              
+
               <div className="grid gap-4">
                 <button
                   onClick={() => setReportType('lost')}
@@ -84,16 +123,28 @@ const ReportModal = () => {
           )}
 
           {/* Report Forms */}
-          {reportType === 'lost' && (
-            <LostAnimalForm onBack={() => setReportType(null)} onClose={handleClose} />
+          {!isSubmitted && reportType === 'lost' && (
+            <LostAnimalForm
+              onBack={() => setReportType(null)}
+              onClose={handleClose}
+              onSubmitSuccess={handleSubmitSuccess}
+            />
           )}
-          
-          {reportType === 'found' && (
-            <FoundAnimalForm onBack={() => setReportType(null)} onClose={handleClose} />
+
+          {!isSubmitted && reportType === 'found' && (
+            <FoundAnimalForm
+              onBack={() => setReportType(null)}
+              onClose={handleClose}
+              onSubmitSuccess={handleSubmitSuccess}
+            />
           )}
-          
-          {reportType === 'abused' && (
-            <AbusedAnimalForm onBack={() => setReportType(null)} onClose={handleClose} />
+
+          {!isSubmitted && reportType === 'abused' && (
+            <AbusedAnimalForm
+              onBack={() => setReportType(null)}
+              onClose={handleClose}
+              onSubmitSuccess={handleSubmitSuccess}
+            />
           )}
         </div>
       </div>

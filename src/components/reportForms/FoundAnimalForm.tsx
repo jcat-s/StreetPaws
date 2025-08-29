@@ -37,8 +37,12 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
     register,
     handleSubmit,
     formState: { errors },
-    reset
+    reset,
+    setValue,
+    watch
   } = useForm<FoundAnimalFormData>()
+  const [isBarangayOpen, setIsBarangayOpen] = useState(false)
+  const selectedBarangay = watch('foundLocation')
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -90,20 +94,32 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
     }
   }
 
+  const barangays = [
+    'Adya','Anilao','Antipolo del Norte','Antipolo del Sur','Bagong Pook','Balintawak','Banaybanay','Banaybanay I','Banaybanay II','Bangcal','Bolbok','Bugtong na Pulo','Bulacnin','Bulaklakan','Calamias','Candating','Dagatan','Dela Paz','Dela Paz Proper','Halang','Inosluban','Kayumanggi','Latag','Lodlod','Lumbang','Mabini','Malagonlong','Malitlit','Marawoy','Munting Pulo','Pangao','Pinagkawitan','Pinagtongulan','Plaridel','Quiling','Rizal','Sabang','Sampaguita','San Benildo','San Carlos','San Celestino','San Francisco','San Francisco (Burol)','San Guillermo','San Jose','San Lucas','San Salvador','San Sebastian','San Vicente','Sapac','Sico 1','Sico 2','Sto. Niño','Tambo','Tangob','Tanguile','Tibig','Tico','Tipacan','Tuyo','Barangay 1 (Poblacion)','Barangay 2 (Poblacion)','Barangay 3 (Poblacion)','Barangay 4 (Poblacion)','Barangay 5 (Poblacion)','Barangay 6 (Poblacion)','Barangay 7 (Poblacion)','Barangay 8 (Poblacion)','Barangay 9 (Poblacion)','San Isidro','San Nicolas','Barangay San Miguel'
+  ]
+
   return (
-    <div>
-      {/* Header with back button */}
-      <div className="flex items-center mb-6">
+    <div className="min-h-screen bg-white">
+      {/* Header - full width orange */}
+      <div className="bg-orange-500 text-white p-4">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
         <button
           onClick={onBack}
-          className="flex items-center text-gray-600 hover:text-gray-900 mr-4"
-        >
-          <ArrowLeft className="h-5 w-5 mr-1" />
-          Back
+            className="flex items-center text-white hover:bg-orange-600 p-2 rounded-full transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-2xl font-bold">Found Animal Report</h1>
+          <button
+            onClick={onClose}
+            className="text-white hover:bg-orange-600 p-2 rounded-full transition-colors"
+          >
+            <X className="h-5 w-5" />
         </button>
-        <h3 className="text-xl font-semibold text-gray-900">Found Animal Report</h3>
+        </div>
       </div>
 
+      <div className="max-w-7xl mx-auto p-4 md:p-8">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Animal Information */}
         <div className="grid md:grid-cols-2 gap-4">
@@ -111,18 +127,16 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
             <label htmlFor="animalType" className="block text-sm font-medium text-gray-700 mb-1">
               Animal Type *
             </label>
-            <select
-              {...register('animalType', { required: 'Animal type is required' })}
-              id="animalType"
-              className="input-field"
-            >
-              <option value="">Select animal type</option>
-              <option value="dog">Dog</option>
-              <option value="cat">Cat</option>
-              <option value="bird">Bird</option>
-              <option value="rabbit">Rabbit</option>
-              <option value="other">Other</option>
-            </select>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2">
+                <input type="radio" value="dog" {...register('animalType', { required: 'Animal type is required' })} />
+                <span>Dog</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" value="cat" {...register('animalType', { required: 'Animal type is required' })} />
+                <span>Cat</span>
+              </label>
+            </div>
             {errors.animalType && (
               <p className="mt-1 text-sm text-red-600">{errors.animalType.message}</p>
             )}
@@ -281,13 +295,30 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
             <label htmlFor="foundLocation" className="block text-sm font-medium text-gray-700 mb-1">
               Found Location *
             </label>
-            <input
-              {...register('foundLocation', { required: 'Found location is required' })}
-              type="text"
-              id="foundLocation"
-              className="input-field"
-              placeholder="Enter exact location where animal was found"
-            />
+            <input type="hidden" {...register('foundLocation', { required: 'Found location is required' })} />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsBarangayOpen(!isBarangayOpen)}
+                className="w-full text-left px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+              >
+                {selectedBarangay || 'Select barangay'}
+              </button>
+              {isBarangayOpen && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">
+                  {barangays.map((b) => (
+                    <button
+                      type="button"
+                      key={b}
+                      onClick={() => { setValue('foundLocation', b, { shouldValidate: true }); setIsBarangayOpen(false) }}
+                      className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             {errors.foundLocation && (
               <p className="mt-1 text-sm text-red-600">{errors.foundLocation.message}</p>
             )}
@@ -350,6 +381,8 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
               {...register('contactPhone', { required: 'Contact phone is required' })}
               type="tel"
               id="contactPhone"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className="input-field"
               placeholder="Your phone number"
             />
@@ -457,6 +490,7 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
           </button>
         </div>
       </form>
+      </div>
     </div>
   )
 }

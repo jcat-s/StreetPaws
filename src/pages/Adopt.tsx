@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Filter, Heart } from 'lucide-react'
+import { Search, Filter,  } from 'lucide-react'
+import { useModalStore } from '../stores/modalStore'
 
 interface Animal {
   id: string
@@ -16,6 +17,7 @@ interface Animal {
 const Adopt = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'dog' | 'cat'>('all')
+  const { openSignUpModal } = useModalStore()
 
   // Mock data - in a real app, this would come from Firebase
   const animals: Animal[] = [
@@ -63,7 +65,7 @@ const Adopt = () => {
 
   const filteredAnimals = animals.filter(animal => {
     const matchesSearch = animal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         animal.breed.toLowerCase().includes(searchTerm.toLowerCase())
+      animal.breed.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesFilter = filterType === 'all' || animal.type === filterType
     return matchesSearch && matchesFilter
   })
@@ -131,11 +133,10 @@ const Adopt = () => {
                     }}
                   />
                   <div className="absolute top-2 right-2">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      animal.type === 'dog' 
-                        ? 'bg-blue-100 text-blue-800' 
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${animal.type === 'dog'
+                        ? 'bg-blue-100 text-blue-800'
                         : 'bg-purple-100 text-purple-800'
-                    }`}>
+                      }`}>
                       {animal.type === 'dog' ? '🐕' : '🐱'} {animal.type.charAt(0).toUpperCase() + animal.type.slice(1)}
                     </span>
                   </div>
@@ -150,15 +151,17 @@ const Adopt = () => {
                     <p><span className="font-medium">Gender:</span> {animal.gender}</p>
                   </div>
                   <p className="text-sm text-gray-600 mb-4 line-clamp-2">{animal.description}</p>
-                  
+
                   {/* Adopt Button */}
-                  <Link
-                    to={`/animal/${animal.id}`}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      openSignUpModal()
+                    }}
                     className="w-full btn-primary flex items-center justify-center"
                   >
-                    <Heart className="h-4 w-4 mr-2" />
                     Adopt Now
-                  </Link>
+                  </button>
                 </div>
               </div>
             ))}

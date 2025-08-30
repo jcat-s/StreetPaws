@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Search, Filter, } from 'lucide-react'
 import { useModalStore } from '../stores/modalStore'
 
@@ -134,8 +133,8 @@ const OurAnimals = () => {
                   />
                   <div className="absolute top-2 right-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${animal.type === 'dog'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-purple-100 text-purple-800'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-purple-100 text-purple-800'
                       }`}>
                       {animal.type === 'dog' ? '🐕' : '🐱'} {animal.type.charAt(0).toUpperCase() + animal.type.slice(1)}
                     </span>
@@ -178,23 +177,6 @@ const OurAnimals = () => {
           </div>
         )}
 
-        {/* Call to Action */}
-        <div className="mt-12 text-center">
-          <div className="bg-primary-50 rounded-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Ready to Adopt?
-            </h2>
-            <p className="text-lg text-gray-600 mb-6">
-              Adoption is a lifelong commitment. Make sure you're ready to provide love, care, and attention to your new family member.
-            </p>
-            <Link
-              to="/join-us"
-              className="btn-outline text-lg px-8 py-3"
-            >
-              Learn More About Adoption
-            </Link>
-          </div>
-        </div>
       </div>
     </div>
   )

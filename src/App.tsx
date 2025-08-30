@@ -8,7 +8,6 @@ import JoinUs from './pages/JoinUs'
 import AboutUs from './pages/AboutUs'
 import ContactUs from './pages/ContactUs'
 import Donate from './pages/Donate'
-import Adopt from './pages/Adopt'
 import LostAndFound from './pages/LostAndFound'
 import AnimalProfile from './pages/AnimalProfile'
 import AdoptionForm from './pages/AdoptionForm'
@@ -32,7 +31,6 @@ function App() {
               <Route path="/about-us" element={<AboutUs />} />
               <Route path="/contact-us" element={<ContactUs />} />
               <Route path="/donate" element={<Donate />} />
-              <Route path="/adopt" element={<Adopt />} />
               <Route path="/lost-and-found" element={<LostAndFound />} />
               <Route path="/animal/:id" element={<AnimalProfile />} />
               <Route path="/adoption-form/:animalId" element={<AdoptionForm />} />

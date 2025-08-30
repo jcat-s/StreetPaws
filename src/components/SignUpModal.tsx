@@ -18,7 +18,7 @@ const SignUpModal = () => {
   const [isLoading, setIsLoading] = useState(false)
   const { signup } = useAuth()
   const { isSignUpModalOpen, closeSignUpModal, openLoginModal } = useModalStore()
-  
+
   const {
     register,
     handleSubmit,
@@ -59,7 +59,7 @@ const SignUpModal = () => {
             <div className="sticky top-0 h-full flex items-center">
               <div className="text-center w-full">
                 <h3 className="text-xl md:text-2xl font-bold mb-4 uppercase tracking-wide">Already Have an Account?</h3>
-                <p className="text-orange-100 mb-6 md:mb-8 text-sm md:text-base">Register with your personal details to use all of site features.</p>
+                <p className="text-orange-100 mb-6 md:mb-8 text-sm md:text-base">Register with your personal details to adopt a pet that you like 🐱🐶.</p>
                 <button
                   onClick={handleLoginClick}
                   className="bg-white text-orange-500 hover:bg-gray-100 font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition-colors duration-200 uppercase tracking-wide border-2 border-white text-sm md:text-base"
@@ -74,17 +74,17 @@ const SignUpModal = () => {
           <div className="md:col-span-3 p-6 md:p-8 overflow-y-auto">
             <div className="flex justify-between items-center mb-6 md:mb-8">
               <h2 className="text-2xl md:text-3xl font-bold text-orange-500 uppercase tracking-wide">Sign Up</h2>
-            <button
-              onClick={closeSignUpModal}
-              className="text-gray-400 hover:text-gray-600"
-            >
+              <button
+                onClick={closeSignUpModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X className="h-5 w-5 md:h-6 md:w-6" />
-            </button>
-          </div>
+              </button>
+            </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 md:space-y-4">
-            {/* First Name Field */}
-            <div>
+              {/* First Name Field */}
+              <div>
                 <input
                   {...register('firstName', {
                     required: 'First name is required'
@@ -93,13 +93,13 @@ const SignUpModal = () => {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="First Name"
                 />
-              {errors.firstName && (
-                <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
-              )}
-            </div>
+                {errors.firstName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
+                )}
+              </div>
 
-            {/* Last Name Field */}
-            <div>
+              {/* Last Name Field */}
+              <div>
                 <input
                   {...register('lastName', {
                     required: 'Last name is required'
@@ -108,13 +108,13 @@ const SignUpModal = () => {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Last Name"
                 />
-              {errors.lastName && (
-                <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
-              )}
-            </div>
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
+                )}
+              </div>
 
-            {/* Email Field */}
-            <div>
+              {/* Email Field */}
+              <div>
                 <input
                   {...register('email', {
                     required: 'Email is required',
@@ -127,12 +127,12 @@ const SignUpModal = () => {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Email"
                 />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-              )}
-            </div>
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                )}
+              </div>
 
-            {/* Password Field */}
+              {/* Password Field */}
               <div className="relative">
                 <input
                   {...register('password', {
@@ -153,13 +153,13 @@ const SignUpModal = () => {
                 >
                   {showPasswords ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-              )}
-            </div>
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                )}
+              </div>
 
-            {/* Confirm Password Field */}
-            <div>
+              {/* Confirm Password Field */}
+              <div>
                 <input
                   {...register('confirmPassword', {
                     required: 'Please confirm your password',
@@ -169,21 +169,21 @@ const SignUpModal = () => {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="Confirm Password"
                 />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-              )}
-            </div>
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                )}
+              </div>
 
-            {/* Sign Up Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
+              {/* Sign Up Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
                 className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 uppercase tracking-wide disabled:opacity-50"
-            >
-              {isLoading ? 'Creating Account...' : 'Sign Up'}
-            </button>
+              >
+                {isLoading ? 'Creating Account...' : 'Sign Up'}
+              </button>
 
-          </form>
+            </form>
           </div>
         </div>
       </div>

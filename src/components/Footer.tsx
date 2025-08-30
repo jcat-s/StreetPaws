@@ -48,9 +48,9 @@ const Footer = () => {
           <div>
             <h3 className="text-base font-semibold mb-2 text-orange-600">Contact Us</h3>
             <ul className="text-orange-600 space-y-1.5 text-sm">
-              <li>Lipa City, Batangas</li>
-              <li>Phone: 0966 871 0191</li>
-              <li>Email: lipacityvet@gmail.com</li>
+              <li>📍 Lipa City Veterinary Office</li>
+              <li>🗺️ Marawoy, Lipa City, Batangas</li>
+              <li>📞 0966 871 0191 / 043-740-0638</li>
             </ul>
           </div>
         </div>

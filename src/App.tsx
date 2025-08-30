@@ -16,14 +16,15 @@ import DonationForm from './pages/DonationForm'
 import ReportModal from './components/ReportModal'
 import LoginModal from './components/LoginModal'
 import SignUpModal from './components/SignUpModal'
+import Footer from './components/Footer'
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 flex flex-col">
           <Navbar />
-          <main>
+          <main className="flex-1">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/our-animals" element={<OurAnimals />} />
@@ -42,6 +43,7 @@ function App() {
           <LoginModal />
           <SignUpModal />
           <Toaster position="top-right" />
+          <Footer />
         </div>
       </Router>
     </AuthProvider>

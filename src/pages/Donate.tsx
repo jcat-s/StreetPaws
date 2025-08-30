@@ -98,54 +98,7 @@ const Donate = () => {
           </div>
         </div>
 
-        {/* Impact Statistics */}
-        <div className="bg-primary-600 rounded-lg p-8 mb-12 text-white">
-          <h2 className="text-2xl font-bold mb-6 text-center">Our Impact</h2>
-          <div className="grid md:grid-cols-4 gap-6 text-center">
-            <div>
-              <div className="text-3xl font-bold mb-2">500+</div>
-              <div className="text-primary-100">Animals Rescued</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold mb-2">300+</div>
-              <div className="text-primary-100">Successful Adoptions</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold mb-2">50+</div>
-              <div className="text-primary-100">Volunteers</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold mb-2">24/7</div>
-              <div className="text-primary-100">Emergency Response</div>
-            </div>
-          </div>
-        </div>
 
-        {/* Call to Action */}
-        <div className="text-center">
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Ready to Make a Difference?
-            </h2>
-            <p className="text-lg text-gray-600 mb-6">
-              Every donation, no matter the size, helps us continue our mission of helping animals in need.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/donation-form"
-                className="btn-primary text-lg px-8 py-3"
-              >
-                Donate Now
-              </Link>
-              <Link
-                to="/join-us"
-                className="btn-outline text-lg px-8 py-3"
-              >
-                Volunteer Instead
-              </Link>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )

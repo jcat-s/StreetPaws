@@ -8,22 +8,8 @@ const AboutUs = () => {
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">StreetPaws is a community initiative partnering with Lipa City Veterinary Office to rescue, rehabilitate, and rehome stray animals while educating the public on responsible pet ownership.</p>
         </div>
 
-        {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-6 mb-10">
-          {[{n:'120+',l:'Animals Rescued'}, {n:'85+',l:'Successful Adoptions'}, {n:'200+',l:'Active Volunteers'}].map(s => (
-            <div key={s.l} className="bg-white text-center p-6 rounded-lg shadow border border-gray-100">
-              <div className="text-3xl font-extrabold text-orange-600 mb-1">{s.n}</div>
-              <div className="text-gray-700">{s.l}</div>
-            </div>
-          ))}
-        </div>
 
-        {/* Team blurb */}
-        <div className="bg-white border border-gray-100 rounded-lg p-6 mb-10">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Our Approach</h2>
-          <p className="text-gray-700 mb-3">We collaborate with barangays, local vets, and volunteers to operate rescues, provide basic medical care, and manage adoption events. Transparency and community support are at the heart of what we do.</p>
-          <p className="text-gray-700">Want to help? Check the Join Us page for volunteer roles, or donate supplies to our drive.</p>
-        </div>
+
 
         {/* How We Help section moved from Home */}
         <div className="text-center mb-12">
@@ -68,6 +54,14 @@ const AboutUs = () => {
             </p>
           </div>
         </div>
+
+        {/* Team blurb */}
+        <div className="bg-white border border-gray-100 rounded-lg p-6 mb-10">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Our Approach</h2>
+          <p className="text-gray-700 mb-3">We collaborate with barangays, local vets, and volunteers to operate rescues, provide basic medical care, and manage adoption events. Transparency and community support are at the heart of what we do.</p>
+          <p className="text-gray-700">Want to help? Check the Join Us page for volunteer roles, or donate supplies to our drive.</p>
+        </div>
+
 
         {/* CTA moved from Home */}
         <div className="py-12 bg-orange-500 rounded-xl text-center">

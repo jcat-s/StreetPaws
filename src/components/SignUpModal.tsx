@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext'
 import { useModalStore } from '../stores/modalStore'
-import { X, Eye, EyeOff, User, Mail, Lock } from 'lucide-react'
+import { X, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface SignUpFormData {
@@ -14,8 +14,7 @@ interface SignUpFormData {
 }
 
 const SignUpModal = () => {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [showPasswords, setShowPasswords] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { signup } = useAuth()
   const { isSignUpModalOpen, closeSignUpModal, openLoginModal } = useModalStore()
@@ -52,39 +51,48 @@ const SignUpModal = () => {
   if (!isSignUpModalOpen) return null
 
   return (
-    <div className="modal-overlay" onClick={closeSignUpModal}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="grid md:grid-cols-5 flex-grow overflow-hidden">
+          {/* Left: Login teaser (2/5 width) */}
+          <div className="md:col-span-2 bg-orange-500 text-white p-6 md:p-8 flex-shrink-0">
+            <div className="sticky top-0 h-full flex items-center">
+              <div className="text-center w-full">
+                <h3 className="text-xl md:text-2xl font-bold mb-4 uppercase tracking-wide">Already Have an Account?</h3>
+                <p className="text-orange-100 mb-6 md:mb-8 text-sm md:text-base">Register with your personal details to use all of site features.</p>
+                <button
+                  onClick={handleLoginClick}
+                  className="bg-white text-orange-500 hover:bg-gray-100 font-bold py-2 md:py-3 px-4 md:px-6 rounded-lg transition-colors duration-200 uppercase tracking-wide border-2 border-white text-sm md:text-base"
+                >
+                  Login
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Sign Up Form (3/5 width) */}
+          <div className="md:col-span-3 p-6 md:p-8 overflow-y-auto">
+            <div className="flex justify-between items-center mb-6 md:mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-orange-500 uppercase tracking-wide">Sign Up</h2>
             <button
               onClick={closeSignUpModal}
               className="text-gray-400 hover:text-gray-600"
             >
-              <X className="h-6 w-6" />
+                <X className="h-5 w-5 md:h-6 md:w-6" />
             </button>
           </div>
 
-          {/* Sign Up Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 md:space-y-4">
             {/* First Name Field */}
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                First Name *
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   {...register('firstName', {
                     required: 'First name is required'
                   })}
                   type="text"
-                  id="firstName"
-                  className="input-field pl-10"
-                  placeholder="Enter your first name"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="First Name"
                 />
-              </div>
               {errors.firstName && (
                 <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
               )}
@@ -92,21 +100,14 @@ const SignUpModal = () => {
 
             {/* Last Name Field */}
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name *
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   {...register('lastName', {
                     required: 'Last name is required'
                   })}
                   type="text"
-                  id="lastName"
-                  className="input-field pl-10"
-                  placeholder="Enter your last name"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Last Name"
                 />
-              </div>
               {errors.lastName && (
                 <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
               )}
@@ -114,11 +115,6 @@ const SignUpModal = () => {
 
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address *
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   {...register('email', {
                     required: 'Email is required',
@@ -128,23 +124,16 @@ const SignUpModal = () => {
                     }
                   })}
                   type="email"
-                  id="email"
-                  className="input-field pl-10"
-                  placeholder="Enter your email"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Email"
                 />
-              </div>
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
               )}
             </div>
 
             {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password *
-              </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   {...register('password', {
                     required: 'Password is required',
@@ -153,19 +142,17 @@ const SignUpModal = () => {
                       message: 'Password must be at least 6 characters'
                     }
                   })}
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  className="input-field pl-10 pr-10"
-                  placeholder="Enter your password"
+                  type={showPasswords ? 'text' : 'password'}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-12"
+                  placeholder="Password"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowPasswords(!showPasswords)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPasswords ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
-              </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
               )}
@@ -173,29 +160,15 @@ const SignUpModal = () => {
 
             {/* Confirm Password Field */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm Password *
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   {...register('confirmPassword', {
                     required: 'Please confirm your password',
                     validate: value => value === password || 'Passwords do not match'
                   })}
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  id="confirmPassword"
-                  className="input-field pl-10 pr-10"
-                  placeholder="Confirm your password"
+                  type={showPasswords ? 'text' : 'password'}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="Confirm Password"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
-              </div>
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}
@@ -205,23 +178,12 @@ const SignUpModal = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full btn-primary py-3 text-lg font-medium disabled:opacity-50"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 uppercase tracking-wide disabled:opacity-50"
             >
               {isLoading ? 'Creating Account...' : 'Sign Up'}
             </button>
-          </form>
 
-          {/* Login Link */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <button
-                onClick={handleLoginClick}
-                className="font-medium text-primary-600 hover:text-primary-500"
-              >
-                Login
-              </button>
-            </p>
+          </form>
           </div>
         </div>
       </div>

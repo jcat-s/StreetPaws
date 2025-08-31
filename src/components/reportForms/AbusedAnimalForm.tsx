@@ -93,7 +93,7 @@ const AbusedAnimalForm = ({ onBack, onClose, onSubmitSuccess }: AbusedAnimalForm
   }
 
   const barangays = [
-    'Adya','Anilao','Antipolo del Norte','Antipolo del Sur','Bagong Pook','Balintawak','Banaybanay','Banaybanay I','Banaybanay II','Bangcal','Bolbok','Bugtong na Pulo','Bulacnin','Bulaklakan','Calamias','Candating','Dagatan','Dela Paz','Dela Paz Proper','Halang','Inosluban','Kayumanggi','Latag','Lodlod','Lumbang','Mabini','Malagonlong','Malitlit','Marawoy','Munting Pulo','Pangao','Pinagkawitan','Pinagtongulan','Plaridel','Quiling','Rizal','Sabang','Sampaguita','San Benildo','San Carlos','San Celestino','San Francisco','San Francisco (Burol)','San Guillermo','San Jose','San Lucas','San Salvador','San Sebastian','San Vicente','Sapac','Sico 1','Sico 2','Sto. Niño','Tambo','Tangob','Tanguile','Tibig','Tico','Tipacan','Tuyo','Barangay 1 (Poblacion)','Barangay 2 (Poblacion)','Barangay 3 (Poblacion)','Barangay 4 (Poblacion)','Barangay 5 (Poblacion)','Barangay 6 (Poblacion)','Barangay 7 (Poblacion)','Barangay 8 (Poblacion)','Barangay 9 (Poblacion)','San Isidro','San Nicolas','Barangay San Miguel'
+    'Adya', 'Anilao', 'Antipolo del Norte', 'Antipolo del Sur', 'Bagong Pook', 'Balintawak', 'Banaybanay', 'Banaybanay I', 'Banaybanay II', 'Bangcal', 'Bolbok', 'Bugtong na Pulo', 'Bulacnin', 'Bulaklakan', 'Calamias', 'Candating', 'Dagatan', 'Dela Paz', 'Dela Paz Proper', 'Halang', 'Inosluban', 'Kayumanggi', 'Latag', 'Lodlod', 'Lumbang', 'Mabini', 'Malagonlong', 'Malitlit', 'Marawoy', 'Munting Pulo', 'Pangao', 'Pinagkawitan', 'Pinagtongulan', 'Plaridel', 'Quiling', 'Rizal', 'Sabang', 'Sampaguita', 'San Benildo', 'San Carlos', 'San Celestino', 'San Francisco', 'San Francisco (Burol)', 'San Guillermo', 'San Jose', 'San Lucas', 'San Salvador', 'San Sebastian', 'San Vicente', 'Sapac', 'Sico 1', 'Sico 2', 'Sto. Niño', 'Tambo', 'Tangob', 'Tanguile', 'Tibig', 'Tico', 'Tipacan', 'Tuyo', 'Barangay 1 (Poblacion)', 'Barangay 2 (Poblacion)', 'Barangay 3 (Poblacion)', 'Barangay 4 (Poblacion)', 'Barangay 5 (Poblacion)', 'Barangay 6 (Poblacion)', 'Barangay 7 (Poblacion)', 'Barangay 8 (Poblacion)', 'Barangay 9 (Poblacion)', 'San Isidro', 'San Nicolas', 'Barangay San Miguel'
   ]
 
   return (
@@ -118,294 +118,294 @@ const AbusedAnimalForm = ({ onBack, onClose, onSubmitSuccess }: AbusedAnimalForm
       </div>
 
       <div className="max-w-7xl mx-auto p-4 md:p-8">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Incident Information */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="md:col-span-2">
-            <label htmlFor="incidentLocation" className="block text-sm font-medium text-gray-700 mb-1">
-              Incident Location *
-            </label>
-            <input type="hidden" {...register('incidentLocation', { required: 'Incident location is required' })} />
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsBarangayOpen(!isBarangayOpen)}
-                className="w-full text-left px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
-              >
-                {selectedBarangay || 'Select barangay'}
-              </button>
-              {isBarangayOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">
-                  {barangays.map((b) => (
-                    <button
-                      type="button"
-                      key={b}
-                      onClick={() => { setValue('incidentLocation', b, { shouldValidate: true }); setIsBarangayOpen(false) }}
-                      className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}
-                    >
-                      {b}
-                    </button>
-                  ))}
-                </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Incident Information */}
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <label htmlFor="incidentLocation" className="block text-sm font-medium text-gray-700 mb-1">
+                Incident Location *
+              </label>
+              <input type="hidden" {...register('incidentLocation', { required: 'Incident location is required' })} />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsBarangayOpen(!isBarangayOpen)}
+                  className="w-full text-left px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                >
+                  {selectedBarangay || 'Select barangay'}
+                </button>
+                {isBarangayOpen && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">
+                    {barangays.map((b) => (
+                      <button
+                        type="button"
+                        key={b}
+                        onClick={() => { setValue('incidentLocation', b, { shouldValidate: true }); setIsBarangayOpen(false) }}
+                        className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {errors.incidentLocation && (
+                <p className="mt-1 text-sm text-red-600">{errors.incidentLocation.message}</p>
               )}
             </div>
-            {errors.incidentLocation && (
-              <p className="mt-1 text-sm text-red-600">{errors.incidentLocation.message}</p>
-            )}
-          </div>
 
-          <div>
-            <label htmlFor="incidentDate" className="block text-sm font-medium text-gray-700 mb-1">
-              Incident Date *
-            </label>
-            <input
-              {...register('incidentDate', { required: 'Incident date is required' })}
-              type="date"
-              id="incidentDate"
-              className="input-field"
-            />
-            {errors.incidentDate && (
-              <p className="mt-1 text-sm text-red-600">{errors.incidentDate.message}</p>
-            )}
-          </div>
+            <div>
+              <label htmlFor="incidentDate" className="block text-sm font-medium text-gray-700 mb-1">
+                Incident Date *
+              </label>
+              <input
+                {...register('incidentDate', { required: 'Incident date is required' })}
+                type="date"
+                id="incidentDate"
+                className="input-field"
+              />
+              {errors.incidentDate && (
+                <p className="mt-1 text-sm text-red-600">{errors.incidentDate.message}</p>
+              )}
+            </div>
 
-          <div>
-            <label htmlFor="incidentTime" className="block text-sm font-medium text-gray-700 mb-1">
-              Incident Time *
-            </label>
-            <input
-              {...register('incidentTime', { required: 'Incident time is required' })}
-              type="time"
-              id="incidentTime"
-              className="input-field"
-            />
-            {errors.incidentTime && (
-              <p className="mt-1 text-sm text-red-600">{errors.incidentTime.message}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Abuse Type */}
-        <div>
-          <label htmlFor="abuseType" className="block text-sm font-medium text-gray-700 mb-1">
-            Type of Abuse *
-          </label>
-          <select
-            {...register('abuseType', { required: 'Abuse type is required' })}
-            id="abuseType"
-            className="input-field"
-          >
-            <option value="">Select abuse type</option>
-            <option value="physical">Physical abuse</option>
-            <option value="neglect">Neglect</option>
-            <option value="abandonment">Abandonment</option>
-            <option value="fighting">Animal fighting</option>
-            <option value="hoarding">Hoarding</option>
-            <option value="other">Other</option>
-          </select>
-          {errors.abuseType && (
-            <p className="mt-1 text-sm text-red-600">{errors.abuseType.message}</p>
-          )}
-        </div>
-
-        {/* Animal Description */}
-        <div>
-          <label htmlFor="animalDescription" className="block text-sm font-medium text-gray-700 mb-1">
-            Animal Description *
-          </label>
-          <textarea
-            {...register('animalDescription', { required: 'Animal description is required' })}
-            id="animalDescription"
-            rows={3}
-            className="input-field"
-            placeholder="Describe the animal(s) involved (type, breed, color, size, etc.)"
-          />
-          {errors.animalDescription && (
-            <p className="mt-1 text-sm text-red-600">{errors.animalDescription.message}</p>
-          )}
-        </div>
-
-        {/* Perpetrator Description */}
-        <div>
-          <label htmlFor="perpetratorDescription" className="block text-sm font-medium text-gray-700 mb-1">
-            Perpetrator Description
-          </label>
-          <textarea
-            {...register('perpetratorDescription')}
-            id="perpetratorDescription"
-            rows={3}
-            className="input-field"
-            placeholder="Describe the person(s) involved (if known)"
-          />
-        </div>
-
-        {/* Witness Details */}
-        <div>
-          <label htmlFor="witnessDetails" className="block text-sm font-medium text-gray-700 mb-1">
-            Witness Details
-          </label>
-          <textarea
-            {...register('witnessDetails')}
-            id="witnessDetails"
-            rows={3}
-            className="input-field"
-            placeholder="Were there any witnesses? What did they see?"
-          />
-        </div>
-
-        {/* Contact Information */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="contactName" className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Name *
-            </label>
-            <input
-              {...register('contactName', { required: 'Contact name is required' })}
-              type="text"
-              id="contactName"
-              className="input-field"
-              placeholder="Your full name"
-            />
-            {errors.contactName && (
-              <p className="mt-1 text-sm text-red-600">{errors.contactName.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Phone *
-            </label>
-            <input
-              {...register('contactPhone', { required: 'Contact phone is required' })}
-              type="tel"
-              id="contactPhone"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className="input-field"
-              placeholder="Your phone number"
-            />
-            {errors.contactPhone && (
-              <p className="mt-1 text-sm text-red-600">{errors.contactPhone.message}</p>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700 mb-1">
-              Contact Email *
-            </label>
-            <input
-              {...register('contactEmail', {
-                required: 'Contact email is required',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address'
-                }
-              })}
-              type="email"
-              id="contactEmail"
-              className="input-field"
-              placeholder="Your email address"
-            />
-            {errors.contactEmail && (
-              <p className="mt-1 text-sm text-red-600">{errors.contactEmail.message}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Additional Details */}
-        <div>
-          <label htmlFor="additionalDetails" className="block text-sm font-medium text-gray-700 mb-1">
-            Additional Details
-          </label>
-          <textarea
-            {...register('additionalDetails')}
-            id="additionalDetails"
-            rows={4}
-            className="input-field"
-            placeholder="Any additional information about the incident..."
-          />
-        </div>
-
-        {/* File Upload */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Evidence Files (Photos/Videos) *
-          </label>
-          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
-            <div className="space-y-1 text-center">
-              <Upload className="mx-auto h-12 w-12 text-gray-400" />
-              <div className="flex text-sm text-gray-600">
-                <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
-                  <span>Upload files</span>
-                  <input
-                    id="file-upload"
-                    name="file-upload"
-                    type="file"
-                    multiple
-                    className="sr-only"
-                    accept="image/jpeg,image/png,video/mp4"
-                    onChange={handleFileUpload}
-                  />
-                </label>
-                <p className="pl-1">or drag and drop</p>
-              </div>
-              <p className="text-xs text-gray-500">JPEG, PNG, MP4 up to 150MB each</p>
+            <div>
+              <label htmlFor="incidentTime" className="block text-sm font-medium text-gray-700 mb-1">
+                Incident Time *
+              </label>
+              <input
+                {...register('incidentTime', { required: 'Incident time is required' })}
+                type="time"
+                id="incidentTime"
+                className="input-field"
+              />
+              {errors.incidentTime && (
+                <p className="mt-1 text-sm text-red-600">{errors.incidentTime.message}</p>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* File Previews */}
-        {filePreviews.length > 0 && (
+          {/* Abuse Type */}
           <div>
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Uploaded Files:</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {filePreviews.map((preview, index) => (
-                <div key={index} className="relative">
-                  {uploadedFiles[index].type.startsWith('image/') ? (
-                    <img
-                      src={preview}
-                      alt={`File ${index + 1}`}
-                      className="h-24 w-full object-cover rounded-lg"
+            <label htmlFor="abuseType" className="block text-sm font-medium text-gray-700 mb-1">
+              Type of Abuse *
+            </label>
+            <select
+              {...register('abuseType', { required: 'Abuse type is required' })}
+              id="abuseType"
+              className="input-field"
+            >
+              <option value="">Select abuse type</option>
+              <option value="physical">Physical abuse</option>
+              <option value="neglect">Neglect</option>
+              <option value="abandonment">Abandonment</option>
+              <option value="fighting">Animal fighting</option>
+              <option value="hoarding">Hoarding</option>
+              <option value="other">Other</option>
+            </select>
+            {errors.abuseType && (
+              <p className="mt-1 text-sm text-red-600">{errors.abuseType.message}</p>
+            )}
+          </div>
+
+          {/* Animal Description */}
+          <div>
+            <label htmlFor="animalDescription" className="block text-sm font-medium text-gray-700 mb-1">
+              Animal Description *
+            </label>
+            <textarea
+              {...register('animalDescription', { required: 'Animal description is required' })}
+              id="animalDescription"
+              rows={3}
+              className="input-field"
+              placeholder="Describe the animal(s) involved (type, breed, color, size, etc.)"
+            />
+            {errors.animalDescription && (
+              <p className="mt-1 text-sm text-red-600">{errors.animalDescription.message}</p>
+            )}
+          </div>
+
+          {/* Perpetrator Description */}
+          <div>
+            <label htmlFor="perpetratorDescription" className="block text-sm font-medium text-gray-700 mb-1">
+              Perpetrator Description
+            </label>
+            <textarea
+              {...register('perpetratorDescription')}
+              id="perpetratorDescription"
+              rows={3}
+              className="input-field"
+              placeholder="Describe the person(s) involved (if known)"
+            />
+          </div>
+
+          {/* Witness Details */}
+          <div>
+            <label htmlFor="witnessDetails" className="block text-sm font-medium text-gray-700 mb-1">
+              Witness Details
+            </label>
+            <textarea
+              {...register('witnessDetails')}
+              id="witnessDetails"
+              rows={3}
+              className="input-field"
+              placeholder="Were there any witnesses? What did they see?"
+            />
+          </div>
+
+          {/* Contact Information */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="contactName" className="block text-sm font-medium text-gray-700 mb-1">
+                Contact Name *
+              </label>
+              <input
+                {...register('contactName', { required: 'Contact name is required' })}
+                type="text"
+                id="contactName"
+                className="input-field"
+                placeholder="Your full name"
+              />
+              {errors.contactName && (
+                <p className="mt-1 text-sm text-red-600">{errors.contactName.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-1">
+                Contact Phone *
+              </label>
+              <input
+                {...register('contactPhone', { required: 'Contact phone is required' })}
+                type="tel"
+                id="contactPhone"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className="input-field"
+                placeholder="Your phone number"
+              />
+              {errors.contactPhone && (
+                <p className="mt-1 text-sm text-red-600">{errors.contactPhone.message}</p>
+              )}
+            </div>
+
+            <div className="md:col-span-2">
+              <label htmlFor="contactEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                Contact Email *
+              </label>
+              <input
+                {...register('contactEmail', {
+                  required: 'Contact email is required',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Invalid email address'
+                  }
+                })}
+                type="email"
+                id="contactEmail"
+                className="input-field"
+                placeholder="Your email address"
+              />
+              {errors.contactEmail && (
+                <p className="mt-1 text-sm text-red-600">{errors.contactEmail.message}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Additional Details */}
+          <div>
+            <label htmlFor="additionalDetails" className="block text-sm font-medium text-gray-700 mb-1">
+              Additional Details
+            </label>
+            <textarea
+              {...register('additionalDetails')}
+              id="additionalDetails"
+              rows={4}
+              className="input-field"
+              placeholder="Any additional information about the incident..."
+            />
+          </div>
+
+          {/* File Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Evidence Files (Photos/Videos) *
+            </label>
+            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+              <div className="space-y-1 text-center">
+                <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                <div className="flex text-sm text-gray-600">
+                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                    <span>Upload files</span>
+                    <input
+                      id="file-upload"
+                      name="file-upload"
+                      type="file"
+                      multiple
+                      className="sr-only"
+                      accept="image/jpeg,image/png,video/mp4"
+                      onChange={handleFileUpload}
                     />
-                  ) : (
-                    <div className="h-24 w-full bg-gray-100 rounded-lg flex items-center justify-center">
-                      <FileText className="h-8 w-8 text-gray-400" />
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeFile(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <p className="text-xs text-gray-500 mt-1 truncate">
-                    {uploadedFiles[index].name}
-                  </p>
+                  </label>
+                  <p className="pl-1">or drag and drop</p>
                 </div>
-              ))}
+                <p className="text-xs text-gray-500">JPEG, PNG, MP4 up to 150MB each</p>
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Submit Button */}
-        <div className="flex justify-end space-x-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="btn-secondary"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting || uploadedFiles.length === 0}
-            className="btn-primary disabled:opacity-50"
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit Report'}
-          </button>
-        </div>
-      </form>
+          {/* File Previews */}
+          {filePreviews.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Uploaded Files:</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {filePreviews.map((preview, index) => (
+                  <div key={index} className="relative">
+                    {uploadedFiles[index].type.startsWith('image/') ? (
+                      <img
+                        src={preview}
+                        alt={`File ${index + 1}`}
+                        className="h-24 w-full object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="h-24 w-full bg-gray-100 rounded-lg flex items-center justify-center">
+                        <FileText className="h-8 w-8 text-gray-400" />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeFile(index)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <p className="text-xs text-gray-500 mt-1 truncate">
+                      {uploadedFiles[index].name}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onBack}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || uploadedFiles.length === 0}
+              className="btn-primary disabled:opacity-50"
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   )

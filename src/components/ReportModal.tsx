@@ -31,19 +31,20 @@ const ReportModal = () => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 h-full flex flex-col">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {isSubmitted ? 'Thank You!' : reportType ? 'Submit a Report' : 'Submit a Report'}
-            </h2>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-
+          {/* Header only on selection and after submit, not when form is open */}
+          {(!reportType || isSubmitted) && (
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {isSubmitted ? 'Thank You!' : 'Submit a Report'}
+              </h2>
+              <button
+                onClick={handleClose}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+          )}
           {/* Success Message */}
           {isSubmitted ? (
             <div className="flex-1 flex items-center justify-center">

@@ -100,22 +100,20 @@ const AbusedAnimalForm = ({ onBack, onClose, onSubmitSuccess }: AbusedAnimalForm
     <div className="min-h-screen bg-white">
       {/* Header - full width orange */}
       <div className="bg-orange-500 text-white p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <div className="max-w-7xl mx-auto relative flex items-center justify-center">
+          {/* Back Arrow Button - positioned absolutely to the left */}
           <button
             onClick={onBack}
-            className="flex items-center text-white hover:bg-orange-600 p-2 rounded-full transition-colors"
+            className="absolute left-0 flex items-center text-white hover:bg-orange-600 p-2 rounded-full transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
+
+          {/* Centered Heading */}
           <h1 className="text-2xl font-bold">Abused Animal Report</h1>
-          <button
-            onClick={onClose}
-            className="text-white hover:bg-orange-600 p-2 rounded-full transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
       </div>
+
 
       <div className="max-w-7xl mx-auto p-4 md:p-8">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

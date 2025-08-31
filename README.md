@@ -109,6 +109,37 @@ src/
 - **Modals**: Overlay modals for forms and dialogs
 - **Cards**: Animal profile cards and information displays
 
+## Theme & Color Palette
+
+The StreetPaws app uses a soft, friendly color palette to create a welcoming and cute experience. The main colors are:
+
+- **Primary Orange:** #F97316 (used for buttons, accents, and highlights)
+- **Soft Orange:** #FEF3E7 (backgrounds, cards)
+- **Gray:** #F3F4F6, #D1D5DB (backgrounds, borders, text)
+- **Black:** #111827 (main text)
+- **White:** #FFFFFF (backgrounds, cards)
+
+### UI Style
+- Rounded corners and drop shadows for cards and modals
+- Playful accent borders and icons
+- Large, friendly input fields and buttons
+- Modal forms are centered, with padding and overlay
+- Consistent use of theme colors for each report type
+
+Feel free to adjust the palette in `tailwind.config.js` or your CSS for your own branding!
+
+## Tech Stack
+
+- **Programming Languages:** TypeScript, JavaScript
+- **Framework:** React
+- **Build Tool:** Vite
+- **Styling:** Tailwind CSS
+- **State Management:** Zustand
+- **Forms:** react-hook-form
+- **Icons:** Lucide-react
+- **Notifications:** react-hot-toast
+- **Firebase:** (for authentication and backend)
+
 ## 🔐 Authentication
 
 The application uses Firebase Authentication with:
@@ -190,4 +221,4 @@ For support, email support@streetpaws.com or create an issue in the repository.
 
 ---
 
-**StreetPaws** - Making the world a better place for animals, one adoption at a time. 🐕🐱 
+**StreetPaws** - Making the world a better place for animals, one adoption at a time. 🐕🐱

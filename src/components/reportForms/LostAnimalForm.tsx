@@ -97,20 +97,17 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
     <div className="min-h-screen bg-white">
       {/* Header - full width orange */}
       <div className="bg-orange-500 text-white p-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <div className="max-w-7xl mx-auto relative flex items-center justify-center">
+          {/* Back Arrow Button - positioned absolutely to the left */}
           <button
             onClick={onBack}
-            className="flex items-center text-white hover:bg-orange-600 p-2 rounded-full transition-colors"
+            className="absolute left-0 flex items-center text-white hover:bg-orange-600 p-2 rounded-full transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-2xl font-bold">Report Lost Animal</h1>
-          <button
-            onClick={onClose}
-            className="text-white hover:bg-orange-600 p-2 rounded-full transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+
+          {/* Centered Heading */}
+          <h1 className="text-2xl font-bold">Lost Animal Report</h1>
         </div>
       </div>
 
@@ -126,8 +123,11 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
                 {...register('animalType', { required: 'Animal type is required' })}
                 id="animalType"
                 className="input-field"
+                defaultValue=""
               >
-                <option value="">Select animal type</option>
+                <option value="" disabled hidden>
+                  Select animal type
+                </option>
                 <option value="dog">Dog</option>
                 <option value="cat">Cat</option>
               </select>
@@ -144,7 +144,7 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
                 type="text"
                 id="animalName"
                 className="input-field"
-                placeholder="Enter pet's name"
+                placeholder="e.g., Mingming"
               />
               {errors.animalName && (
                 <p className="mt-1 text-sm text-red-600">{errors.animalName.message}</p>
@@ -159,7 +159,7 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
                 type="text"
                 id="breed"
                 className="input-field"
-                placeholder="Enter breed"
+                placeholder="e.g., Labrador"
               />
               {errors.breed && (
                 <p className="mt-1 text-sm text-red-600">{errors.breed.message}</p>
@@ -203,11 +203,13 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
                 {...register('gender', { required: 'Gender is required' })}
                 id="gender"
                 className="input-field"
+                defaultValue=""
               >
-                <option value="">Select gender</option>
+                <option value="" disabled hidden>
+                  Select gender
+                </option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-                <option value="unknown">Unknown</option>
               </select>
               {errors.gender && (
                 <p className="mt-1 text-sm text-red-600">{errors.gender.message}</p>
@@ -221,8 +223,11 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
                 {...register('size', { required: 'Size is required' })}
                 id="size"
                 className="input-field"
+                defaultValue=""
               >
-                <option value="">Select size</option>
+                <option value="" disabled hidden>
+                  Select size
+                </option>
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
@@ -239,8 +244,11 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
                 {...register('spayNeuterStatus', { required: 'Spay/neuter status is required' })}
                 id="spayNeuterStatus"
                 className="input-field"
+                defaultValue=""
               >
-                <option value="">Select status</option>
+                <option value="" disabled hidden>
+                  Select status
+                </option>
                 <option value="spayed">Spayed</option>
                 <option value="neutered">Neutered</option>
                 <option value="intact">Intact</option>

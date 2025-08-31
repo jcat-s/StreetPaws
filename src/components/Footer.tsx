@@ -3,8 +3,8 @@ import { Facebook, Mail } from 'lucide-react'
 
 const Footer = () => {
   return (
-    <footer className="bg-orange-100 shadow-lg mt-auto rounded-t-[30px]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <footer className="bg-orange-100 shadow-lg rounded-t-[30px]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* About Section */}
           <div className="col-span-1 md:col-span-2">

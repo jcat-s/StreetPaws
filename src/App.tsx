@@ -9,7 +9,7 @@ import AboutUs from './pages/AboutUs'
 import ContactUs from './pages/ContactUs'
 import Donate from './pages/Donate'
 import LostAndFound from './pages/LostAndFound'
-import AnimalProfile from './pages/AnimalProfile'
+// AnimalProfile page removed; profile is now a modal
 import AdoptionForm from './pages/AdoptionForm'
 import DonationForm from './pages/DonationForm'
 import ReportModal from './components/ReportModal'
@@ -32,7 +32,7 @@ function App() {
               <Route path="/contact-us" element={<ContactUs />} />
               <Route path="/donate" element={<Donate />} />
               <Route path="/lost-and-found" element={<LostAndFound />} />
-              <Route path="/animal/:id" element={<AnimalProfile />} />
+              {/* animal profile route removed — profiles open in a modal from Our Animals */}
               <Route path="/adoption-form/:animalId" element={<AdoptionForm />} />
               <Route path="/donation-form" element={<DonationForm />} />
             </Routes>

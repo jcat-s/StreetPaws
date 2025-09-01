@@ -261,7 +261,7 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
           </div>
 
           {/* Last Seen Location and Time */}
-          <div className="grid md:grid-cols-3 gap-4 mt-6">
+          <div className="grid md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label htmlFor="lastSeenLocation" className="block text-sm font-medium text-gray-700 mb-1">
                 Last Seen Location *
@@ -271,7 +271,7 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
                 <button
                   type="button"
                   onClick={() => setIsBarangayOpen(!isBarangayOpen)}
-                  className="w-full text-left px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white"
+                  className="input-field text-left"
                 >
                   {selectedBarangay || 'Select barangay'}
                 </button>
@@ -465,8 +465,8 @@ const LostAnimalForm = ({ onBack, onClose, onSubmitSuccess }: LostAnimalFormProp
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
 

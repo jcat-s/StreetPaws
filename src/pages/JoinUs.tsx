@@ -33,7 +33,7 @@ const JoinUs = () => {
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h3 className="text-xl font-semibold mb-2">Ready to help?</h3>
           <p className="text-gray-600 mb-4">Submit a short application and we’ll contact you about the next orientation schedule.</p>
-          <a href="" target="_blank" rel="noreferrer" className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-md">Apply as Volunteer</a>
+          <a href="/volunteer" className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-md">Apply as Volunteer</a>
         </div>
       </div>
     </div>

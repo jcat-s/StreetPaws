@@ -10,8 +10,7 @@ interface FoundAnimalFormData {
   estimatedAge: string
   gender: string
   size: string
-  hasCollar: string
-  hasTags: string
+  wearing: string
   condition: string
   foundLocation: string
   foundDate: string
@@ -122,30 +121,32 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
               <label htmlFor="animalType" className="block text-sm font-medium text-gray-700 mb-1">
                 Animal Type *
               </label>
-              <div className="flex items-center gap-6">
-                <label className="flex items-center gap-2">
-                  <input type="radio" value="dog" {...register('animalType', { required: 'Animal type is required' })} />
-                  <span>Dog</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="radio" value="cat" {...register('animalType', { required: 'Animal type is required' })} />
-                  <span>Cat</span>
-                </label>
-              </div>
+              <select
+                {...register('animalType', { required: 'Animal type is required' })}
+                id="animalType"
+                className="input-field"
+                defaultValue=""
+              >
+                <option value="" disabled hidden>
+                  Select animal type
+                </option>
+                <option value="dog">Dog</option>
+                <option value="cat">Cat</option>
+              </select>
               {errors.animalType && (
                 <p className="mt-1 text-sm text-red-600">{errors.animalType.message}</p>
               )}
             </div>
             <div>
               <label htmlFor="breed" className="block text-sm font-medium text-gray-700 mb-1">
-                Breed/Type *
+                Breed *
               </label>
               <input
-                {...register('breed', { required: 'Breed/type is required' })}
+                {...register('breed', { required: 'Breed is required' })}
                 type="text"
                 id="breed"
                 className="input-field"
-                placeholder="Enter breed or type"
+                placeholder="e.g., Labrador"
               />
               {errors.breed && (
                 <p className="mt-1 text-sm text-red-600">{errors.breed.message}</p>
@@ -189,8 +190,11 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
                 {...register('gender', { required: 'Gender is required' })}
                 id="gender"
                 className="input-field"
+                defaultValue=""
               >
-                <option value="">Select gender</option>
+                <option value="" disabled hidden>
+                  Select gender
+                </option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="unknown">Unknown</option>
@@ -207,8 +211,11 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
                 {...register('size', { required: 'Size is required' })}
                 id="size"
                 className="input-field"
+                defaultValue=""
               >
-                <option value="">Select size</option>
+                <option value="" disabled hidden>
+                  Select size
+                </option>
                 <option value="small">Small</option>
                 <option value="medium">Medium</option>
                 <option value="large">Large</option>
@@ -218,67 +225,55 @@ const FoundAnimalForm = ({ onBack, onClose, onSubmitSuccess }: FoundAnimalFormPr
               )}
             </div>
             <div>
-              <label htmlFor="hasCollar" className="block text-sm font-medium text-gray-700 mb-1">
-                Has Collar? *
+              <label htmlFor="wearing" className="block text-sm font-medium text-gray-700 mb-1">
+                Animal's wearing? *
               </label>
               <select
-                {...register('hasCollar', { required: 'Collar status is required' })}
-                id="hasCollar"
+                {...register('wearing', { required: 'This field is required' })}
+                id="wearing"
                 className="input-field"
+                defaultValue=""
               >
-                <option value="">Select</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-                <option value="unknown">Unknown</option>
+                <option value="" disabled hidden>
+                  Select wearing
+                </option>
+                <option value="tags">Has tags</option>
+                <option value="collar">Has collar</option>
+                <option value="other">Other</option>
+                <option value="none">None</option>
               </select>
-              {errors.hasCollar && (
-                <p className="mt-1 text-sm text-red-600">{errors.hasCollar.message}</p>
+              {errors.wearing && (
+                <p className="mt-1 text-sm text-red-600">{errors.wearing.message}</p>
               )}
             </div>
+
+            {/* Animal Condition */}
             <div>
-              <label htmlFor="hasTags" className="block text-sm font-medium text-gray-700 mb-1">
-                Has Tags? *
+              <label htmlFor="condition" className="block text-sm font-medium text-gray-700 mb-1">
+                Animal’s Condition *
               </label>
               <select
-                {...register('hasTags', { required: 'Tags status is required' })}
-                id="hasTags"
+                {...register('condition', { required: 'Condition is required' })}
+                id="condition"
                 className="input-field"
+                defaultValue=""
               >
-                <option value="">Select</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-                <option value="unknown">Unknown</option>
+                <option value="" disabled hidden>
+                  Select condition
+                </option>
+                <option value="healthy">Healthy</option>
+                <option value="injured">Injured</option>
+                <option value="sick">Sick</option>
+                <option value="malnourished">Malnourished</option>
+                <option value="deceased">Deceased</option>
               </select>
-              {errors.hasTags && (
-                <p className="mt-1 text-sm text-red-600">{errors.hasTags.message}</p>
+              {errors.condition && (
+                <p className="mt-1 text-sm text-red-600">{errors.condition.message}</p>
               )}
             </div>
           </div>
-
-          {/* Animal Condition */}
-          <div>
-            <label htmlFor="condition" className="block text-sm font-medium text-gray-700 mb-1">
-              Animal's Condition *
-            </label>
-            <select
-              {...register('condition', { required: 'Condition is required' })}
-              id="condition"
-              className="input-field"
-            >
-              <option value="">Select condition</option>
-              <option value="healthy">Healthy</option>
-              <option value="injured">Injured</option>
-              <option value="sick">Sick</option>
-              <option value="malnourished">Malnourished</option>
-              <option value="other">Other</option>
-            </select>
-            {errors.condition && (
-              <p className="mt-1 text-sm text-red-600">{errors.condition.message}</p>
-            )}
-          </div>
-
           {/* Found Location and Time */}
-          <div className="grid md:grid-cols-3 gap-4 mt-6">
+          <div className="grid md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label htmlFor="foundLocation" className="block text-sm font-medium text-gray-700 mb-1">
                 Found Location *

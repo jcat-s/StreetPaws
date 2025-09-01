@@ -12,6 +12,9 @@ import LostAndFound from './pages/LostAndFound'
 import AdoptionForm from './pages/AdoptionForm'
 import DonationForm from './pages/DonationForm'
 import VolunteerForm from './pages/VolunteerForm'
+import LostReport from './pages/LostReport'
+import FoundReport from './pages/FoundReport'
+import AbusedReport from './pages/AbusedReport'
 import ReportModal from './components/ReportModal'
 import LoginModal from './components/LoginModal'
 import SignUpModal from './components/SignUpModal'
@@ -35,6 +38,9 @@ function App() {
               <Route path="/adoption-form/:animalId" element={<AdoptionForm />} />
               <Route path="/donation-form" element={<DonationForm />} />
               <Route path="/volunteer" element={<VolunteerForm />} />
+              <Route path="/report/lost" element={<LostReport />} />
+              <Route path="/report/found" element={<FoundReport />} />
+              <Route path="/report/abuse" element={<AbusedReport />} />
             </Routes>
           </main>
           <ReportModal />

@@ -22,7 +22,8 @@ const ContactUs = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Location</h3>
-                  <p className="text-gray-600">Lipa City, Batangas</p>
+                  <p className="text-gray-600"> Lipa City Veterinary Office</p>
+                  <p className="text-gray-600"> Marawoy, Lipa City, Batangas</p>
                 </div>
               </div>
 
@@ -32,7 +33,7 @@ const ContactUs = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Phone</h3>
-                  <p className="text-gray-600">0966 871 0191</p>
+                  <p className="text-gray-600"> 0966 871 0191 / 043-740-0638</p>
                 </div>
               </div>
 
@@ -52,13 +53,13 @@ const ContactUs = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-1">Facebook</h3>
-                  <a 
-                    href="https://fb.com/CityVeterinaryOfficeLipa" 
-                    target="_blank" 
+                  <a
+                    href="https://fb.com/CityVeterinaryOffice-Lipa"
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className="text-orange-600 hover:text-orange-700 transition-colors"
+                    className="text-orange-600 hover:text-orange-700 transition-colors underline"
                   >
-                    City Veterinary Office Lipa
+                    fb.com/CityVeterinaryOffice-Lipa
                   </a>
                 </div>
               </div>
@@ -79,7 +80,7 @@ const ContactUs = () => {
                   placeholder="Your name"
                 />
               </div>
-              
+
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input
@@ -87,7 +88,7 @@ const ContactUs = () => {
                   id="email"
                   name="email"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500"
-                  placeholder="your.email@example.com"
+                  placeholder="your.email@gmail.com"
                 />
               </div>
 

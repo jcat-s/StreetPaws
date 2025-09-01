@@ -39,7 +39,7 @@ const AboutUs = () => {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">Adoption Services</h3>
             <p className="text-gray-600">
               We help animals find their forever homes through our comprehensive
-              adoption program and matching process.
+              adoption program.
             </p>
           </div>
 

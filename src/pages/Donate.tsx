@@ -11,10 +11,10 @@ const Donate = () => {
             Help Us Make Streets Safer for Animals
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Your donations help us rescue, care for, and find homes for stray animals. 
+            Your donations help us rescue, care for, and find homes for stray animals.
             Every contribution makes a difference in creating a more compassionate community.
           </p>
-          
+
           {/* Main Donate Button */}
           <Link
             to="/donation-form"
@@ -71,7 +71,7 @@ const Donate = () => {
               <h3 className="font-semibold text-gray-900">Pet Food</h3>
               <p className="text-sm text-gray-600">Dry and wet food</p>
             </div>
-            
+
             <div className="text-center">
               <div className="bg-gray-200 rounded-lg h-32 mb-4 flex items-center justify-center">
                 <Pill className="h-12 w-12 text-gray-400" />
@@ -79,7 +79,7 @@ const Donate = () => {
               <h3 className="font-semibold text-gray-900">Medicine</h3>
               <p className="text-sm text-gray-600">Vaccines and treatments</p>
             </div>
-            
+
             <div className="text-center">
               <div className="bg-gray-200 rounded-lg h-32 mb-4 flex items-center justify-center">
                 <Package className="h-12 w-12 text-gray-400" />
@@ -87,7 +87,7 @@ const Donate = () => {
               <h3 className="font-semibold text-gray-900">Cages</h3>
               <p className="text-sm text-gray-600">Transport and housing</p>
             </div>
-            
+
             <div className="text-center">
               <div className="bg-gray-200 rounded-lg h-32 mb-4 flex items-center justify-center">
                 <DollarSign className="h-12 w-12 text-gray-400" />

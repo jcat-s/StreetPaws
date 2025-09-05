@@ -99,7 +99,7 @@ const DonationForm = () => {
                 pattern="[0-9]*"
                 maxLength={6}
                 className="input-field"
-                placeholder="e.g., 500"
+                placeholder="e.g., 100"
                 onInput={(e) => {
                   const target = e.target as HTMLInputElement
                   target.value = target.value.replace(/\D/g, '')

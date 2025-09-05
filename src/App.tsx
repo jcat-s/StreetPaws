@@ -15,6 +15,7 @@ import VolunteerForm from './pages/OtherForm/VolunteerForm'
 import LostReport from './pages/ReportForm/LostReport'
 import FoundReport from './pages/ReportForm/FoundReport'
 import AbusedReport from './pages/ReportForm/AbusedReport'
+import TransparencyDashboard from './pages/TransparencyDashboard'
 import ReportModal from './components/ReportModal'
 import LoginModal from './components/LoginModal'
 import SignUpModal from './components/SignUpModal'
@@ -41,6 +42,7 @@ function App() {
               <Route path="/report/lost" element={<LostReport />} />
               <Route path="/report/found" element={<FoundReport />} />
               <Route path="/report/abuse" element={<AbusedReport />} />
+              <Route path="/transparency" element={<TransparencyDashboard />} />
             </Routes>
           </main>
           <ReportModal />

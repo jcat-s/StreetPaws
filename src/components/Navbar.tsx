@@ -13,6 +13,7 @@ const Navbar = () => {
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Our Animals', href: '/our-animals' },
+    { name: 'Lost & Found', href: '/lost-and-found' },
     { name: 'Join Us', href: '/join-us' },
     { name: 'About Us', href: '/about-us' },
     { name: 'Contact Us', href: '/contact-us' },

@@ -2,13 +2,14 @@ import { X } from 'lucide-react'
 import { useModalStore } from '../stores/modalStore'
 
 const AnimalProfileModal = () => {
-  const { isAnimalProfileOpen, selectedAnimal, closeAnimalProfile, openSignUpModal } = useModalStore()
+  const { isAnimalProfileOpen, selectedAnimal, closeAnimalProfile } = useModalStore()
 
   if (!isAnimalProfileOpen || !selectedAnimal) return null
 
   const handleAdopt = () => {
     closeAnimalProfile()
-    openSignUpModal()
+    // Temporarily navigate directly to adoption form without signup
+    window.location.href = `/adoption-form/${selectedAnimal.id}`
   }
 
   return (

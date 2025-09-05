@@ -16,13 +16,22 @@ const Donate = () => {
           </p>
 
           {/* Main Donate Button */}
-          <Link
-            to="/donation-form"
-            className="inline-flex items-center bg-primary-500 hover:bg-primary-600 text-white font-bold py-4 px-8 rounded-full text-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
-          >
-            <Heart className="h-6 w-6 mr-2" />
-            Donate Now
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              to="/donation-form"
+              className="inline-flex items-center bg-primary-500 hover:bg-primary-600 text-white font-bold py-4 px-8 rounded-full text-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+            >
+              <Heart className="h-6 w-6 mr-2" />
+              Donate Now
+            </Link>
+            <Link
+              to="/transparency"
+              className="inline-flex items-center border-2 border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white font-bold py-4 px-8 rounded-full text-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+            >
+              <DollarSign className="h-6 w-6 mr-2" />
+              View Transparency
+            </Link>
+          </div>
         </div>
 
         {/* How Donations Help */}

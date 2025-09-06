@@ -19,6 +19,7 @@ import TransparencyDashboard from './pages/TransparencyDashboard'
 import ReportModal from './components/ReportModal'
 import LoginModal from './components/LoginModal'
 import SignUpModal from './components/SignUpModal'
+import ForgotPasswordModal from './components/ForgotPasswordModal'
 import Footer from './components/Footer'
 
 function App() {
@@ -48,6 +49,7 @@ function App() {
           <ReportModal />
           <LoginModal />
           <SignUpModal />
+          <ForgotPasswordModal />
           <Toaster position="top-right" />
           <Footer />
         </div>

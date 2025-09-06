@@ -390,3 +390,4 @@ const TransparencyDashboard = () => {
 }
 
 export default TransparencyDashboard
+

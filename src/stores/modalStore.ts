@@ -3,6 +3,7 @@ import { create } from 'zustand'
 interface ModalState {
   isLoginModalOpen: boolean
   isSignUpModalOpen: boolean
+  isForgotPasswordModalOpen: boolean
   isReportModalOpen: boolean
   isAnimalProfileOpen: boolean
   selectedAnimal: {
@@ -19,6 +20,8 @@ interface ModalState {
   closeLoginModal: () => void
   openSignUpModal: () => void
   closeSignUpModal: () => void
+  openForgotPasswordModal: () => void
+  closeForgotPasswordModal: () => void
   openReportModal: () => void
   closeReportModal: () => void
   openAnimalProfile: (animal: any) => void
@@ -28,6 +31,7 @@ interface ModalState {
 export const useModalStore = create<ModalState>((set) => ({
   isLoginModalOpen: false,
   isSignUpModalOpen: false,
+  isForgotPasswordModalOpen: false,
   isReportModalOpen: false,
 
   openLoginModal: () => set({ isLoginModalOpen: true }),
@@ -35,6 +39,9 @@ export const useModalStore = create<ModalState>((set) => ({
 
   openSignUpModal: () => set({ isSignUpModalOpen: true }),
   closeSignUpModal: () => set({ isSignUpModalOpen: false }),
+
+  openForgotPasswordModal: () => set({ isForgotPasswordModalOpen: true }),
+  closeForgotPasswordModal: () => set({ isForgotPasswordModalOpen: false }),
 
   openReportModal: () => set({ isReportModalOpen: true }),
   closeReportModal: () => set({ isReportModalOpen: false }),

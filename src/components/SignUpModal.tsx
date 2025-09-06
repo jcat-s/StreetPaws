@@ -37,7 +37,7 @@ const SignUpModal = () => {
       closeSignUpModal()
       reset()
     } catch (error) {
-      toast.error('Failed to create account. Please try again.')
+      toast.error(error instanceof Error ? error.message : 'Failed to create account. Please try again.')
     } finally {
       setIsLoading(false)
     }

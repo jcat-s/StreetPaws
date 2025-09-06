@@ -2,13 +2,13 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, Auth } from 'firebase/auth'
 
 const firebaseConfig = {
-  apiKey: "demo-api-key",
-  authDomain: "demo-project.firebaseapp.com",
-  projectId: "demo-project",
-  storageBucket: "demo-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "demo-app-id",
-  databaseURL: "https://demo-project-default-rtdb.firebaseio.com"
+  apiKey: "AIzaSyAPCesU9DOiBncQWXsxB54nsEFT1iTTA_Y",
+  authDomain: "streetpaws-7b8c4.firebaseapp.com",
+  projectId: "streetpaws-7b8c4",
+  storageBucket: "streetpaws-7b8c4.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abcdef1234567890",
+  databaseURL: "https://streetpaws-7b8c4-default-rtdb.firebaseio.com"
 }
 
 // Initialize Firebase with error handling

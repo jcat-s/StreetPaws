@@ -6,7 +6,7 @@ import { X, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface LoginFormData {
-  username: string
+  email: string
   password: string
   rememberMe: boolean
 }
@@ -15,7 +15,7 @@ const LoginModal = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAuth()
-  const { isLoginModalOpen, closeLoginModal, openSignUpModal } = useModalStore()
+  const { isLoginModalOpen, closeLoginModal, openSignUpModal, openForgotPasswordModal } = useModalStore()
   
   const {
     register,
@@ -27,12 +27,12 @@ const LoginModal = () => {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     try {
-      await login(data.username, data.password)
+      await login(data.email, data.password)
       toast.success('Successfully logged in!')
       closeLoginModal()
       reset()
     } catch (error) {
-      toast.error('Failed to log in. Please check your credentials.')
+      toast.error(error instanceof Error ? error.message : 'Failed to log in. Please check your credentials.')
     } finally {
       setIsLoading(false)
     }
@@ -41,6 +41,11 @@ const LoginModal = () => {
   const handleSignUpClick = () => {
     closeLoginModal()
     openSignUpModal()
+  }
+
+  const handleForgotPasswordClick = () => {
+    closeLoginModal()
+    openForgotPasswordModal()
   }
 
   if (!isLoginModalOpen) return null
@@ -62,18 +67,22 @@ const LoginModal = () => {
           </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-              {/* Username Field */}
+              {/* Email Field */}
             <div>
                 <input
-                  {...register('username', {
-                    required: 'Username is required'
+                  {...register('email', {
+                    required: 'Email is required',
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: 'Invalid email address'
+                    }
                   })}
-                  type="text"
+                  type="email"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Username"
+                  placeholder="Email"
                 />
-                {errors.username && (
-                  <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
               )}
             </div>
 
@@ -115,18 +124,13 @@ const LoginModal = () => {
                 />
                   <span className="ml-2 text-sm text-gray-700">Remember me?</span>
               </label>
-                <a
-                  href="/forgot-password"
+                <button
+                  type="button"
+                  onClick={handleForgotPasswordClick}
                   className="text-sm text-blue-600 hover:text-blue-500 hover:underline"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // Add your forgot password logic here
-                    console.log('Forgot password clicked');
-                    // You can add a forgot password modal or redirect
-                  }}
-              >
-                Forgot Password?
-                </a>
+                >
+                  Forgot Password?
+                </button>
             </div>
 
             {/* Login Button */}

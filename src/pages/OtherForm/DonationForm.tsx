@@ -1,6 +1,10 @@
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
+// Import actual QR code images
+import GCashQR from '../../assets/images/QR/gcash.png'
+import MayaQR from '../../assets/images/QR/maya.png'
+
 interface DonationData {
   name: string
   email: string
@@ -131,10 +135,10 @@ const DonationForm = () => {
           {paymentMethod && (
             <div className="flex justify-center gap-4 mt-4">
               {paymentMethod === "gcash" && (
-                <img src="/images/QR/gcash.png" alt="GCash QR" className="w-96 h-96" />
+                <img src={GCashQR} alt="GCash QR" className="w-96 h-96" />
               )}
               {paymentMethod === "maya" && (
-                <img src="/images/QR/maya.png" alt="Maya QR" className="w-96 h-96" />
+                <img src={MayaQR} alt="Maya QR" className="w-96 h-96" />
               )}
             </div>
           )}

@@ -15,11 +15,11 @@ interface AdoptionFormData {
   
   // Home Environment
   homeType: string
-  hasYard: boolean
+  hasYard: string
   yardSize?: string
-  hasOtherPets: boolean
+  hasOtherPets: string
   otherPetsDetails?: string
-  hasChildren: boolean
+  hasChildren: string
   childrenAges?: string
   
   // Experience & Knowledge

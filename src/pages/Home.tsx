@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useModalStore } from '../stores/modalStore'
+const SPImage = new URL('../assets/images/SP.PNG', import.meta.url).href
 import { Heart, MapPin } from 'lucide-react'
 
 const Home = () => {
@@ -46,7 +47,7 @@ const Home = () => {
             <div className="relative h-64 md:h-96">
               <div className="absolute inset-0 flex items-center justify-center">
                 <img
-                  src="/images/SP.png"
+                  src={SPImage}
                   alt="Cat and Dog"
                   className="w-full h-full object-contain"
                 />

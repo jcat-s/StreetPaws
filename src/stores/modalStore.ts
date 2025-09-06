@@ -26,6 +26,7 @@ interface ModalState {
   closeReportModal: () => void
   openAnimalProfile: (animal: any) => void
   closeAnimalProfile: () => void
+  closeAllModals: () => void
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -50,4 +51,13 @@ export const useModalStore = create<ModalState>((set) => ({
   selectedAnimal: null,
   openAnimalProfile: (animal) => set({ isAnimalProfileOpen: true, selectedAnimal: animal }),
   closeAnimalProfile: () => set({ isAnimalProfileOpen: false, selectedAnimal: null }),
+  // Close all modals
+  closeAllModals: () => set({ 
+    isLoginModalOpen: false, 
+    isSignUpModalOpen: false, 
+    isForgotPasswordModalOpen: false, 
+    isReportModalOpen: false,
+    isAnimalProfileOpen: false,
+    selectedAnimal: null
+  }),
 })) 

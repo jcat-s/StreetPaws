@@ -3,6 +3,12 @@ import { Search, Filter } from 'lucide-react'
 import { useModalStore } from '../stores/modalStore'
 import AnimalProfileModal from '../components/AnimalProfileModal'
 
+// Import actual images
+import JepoyImage from '../assets/images/Animals/Jepoy.jpg'
+import PutchiImage from '../assets/images/Animals/Putchi.jpg'
+import JoshImage from '../assets/images/Animals/Josh.jpg'
+import MeelooImage from '../assets/images/Animals/Meeloo.jpg'
+
 type Animal = {
   id: string
   name: string
@@ -15,10 +21,10 @@ type Animal = {
 }
 
 const MOCK_ANIMALS: Animal[] = [
-  { id: '1', name: 'Jepoy', type: 'dog', breed: 'Golden Retriever', age: '2 years', gender: 'Male', image: '/images/Animals/Jepoy.jpg', description: 'Jepoy is a sweet, playful pup with a heart full of love and a tail that never stops wagging. Curious, cuddly, and always ready for belly rubs, Jepoy is the perfect companion for cozy afternoons and fun-filled adventures.' },
-  { id: '2', name: 'Putchi', type: 'cat', breed: 'Persian', age: '1 year', gender: 'Female', image: '/images/Animals/Putchi.jpg', description: 'Calm and affectionate cat perfect for a quiet home.' },
-  { id: '3', name: 'Josh', type: 'dog', breed: 'Labrador', age: '3 years', gender: 'Male', image: '/images/Animals/Josh.jpg', description: 'Playful and loyal companion ready for adventures.' },
-  { id: '4', name: 'Meeloo', type: 'cat', breed: 'Siamese', age: '2 years', gender: 'Female', image: '/images/Animals/Meeloo.jpg', description: 'Curious and intelligent cat who loves to explore.' }
+  { id: '1', name: 'Jepoy', type: 'dog', breed: 'Golden Retriever', age: '2 years', gender: 'Male', image: JepoyImage, description: 'Jepoy is a sweet, playful pup with a heart full of love and a tail that never stops wagging. Curious, cuddly, and always ready for belly rubs, Jepoy is the perfect companion for cozy afternoons and fun-filled adventures.' },
+  { id: '2', name: 'Putchi', type: 'cat', breed: 'Persian', age: '1 year', gender: 'Female', image: PutchiImage, description: 'Calm and affectionate cat perfect for a quiet home.' },
+  { id: '3', name: 'Josh', type: 'dog', breed: 'Labrador', age: '3 years', gender: 'Male', image: JoshImage, description: 'Playful and loyal companion ready for adventures.' },
+  { id: '4', name: 'Meeloo', type: 'cat', breed: 'Siamese', age: '2 years', gender: 'Female', image: MeelooImage, description: 'Curious and intelligent cat who loves to explore.' }
 ]
 
 export default function OurAnimals() {

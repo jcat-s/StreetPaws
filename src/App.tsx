@@ -16,6 +16,7 @@ import LostReport from './pages/ReportForm/LostReport'
 import FoundReport from './pages/ReportForm/FoundReport'
 import AbusedReport from './pages/ReportForm/AbusedReport'
 import TransparencyDashboard from './pages/TransparencyDashboard'
+import PasswordReset from './pages/PasswordReset'
 import ReportModal from './components/ReportModal'
 import LoginModal from './components/LoginModal'
 import SignUpModal from './components/SignUpModal'
@@ -44,6 +45,7 @@ function App() {
               <Route path="/report/found" element={<FoundReport />} />
               <Route path="/report/abuse" element={<AbusedReport />} />
               <Route path="/transparency" element={<TransparencyDashboard />} />
+              <Route path="/password-reset" element={<PasswordReset />} />
             </Routes>
           </main>
           <ReportModal />

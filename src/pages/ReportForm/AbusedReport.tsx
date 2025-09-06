@@ -24,7 +24,7 @@ const AbusedReport = () => {
     const [filePreviews, setFilePreviews] = useState<string[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<AbusedAnimalFormData>()
+    const { register, handleSubmit, reset, setValue, watch } = useForm<AbusedAnimalFormData>()
     const [isBarangayOpen, setIsBarangayOpen] = useState(false)
     const selectedBarangay = watch('incidentLocation')
 

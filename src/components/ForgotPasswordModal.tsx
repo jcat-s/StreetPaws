@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext'
 import { useModalStore } from '../stores/modalStore'
@@ -13,14 +13,23 @@ const ForgotPasswordModal = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
   const { resetPassword } = useAuth()
-  const { isForgotPasswordModalOpen, closeForgotPasswordModal, openLoginModal } = useModalStore()
+  const { isForgotPasswordModalOpen, closeForgotPasswordModal, openLoginModal, closeAllModals } = useModalStore()
   
   const {
     register,
     handleSubmit,
     formState: { errors },
-    getValues
+    getValues,
+    reset
   } = useForm<ForgotPasswordFormData>()
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isForgotPasswordModalOpen) {
+      setEmailSent(false)
+      reset()
+    }
+  }, [isForgotPasswordModalOpen, reset])
 
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsLoading(true)
@@ -36,7 +45,7 @@ const ForgotPasswordModal = () => {
   }
 
   const handleBackToLogin = () => {
-    closeForgotPasswordModal()
+    closeAllModals()
     openLoginModal()
   }
 
@@ -88,6 +97,9 @@ const ForgotPasswordModal = () => {
               <div className="mb-6">
                 <p className="text-gray-600 text-sm">
                   Enter your email address and we'll send you a link to reset your password.
+                </p>
+                <p className="text-gray-500 text-xs mt-2">
+                  You'll be redirected to a secure page where you can set a new strong password.
                 </p>
               </div>
 

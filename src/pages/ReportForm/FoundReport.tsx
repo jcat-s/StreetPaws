@@ -28,7 +28,7 @@ const FoundReport = () => {
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<FoundAnimalFormData>()
+    const { register, handleSubmit, reset, setValue, watch } = useForm<FoundAnimalFormData>()
     const [isBarangayOpen, setIsBarangayOpen] = useState(false)
     const selectedBarangay = watch('foundLocation')
 

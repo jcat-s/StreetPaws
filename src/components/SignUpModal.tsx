@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth, validatePasswordStrength } from '../contexts/AuthContext'
 import { useModalStore } from '../stores/modalStore'
-import { X, Eye, EyeOff } from 'lucide-react'
+import { X, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface SignUpFormData {
@@ -16,6 +16,7 @@ interface SignUpFormData {
 const SignUpModal = () => {
   const [showPasswords, setShowPasswords] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState({ isValid: false, message: '' })
   const { signup } = useAuth()
   const { isSignUpModalOpen, closeSignUpModal, openLoginModal } = useModalStore()
 
@@ -29,13 +30,30 @@ const SignUpModal = () => {
 
   const password = watch('password')
 
+  // Check password strength in real-time
+  useEffect(() => {
+    if (password) {
+      setPasswordStrength(validatePasswordStrength(password))
+    } else {
+      setPasswordStrength({ isValid: false, message: '' })
+    }
+  }, [password])
+
   const onSubmit = async (data: SignUpFormData) => {
+    if (!passwordStrength.isValid) {
+      toast.error(passwordStrength.message)
+      return
+    }
     setIsLoading(true)
     try {
       await signup(data.email, data.password)
-      toast.success('Account created successfully!')
+      toast.success('Account created successfully! You can now log in.')
       closeSignUpModal()
       reset()
+      // Automatically open login modal for new users
+      setTimeout(() => {
+        openLoginModal()
+      }, 1000)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create account. Please try again.')
     } finally {
@@ -133,26 +151,37 @@ const SignUpModal = () => {
               </div>
 
               {/* Password Field */}
-              <div className="relative">
-                <input
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: {
-                      value: 6,
-                      message: 'Password must be at least 6 characters'
-                    }
-                  })}
-                  type={showPasswords ? 'text' : 'password'}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-12"
-                  placeholder="Password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPasswords(!showPasswords)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPasswords ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+              <div>
+                <div className="relative">
+                  <input
+                    {...register('password', {
+                      required: 'Password is required',
+                      validate: (value) => {
+                        const strength = validatePasswordStrength(value)
+                        return strength.isValid || strength.message
+                      }
+                    })}
+                    type={showPasswords ? 'text' : 'password'}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-12"
+                    placeholder="Password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(!showPasswords)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPasswords ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+                
+                {/* Password Strength Indicator */}
+                {password && (
+                  <div className={`mt-2 flex items-center text-sm ${passwordStrength.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                    {passwordStrength.isValid ? <CheckCircle className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                    <span className="ml-1">{passwordStrength.message}</span>
+                  </div>
+                )}
+                
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
                 )}
@@ -160,25 +189,63 @@ const SignUpModal = () => {
 
               {/* Confirm Password Field */}
               <div>
-                <input
-                  {...register('confirmPassword', {
-                    required: 'Please confirm your password',
-                    validate: value => value === password || 'Passwords do not match'
-                  })}
-                  type={showPasswords ? 'text' : 'password'}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Confirm Password"
-                />
+                <div className="relative">
+                  <input
+                    {...register('confirmPassword', {
+                      required: 'Please confirm your password',
+                      validate: value => value === password || 'Passwords do not match'
+                    })}
+                    type={showPasswords ? 'text' : 'password'}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-12"
+                    placeholder="Confirm Password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(!showPasswords)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPasswords ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
                 {errors.confirmPassword && (
                   <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
                 )}
               </div>
 
+              {/* Password Requirements */}
+              {password && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-600 font-medium mb-2">Password Requirements:</p>
+                  <ul className="text-xs text-gray-600 space-y-1">
+                    <li className={`flex items-center ${password && password.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className="mr-2">•</span>
+                      At least 8 characters
+                    </li>
+                    <li className={`flex items-center ${password && /(?=.*[a-z])/.test(password) ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className="mr-2">•</span>
+                      One lowercase letter
+                    </li>
+                    <li className={`flex items-center ${password && /(?=.*[A-Z])/.test(password) ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className="mr-2">•</span>
+                      One uppercase letter
+                    </li>
+                    <li className={`flex items-center ${password && /(?=.*\d)/.test(password) ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className="mr-2">•</span>
+                      One number
+                    </li>
+                    <li className={`flex items-center ${password && /(?=.*[@$!%*?&])/.test(password) ? 'text-green-600' : 'text-gray-500'}`}>
+                      <span className="mr-2">•</span>
+                      One special character (@$!%*?&)
+                    </li>
+                  </ul>
+                </div>
+              )}
+
               {/* Sign Up Button */}
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 uppercase tracking-wide disabled:opacity-50"
+                disabled={isLoading || !passwordStrength.isValid}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200 uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? 'Creating Account...' : 'Sign Up'}
               </button>

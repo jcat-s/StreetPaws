@@ -6,6 +6,8 @@ import {
   signOut, 
   onAuthStateChanged,
   sendPasswordResetEmail,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
+  verifyPasswordResetCode as firebaseVerifyPasswordResetCode,
   Auth,
   AuthError
 } from 'firebase/auth'
@@ -17,6 +19,8 @@ interface AuthContextType {
   signup: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  confirmPasswordReset: (code: string, newPassword: string) => Promise<void>
+  verifyPasswordResetCode: (code: string) => Promise<string>
   loading: boolean
 }
 
@@ -30,6 +34,31 @@ export function useAuth() {
   return context
 }
 
+// Password strength validation
+export const validatePasswordStrength = (password: string): { isValid: boolean; message: string } => {
+  if (password.length < 8) {
+    return { isValid: false, message: 'Password must be at least 8 characters long' }
+  }
+  
+  if (!/(?=.*[a-z])/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least one lowercase letter' }
+  }
+  
+  if (!/(?=.*[A-Z])/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least one uppercase letter' }
+  }
+  
+  if (!/(?=.*\d)/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least one number' }
+  }
+  
+  if (!/(?=.*[@$!%*?&])/.test(password)) {
+    return { isValid: false, message: 'Password must contain at least one special character (@$!%*?&)' }
+  }
+  
+  return { isValid: true, message: 'Password is strong' }
+}
+
 // Helper function to get user-friendly error messages
 const getErrorMessage = (error: AuthError): string => {
   switch (error.code) {
@@ -40,7 +69,7 @@ const getErrorMessage = (error: AuthError): string => {
     case 'auth/email-already-in-use':
       return 'An account with this email already exists.'
     case 'auth/weak-password':
-      return 'Password should be at least 6 characters.'
+      return 'Password should be at least 8 characters with uppercase, lowercase, number, and special character.'
     case 'auth/invalid-email':
       return 'Invalid email address.'
     case 'auth/user-disabled':
@@ -49,6 +78,10 @@ const getErrorMessage = (error: AuthError): string => {
       return 'Too many failed attempts. Please try again later.'
     case 'auth/network-request-failed':
       return 'Network error. Please check your connection.'
+    case 'auth/expired-action-code':
+      return 'The password reset link has expired. Please request a new one.'
+    case 'auth/invalid-action-code':
+      return 'The password reset link is invalid. Please request a new one.'
     default:
       return 'An error occurred. Please try again.'
   }
@@ -96,7 +129,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Firebase auth not initialized')
     }
     try {
-      await sendPasswordResetEmail(auth as Auth, email)
+      // Use custom action URL to redirect to our app
+      const actionCodeSettings = {
+        url: `${window.location.origin}/password-reset`,
+        handleCodeInApp: true,
+      }
+      await sendPasswordResetEmail(auth as Auth, email, actionCodeSettings)
+    } catch (error) {
+      throw new Error(getErrorMessage(error as AuthError))
+    }
+  }
+
+  async function confirmPasswordReset(code: string, newPassword: string): Promise<void> {
+    if (!auth) {
+      throw new Error('Firebase auth not initialized')
+    }
+    try {
+      await firebaseConfirmPasswordReset(auth as Auth, code, newPassword)
+    } catch (error) {
+      throw new Error(getErrorMessage(error as AuthError))
+    }
+  }
+
+  async function verifyPasswordResetCode(code: string): Promise<string> {
+    if (!auth) {
+      throw new Error('Firebase auth not initialized')
+    }
+    try {
+      const email = await firebaseVerifyPasswordResetCode(auth as Auth, code)
+      return email
     } catch (error) {
       throw new Error(getErrorMessage(error as AuthError))
     }
@@ -123,6 +184,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signup,
     logout,
     resetPassword,
+    confirmPasswordReset,
+    verifyPasswordResetCode,
     loading
   }
 

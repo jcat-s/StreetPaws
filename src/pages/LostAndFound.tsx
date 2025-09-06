@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { Search, Filter, MapPin, Calendar, Phone, Mail } from 'lucide-react'
 
+// Import actual images
+import JepoyImage from '../assets/images/Animals/Jepoy.jpg'
+import PutchiImage from '../assets/images/Animals/Putchi.jpg'
+import JoshImage from '../assets/images/Animals/Josh.jpg'
+import MeelooImage from '../assets/images/Animals/Meeloo.jpg'
+
 interface LostFoundAnimal {
   id: string
   type: 'lost' | 'found'
@@ -41,7 +47,7 @@ const MOCK_LOST_FOUND: LostFoundAnimal[] = [
     contactPhone: '09123456789',
     contactEmail: 'maria@email.com',
     description: 'Friendly golden retriever, last seen near the market. Wearing a blue collar.',
-    image: '/images/Animals/Jepoy.jpg',
+    image: JepoyImage,
     additionalDetails: 'Very friendly, responds to name Buddy. May be scared of loud noises.'
   },
   {
@@ -60,7 +66,7 @@ const MOCK_LOST_FOUND: LostFoundAnimal[] = [
     contactPhone: '09876543210',
     contactEmail: 'juan@email.com',
     description: 'Found this beautiful Persian cat near the school. Very clean and well-groomed.',
-    image: '/images/Animals/Putchi.jpg',
+    image: PutchiImage,
     additionalDetails: 'Seems to be well-cared for, possibly lost from a nearby home.'
   },
   {
@@ -79,7 +85,7 @@ const MOCK_LOST_FOUND: LostFoundAnimal[] = [
     contactPhone: '09111222333',
     contactEmail: 'ana@email.com',
     description: 'Young black lab, very energetic. Last seen playing near the park.',
-    image: '/images/Animals/Josh.jpg',
+    image: JoshImage,
     additionalDetails: 'Still a puppy, very playful. May approach people for food.'
   },
   {
@@ -98,7 +104,7 @@ const MOCK_LOST_FOUND: LostFoundAnimal[] = [
     contactPhone: '09444555666',
     contactEmail: 'pedro@email.com',
     description: 'Found this Siamese cat in our backyard. Very vocal and affectionate.',
-    image: '/images/Animals/Meeloo.jpg',
+    image: MeelooImage,
     additionalDetails: 'Appears to be spayed. Very clean and healthy looking.'
   }
 ]

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useAuth } from '../contexts/AuthContext'
-import { useModalStore } from '../stores/modalStore'
+import { useAuth } from '../../contexts/AuthContext'
+import { useModalStore } from '../../stores/modalStore'
 import { X, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -104,7 +104,7 @@ const LoginModal = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 bg-transparent border-none outline-none"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>

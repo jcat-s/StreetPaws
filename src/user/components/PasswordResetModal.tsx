@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { useAuth, validatePasswordStrength } from '../contexts/AuthContext'
+import { useAuth, validatePasswordStrength } from '../../contexts/AuthContext'
 import { X, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -16,7 +16,8 @@ interface PasswordResetModalProps {
 }
 
 const PasswordResetModal = ({ resetCode, email, onClose }: PasswordResetModalProps) => {
-  const [showPasswords, setShowPasswords] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [passwordStrength, setPasswordStrength] = useState({ isValid: false, message: '' })
   const { confirmPasswordReset } = useAuth()
@@ -115,16 +116,16 @@ const PasswordResetModal = ({ resetCode, email, onClose }: PasswordResetModalPro
                       return strength.isValid || strength.message
                     }
                   })}
-                  type={showPasswords ? 'text' : 'password'}
+                  type={showNewPassword ? 'text' : 'password'}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-12"
                   placeholder="Enter new password"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPasswords(!showPasswords)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 bg-transparent border-none outline-none"
                 >
-                  {showPasswords ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
               
@@ -143,15 +144,24 @@ const PasswordResetModal = ({ resetCode, email, onClose }: PasswordResetModalPro
 
             {/* Confirm Password Field */}
             <div>
-              <input
-                {...register('confirmPassword', {
-                  required: 'Please confirm your password',
-                  validate: value => value === newPassword || 'Passwords do not match'
-                })}
-                type={showPasswords ? 'text' : 'password'}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="Confirm new password"
-              />
+              <div className="relative">
+                <input
+                  {...register('confirmPassword', {
+                    required: 'Please confirm your password',
+                    validate: value => value === newPassword || 'Passwords do not match'
+                  })}
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent pr-12"
+                  placeholder="Confirm new password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10 bg-transparent border-none outline-none"
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}

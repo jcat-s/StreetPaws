@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
-import { useModalStore } from '../stores/modalStore'
-const SPImage = new URL('../assets/images/SP.PNG', import.meta.url).href
+import { useModalStore } from '../../../stores/modalStore'
+const SPImage = new URL('../../../assets/images/SP.PNG', import.meta.url).href
 import { Heart, MapPin } from 'lucide-react'
 
 const Home = () => {

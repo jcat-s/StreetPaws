@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { Menu, X, User, Bell, LogOut } from 'lucide-react'
-import LogoImage from '../assets/images/LOGO.png'
+import LogoImage from '../../assets/images/LOGO.png'
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)

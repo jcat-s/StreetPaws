@@ -1,4 +1,4 @@
-import { useModalStore } from '../stores/modalStore'
+import { useModalStore } from '../../stores/modalStore'
 import { X, Search, Heart, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 

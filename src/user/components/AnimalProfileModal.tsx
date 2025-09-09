@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useModalStore } from '../stores/modalStore'
+import { useModalStore } from '../../stores/modalStore'
 
 const AnimalProfileModal = () => {
   const { isAnimalProfileOpen, selectedAnimal, closeAnimalProfile } = useModalStore()

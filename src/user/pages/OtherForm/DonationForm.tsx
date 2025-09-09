@@ -2,8 +2,8 @@ import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
 // Import actual QR code images
-import GCashQR from '../../assets/images/QR/gcash.png'
-import MayaQR from '../../assets/images/QR/maya.png'
+import GCashQR from '../../../assets/images/QR/gcash.png'
+import MayaQR from '../../../assets/images/QR/maya.png'
 
 interface DonationData {
   name: string

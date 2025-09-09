@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Search, Filter } from 'lucide-react'
-import { useModalStore } from '../stores/modalStore'
-import AnimalProfileModal from '../components/AnimalProfileModal'
+import { useModalStore } from '../../../stores/modalStore'
+import AnimalProfileModal from '../../components/AnimalProfileModal'
 
 // Import actual images
-import JepoyImage from '../assets/images/Animals/Jepoy.jpg'
-import PutchiImage from '../assets/images/Animals/Putchi.jpg'
-import JoshImage from '../assets/images/Animals/Josh.jpg'
-import MeelooImage from '../assets/images/Animals/Meeloo.jpg'
+import JepoyImage from '../../../assets/images/Animals/Jepoy.jpg'
+import PutchiImage from '../../../assets/images/Animals/Putchi.jpg'
+import JoshImage from '../../../assets/images/Animals/Josh.jpg'
+import MeelooImage from '../../../assets/images/Animals/Meeloo.jpg'
 
 type Animal = {
   id: string

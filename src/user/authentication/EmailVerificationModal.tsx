@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { useModalStore } from '../stores/modalStore'
+import { useAuth } from '../../contexts/AuthContext'
+import { useModalStore } from '../../stores/modalStore'
 import { X, Mail, AlertCircle, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 

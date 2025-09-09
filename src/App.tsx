@@ -22,6 +22,7 @@ import LoginModal from './user/authentication/LoginModal'
 import SignUpModal from './user/authentication/SignUpModal'
 import ForgotPasswordModal from './user/authentication/ForgotPasswordModal'
 import Footer from './user/components/Footer'
+import AdminApp from './admin/AdminApp'
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
               <Route path="/report/abuse" element={<AbusedReport />} />
               <Route path="/transparency" element={<TransparencyDashboard />} />
               <Route path="/password-reset" element={<PasswordReset />} />
+              <Route path="/admin/*" element={<AdminApp />} />
             </Routes>
           </main>
           <ReportModal />

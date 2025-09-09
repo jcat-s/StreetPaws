@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { Menu, X, User, Bell, LogOut } from 'lucide-react'
+import { Menu, X, User, Bell, LogOut, Shield } from 'lucide-react'
 import LogoImage from '../../assets/images/LOGO.png'
 
 const Navbar = () => {
@@ -83,6 +83,14 @@ const Navbar = () => {
                       <div className="px-4 py-2 text-sm text-gray-700 border-b">
                         <div className="font-medium">{currentUser.email}</div>
                       </div>
+
+                      <Link
+                        to="/admin"
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        Admin Panel
+                      </Link>
 
                       <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                         <Bell className="h-4 w-4 mr-2" />

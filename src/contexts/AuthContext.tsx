@@ -131,9 +131,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Use custom action URL to redirect to our app
       const actionCodeSettings = {
-        url: `${window.location.origin}/password-reset`,
-        handleCodeInApp: true,
+        url: `${window.location.origin}/password-reset?source=email&timestamp=${Date.now()}`,
+        handleCodeInApp: false, // Must be false for proper redirect
       }
+      
+      console.log('Sending password reset with settings:', actionCodeSettings)
+      console.log('Current origin:', window.location.origin)
+      
       await sendPasswordResetEmail(auth as Auth, email, actionCodeSettings)
     } catch (error) {
       throw new Error(getErrorMessage(error as AuthError))

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import Navbar from './user/components/Navbar'
@@ -24,39 +24,52 @@ import ForgotPasswordModal from './user/authentication/ForgotPasswordModal'
 import Footer from './user/components/Footer'
 import AdminApp from './admin/AdminApp'
 
-function App() {
+function AppLayout() {
+  const location = useLocation()
+  const isAdminRoute = location.pathname.startsWith('/admin')
+
   return (
-    <AuthProvider>
-      <Router>
-        <div className="min-h-screen bg-gray-50 flex flex-col">
-          <Navbar />
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/our-animals" element={<OurAnimals />} />
-              <Route path="/join-us" element={<JoinUs />} />
-              <Route path="/about-us" element={<AboutUs />} />
-              <Route path="/contact-us" element={<ContactUs />} />
-              <Route path="/donate" element={<Donate />} />
-              <Route path="/lost-and-found" element={<LostAndFound />} />
-              <Route path="/adoption-form/:animalId" element={<AdoptionForm />} />
-              <Route path="/donation-form" element={<DonationForm />} />
-              <Route path="/volunteer" element={<VolunteerForm />} />
-              <Route path="/report/lost" element={<LostReport />} />
-              <Route path="/report/found" element={<FoundReport />} />
-              <Route path="/report/abuse" element={<AbusedReport />} />
-              <Route path="/transparency" element={<TransparencyDashboard />} />
-              <Route path="/password-reset" element={<PasswordReset />} />
-              <Route path="/admin/*" element={<AdminApp />} />
-            </Routes>
-          </main>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {!isAdminRoute && <Navbar />}
+      <main className="flex-1">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/our-animals" element={<OurAnimals />} />
+          <Route path="/join-us" element={<JoinUs />} />
+          <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/contact-us" element={<ContactUs />} />
+          <Route path="/donate" element={<Donate />} />
+          <Route path="/lost-and-found" element={<LostAndFound />} />
+          <Route path="/adoption-form/:animalId" element={<AdoptionForm />} />
+          <Route path="/donation-form" element={<DonationForm />} />
+          <Route path="/volunteer" element={<VolunteerForm />} />
+          <Route path="/report/lost" element={<LostReport />} />
+          <Route path="/report/found" element={<FoundReport />} />
+          <Route path="/report/abuse" element={<AbusedReport />} />
+          <Route path="/transparency" element={<TransparencyDashboard />} />
+          <Route path="/password-reset" element={<PasswordReset />} />
+          <Route path="/admin/*" element={<AdminApp />} />
+        </Routes>
+      </main>
+      {!isAdminRoute && (
+        <>
           <ReportModal />
           <LoginModal />
           <SignUpModal />
           <ForgotPasswordModal />
-          <Toaster position="top-right" />
           <Footer />
-        </div>
+        </>
+      )}
+      <Toaster position="top-right" />
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppLayout />
       </Router>
     </AuthProvider>
   )

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { Menu, X, User, Bell, LogOut, Shield } from 'lucide-react'
+import { Menu, X, User, Bell, LogOut } from 'lucide-react'
 import LogoImage from '../../assets/images/LOGO.png'
 
 const Navbar = () => {
@@ -74,28 +74,14 @@ const Navbar = () => {
                     className="flex items-center space-x-2 text-orange-600 hover:text-orange-700"
                   >
                     <User className="h-6 w-6" />
-                    <span className="hidden md:block">{currentUser.email}</span>
                   </button>
 
                   {/* Profile dropdown */}
                   {isProfileOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                      <div className="px-4 py-2 text-sm text-gray-700 border-b">
-                        <div className="font-medium">{currentUser.email}</div>
-                      </div>
-
-                      <Link
-                        to="/admin"
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <Shield className="h-4 w-4 mr-2" />
-                        Admin Panel
-                      </Link>
-
                       <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                         <Bell className="h-4 w-4 mr-2" />
                         Notifications
-                        <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1">3</span>
                       </button>
 
                       <button

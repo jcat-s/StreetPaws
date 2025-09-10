@@ -129,10 +129,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Firebase auth not initialized')
     }
     try {
-      // Use custom action URL to redirect to our app
+      // In-app password reset so link comes to our app with oobCode
       const actionCodeSettings = {
-        url: `${window.location.origin}/password-reset?source=email&timestamp=${Date.now()}`,
-        handleCodeInApp: false, // Must be false for proper redirect
+        url: `${window.location.origin}/password-reset`,
+        handleCodeInApp: true,
       }
       
       console.log('Sending password reset with settings:', actionCodeSettings)

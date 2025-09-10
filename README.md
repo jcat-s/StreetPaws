@@ -23,8 +23,8 @@ A comprehensive animal welfare platform built for the StreetPaws Lipa City Veter
 - **Frontend**: React 18 with TypeScript
 - **Styling**: Tailwind CSS
 - **Authentication**: Firebase Authentication
-- **Database**: Firebase Realtime Database
-- **Storage**: Firebase Storage
+- **Database**: Firebase Realtime Database (optional; enable and configure if used)
+- **Storage**: Firebase Storage (optional; enable and configure if used)
 - **State Management**: Zustand
 - **Forms**: React Hook Form
 - **Routing**: React Router DOM
@@ -52,19 +52,18 @@ A comprehensive animal welfare platform built for the StreetPaws Lipa City Veter
    ```
 
 3. **Firebase Configuration**
-   
-   Create a Firebase project and update the configuration in `src/config/firebase.ts`:
-   
-   ```typescript
-   const firebaseConfig = {
-     apiKey: "your-api-key",
-     authDomain: "your-auth-domain",
-     projectId: "your-project-id",
-     storageBucket: "your-storage-bucket",
-     messagingSenderId: "your-messaging-sender-id",
-     appId: "your-app-id",
-     databaseURL: "your-database-url"
-   }
+
+   Create a Firebase project and set your environment variables in a `.env` file (see `.env.example`):
+
+   ```bash
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=...
+   VITE_FIREBASE_PROJECT_ID=...
+   VITE_FIREBASE_STORAGE_BUCKET=...
+   VITE_FIREBASE_MESSAGING_SENDER_ID=...
+   VITE_FIREBASE_APP_ID=...
+   # Optional if using Realtime DB
+   VITE_FIREBASE_DATABASE_URL=...
    ```
 
 4. **Start the development server**
@@ -144,9 +143,8 @@ Feel free to adjust the palette in `tailwind.config.js` or your CSS for your own
 
 The application uses Firebase Authentication with:
 - Email/password authentication
-- Third-party login options (Google, Facebook, Apple)
 - Protected routes for authenticated users
-- User profile management
+- Password reset flow via email action links
 
 ## 📊 Database Schema
 

@@ -2,6 +2,8 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, Auth } from 'firebase/auth'
 import type { Analytics } from 'firebase/analytics'
 import { getAnalytics, isSupported } from 'firebase/analytics'
+import { getFirestore } from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
 
 const requiredEnv = [
 	'VITE_FIREBASE_API_KEY',
@@ -49,11 +51,15 @@ const firebaseConfig = {
 let app: any = null
 let auth: Auth | null = null
 let analytics: Analytics | null = null
+let db: ReturnType<typeof getFirestore> | null = null
+let storage: ReturnType<typeof getStorage> | null = null
 
 try {
 	ensureEnvVarsPresent()
 	app = initializeApp(firebaseConfig)
 	auth = getAuth(app)
+	db = getFirestore(app)
+	storage = getStorage(app)
 	if (typeof window !== 'undefined') {
 		isSupported()
 			.then((supported: boolean) => {
@@ -67,5 +73,5 @@ try {
 	console.warn('Firebase initialization failed:', error)
 }
 
-export { auth, analytics }
+export { auth, analytics, db, storage }
 export default app

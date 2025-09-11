@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form'
 import { Upload, FileText, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../../contexts/AuthContext'
+import { submitAbuseReport } from '../../utils/abuseReportService'
 
 interface AbusedAnimalFormData {
     incidentLocation: string
@@ -20,6 +22,7 @@ interface AbusedAnimalFormData {
 
 const AbusedReport = () => {
     const navigate = useNavigate()
+    const { currentUser } = useAuth()
     const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
     const [filePreviews, setFilePreviews] = useState<string[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -45,8 +48,7 @@ const AbusedReport = () => {
     const onSubmit = async (data: AbusedAnimalFormData) => {
         setIsSubmitting(true)
         try {
-            console.log('abuse report', data, uploadedFiles)
-            await new Promise(r => setTimeout(r, 1000))
+            await submitAbuseReport(data, uploadedFiles, currentUser?.uid || null)
             toast.success('Abuse report submitted')
             reset(); setUploadedFiles([]); setFilePreviews([])
             navigate(-1)

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Search, Filter, MapPin, Calendar, Phone, Mail } from 'lucide-react'
 
 // Import actual images
@@ -114,6 +115,9 @@ const LostAndFound = () => {
   const [filterType, setFilterType] = useState<'all' | 'lost' | 'found'>('all')
   const [filterAnimalType, setFilterAnimalType] = useState<'all' | 'dog' | 'cat'>('all')
   const [selectedItem, setSelectedItem] = useState<LostFoundAnimal | null>(null)
+  const { search } = useLocation()
+  const params = new URLSearchParams(search)
+  const justSubmitted = params.get('submitted') === '1'
 
   const filtered = MOCK_LOST_FOUND.filter((item) => {
     const matchesSearch = searchTerm === '' || 
@@ -152,6 +156,11 @@ const LostAndFound = () => {
           <p className="text-lg text-gray-600 mb-8">
             Browse categorized listings of animals reported as lost or found in our community.
           </p>
+          {justSubmitted && (
+            <div className="mx-auto max-w-3xl mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800">
+              Your report was submitted successfully and will appear once approved.
+            </div>
+          )}
         </div>
 
         {/* Search and Filter */}

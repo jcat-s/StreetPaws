@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { Camera, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../../contexts/AuthContext'
+import { submitReport } from '../../utils/reportService'
 
 interface FoundAnimalFormData {
     animalType: string
@@ -24,11 +26,13 @@ interface FoundAnimalFormData {
 
 const FoundReport = () => {
     const navigate = useNavigate()
+    const fileInputRef = useRef<HTMLInputElement | null>(null)
+    const { currentUser } = useAuth()
     const [uploadedImage, setUploadedImage] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const { register, handleSubmit, reset, setValue, watch } = useForm<FoundAnimalFormData>()
+    const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FoundAnimalFormData>()
     const [isBarangayOpen, setIsBarangayOpen] = useState(false)
     const selectedBarangay = watch('foundLocation')
 
@@ -42,6 +46,18 @@ const FoundReport = () => {
         }
     }
 
+    const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+        event.preventDefault(); event.stopPropagation()
+        const file = event.dataTransfer.files?.[0]
+        if (!file) return
+        if (file.size > 50 * 1024 * 1024) { toast.error('File size must be less than 50MB'); return }
+        if (!['image/jpeg', 'image/png'].includes(file.type)) { toast.error('Please upload a JPEG or PNG file'); return }
+        setUploadedImage(file)
+        const reader = new FileReader(); reader.onload = (e) => setImagePreview(e.target?.result as string); reader.readAsDataURL(file)
+    }
+
+    const preventDragDefaults = (event: React.DragEvent<HTMLDivElement>) => { event.preventDefault(); event.stopPropagation() }
+
     const removeImage = () => { setUploadedImage(null); setImagePreview(null) }
 
     const barangays = ['Adya', 'Anilao', 'Antipolo del Norte', 'Antipolo del Sur', 'Bagong Pook', 'Balintawak', 'Banaybanay', 'Banaybanay I', 'Banaybanay II', 'Bangcal', 'Bolbok', 'Bugtong na Pulo', 'Bulacnin', 'Bulaklakan', 'Calamias', 'Candating', 'Dagatan', 'Dela Paz', 'Dela Paz Proper', 'Halang', 'Inosluban', 'Kayumanggi', 'Latag', 'Lodlod', 'Lumbang', 'Mabini', 'Malagonlong', 'Malitlit', 'Marawoy', 'Munting Pulo', 'Pangao', 'Pinagkawitan', 'Pinagtongulan', 'Plaridel', 'Quiling', 'Rizal', 'Sabang', 'Sampaguita', 'San Benildo', 'San Carlos', 'San Celestino', 'San Francisco', 'San Francisco (Burol)', 'San Guillermo', 'San Jose', 'San Lucas', 'San Salvador', 'San Sebastian', 'San Vicente', 'Sapac', 'Sico 1', 'Sico 2', 'Sto. Niño', 'Tambo', 'Tangob', 'Tanguile', 'Tibig', 'Tico', 'Tipacan', 'Tuyo', 'Barangay 1 (Poblacion)', 'Barangay 2 (Poblacion)', 'Barangay 3 (Poblacion)', 'Barangay 4 (Poblacion)', 'Barangay 5 (Poblacion)', 'Barangay 6 (Poblacion)', 'Barangay 7 (Poblacion)', 'Barangay 8 (Poblacion)', 'Barangay 9 (Poblacion)', 'San Isidro', 'San Nicolas', 'Barangay San Miguel']
@@ -51,12 +67,32 @@ const FoundReport = () => {
     const onSubmit = async (data: FoundAnimalFormData) => {
         setIsSubmitting(true)
         try {
-            console.log('found report', data, uploadedImage)
-            await new Promise(r => setTimeout(r, 800))
+            await submitReport(
+                {
+                    type: 'found',
+                    animalType: data.animalType,
+                    breed: data.breed,
+                    colors: data.colors,
+                    estimatedAge: data.estimatedAge,
+                    gender: data.gender,
+                    size: data.size,
+                    wearing: data.wearing,
+                    condition: data.condition,
+                    foundLocation: data.foundLocation,
+                    foundDate: data.foundDate,
+                    foundTime: data.foundTime,
+                    contactName: data.contactName,
+                    contactPhone: data.contactPhone,
+                    contactEmail: data.contactEmail,
+                    additionalDetails: data.additionalDetails
+                },
+                uploadedImage,
+                currentUser ? currentUser.uid : null
+            )
             toast.success('Found report submitted')
             reset(); setUploadedImage(null); setImagePreview(null)
-            navigate(-1)
-        } catch (e) { toast.error('Failed to submit report') } finally { setIsSubmitting(false) }
+            navigate('/lost-and-found?submitted=1')
+        } catch (e: any) { console.error(e); toast.error(e?.message || 'Failed to submit report') } finally { setIsSubmitting(false) }
     }
 
     return (
@@ -68,26 +104,32 @@ const FoundReport = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Animal Type *</label>
                             <select {...register('animalType', { required: 'Animal type is required' })} className="input-field" defaultValue=""><option value="" disabled hidden>Select animal type</option><option value="dog">Dog</option><option value="cat">Cat</option></select>
+                            {errors.animalType && <p className="mt-1 text-sm text-red-600">{errors.animalType.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Breed *</label>
                             <input {...register('breed', { required: 'Breed is required' })} className="input-field" placeholder="e.g., Labrador" />
+                            {errors.breed && <p className="mt-1 text-sm text-red-600">{errors.breed.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Colors *</label>
                             <input {...register('colors', { required: 'Colors are required' })} className="input-field" placeholder="e.g., Brown and white" />
+                            {errors.colors && <p className="mt-1 text-sm text-red-600">{errors.colors.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Age *</label>
                             <input {...register('estimatedAge', { required: 'Estimated age is required' })} className="input-field" placeholder="e.g., 2-3 years old" />
+                            {errors.estimatedAge && <p className="mt-1 text-sm text-red-600">{errors.estimatedAge.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
                             <select {...register('gender', { required: 'Gender is required' })} className="input-field" defaultValue=""><option value="" disabled hidden>Select gender</option><option value="male">Male</option><option value="female">Female</option><option value="unknown">Unknown</option></select>
+                            {errors.gender && <p className="mt-1 text-sm text-red-600">{errors.gender.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Size *</label>
                             <select {...register('size', { required: 'Size is required' })} className="input-field" defaultValue=""><option value="" disabled hidden>Select size</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select>
+                            {errors.size && <p className="mt-1 text-sm text-red-600">{errors.size.message}</p>}
                         </div>
                     </div>
 
@@ -101,14 +143,17 @@ const FoundReport = () => {
                                     <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">{barangays.map(b => (<button key={b} type="button" onClick={() => { setValue('foundLocation', b, { shouldValidate: true }); setIsBarangayOpen(false); }} className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}>{b}</button>))}</div>
                                 )}
                             </div>
+                            {errors.foundLocation && <p className="mt-1 text-sm text-red-600">{errors.foundLocation.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Found Date *</label>
                             <input {...register('foundDate', { required: 'Found date is required' })} type="date" className="input-field" />
+                            {errors.foundDate && <p className="mt-1 text-sm text-red-600">{errors.foundDate.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Found Time *</label>
                             <input {...register('foundTime', { required: 'Found time is required' })} type="time" className="input-field" />
+                            {errors.foundTime && <p className="mt-1 text-sm text-red-600">{errors.foundTime.message}</p>}
                         </div>
                     </div>
 
@@ -120,10 +165,12 @@ const FoundReport = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone *</label>
                             <input {...register('contactPhone', { required: 'Contact phone is required', validate: validatePhoneNumber })} type="tel" inputMode="numeric" pattern="[0-9]*" className="input-field" placeholder="Your phone number" onKeyPress={e => { if (!/[0-9]/.test(e.key)) e.preventDefault(); }} />
+                            {errors.contactPhone && <p className="mt-1 text-sm text-red-600">{errors.contactPhone.message as string}</p>}
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email *</label>
                             <input {...register('contactEmail', { required: 'Contact email is required', pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Invalid email address' } })} type="email" className="input-field" placeholder="Your email address" />
+                            {errors.contactEmail && <p className="mt-1 text-sm text-red-600">{errors.contactEmail.message as string}</p>}
                         </div>
                     </div>
 
@@ -134,11 +181,17 @@ const FoundReport = () => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Animal Photo *</label>
-                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                        <div
+                            className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg"
+                            onDrop={handleDrop}
+                            onDragOver={preventDragDefaults}
+                            onDragEnter={preventDragDefaults}
+                            onClick={() => { if (!imagePreview) fileInputRef.current?.click() }}
+                        >
                             {!imagePreview ? (
                                 <div className="space-y-1 text-center">
                                     <Camera className="mx-auto h-12 w-12 text-gray-400" />
-                                    <div className="flex text-sm text-gray-600"><label htmlFor="image-upload" className="relative cursor-pointer bg-white rounded-md font-medium"><span>Upload a file</span><input id="image-upload" name="image-upload" type="file" className="sr-only" accept="image/jpeg,image/png" onChange={handleImageUpload} /></label><p className="pl-1">or drag and drop</p></div>
+                                    <div className="flex text-sm text-gray-600"><label htmlFor="image-upload" className="relative cursor-pointer bg-white rounded-md font-medium"><span>Upload a file</span><input ref={fileInputRef} id="image-upload" name="image-upload" type="file" className="sr-only" accept="image/jpeg,image/png" onChange={handleImageUpload} /></label><p className="pl-1">or drag and drop</p></div>
                                     <p className="text-xs text-gray-500">JPEG, PNG up to 50MB</p>
                                 </div>
                             ) : (

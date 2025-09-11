@@ -38,7 +38,6 @@ declare module '*.svg' {
 
 declare global {
   interface ImportMetaEnv {
-    readonly VITE_UPLOAD_PROVIDER?: string // 'imgur' | 'cloudinary' | 'firebase'
     readonly VITE_FIREBASE_API_KEY: string
     readonly VITE_FIREBASE_AUTH_DOMAIN: string
     readonly VITE_FIREBASE_PROJECT_ID: string
@@ -47,10 +46,6 @@ declare global {
     readonly VITE_FIREBASE_APP_ID: string
     readonly VITE_FIREBASE_DATABASE_URL: string
     readonly VITE_FIREBASE_MEASUREMENT_ID?: string
-    // Optional image hosting fallbacks
-    readonly VITE_CLOUDINARY_CLOUD_NAME?: string
-    readonly VITE_CLOUDINARY_UPLOAD_PRESET?: string
-    readonly VITE_IMGUR_CLIENT_ID?: string
     // Supabase
     readonly VITE_SUPABASE_URL?: string
     readonly VITE_SUPABASE_ANON_KEY?: string

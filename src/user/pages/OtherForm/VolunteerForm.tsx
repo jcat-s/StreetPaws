@@ -1,6 +1,8 @@
 import { useForm } from 'react-hook-form';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { db } from '../../../config/firebase'
 
 interface VolunteerFormData {
     name: string;
@@ -28,14 +30,21 @@ const VolunteerForm = () => {
     const selectedBarangay = watch('barangay');
 
     const onSubmit = async (data: VolunteerFormData) => {
-        const payload = {
-            ...data,
-            preferredRoles: [...(data.preferredRoles || []), ...(otherRole ? [otherRole] : [])]
-        };
-        console.log('volunteer submission', payload);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        toast.success('Thank you for volunteering!');
-        reset();
+        try {
+            if (!db) throw new Error('Firestore not initialized')
+            const payload = {
+                ...data,
+                preferredRoles: [...(data.preferredRoles || []), ...(otherRole ? [otherRole] : [])],
+                createdAt: serverTimestamp(),
+                status: 'pending'
+            }
+            await addDoc(collection(db, 'volunteers'), payload)
+            toast.success('Thank you for volunteering!')
+            reset()
+            setOtherRole('')
+        } catch (e) {
+            toast.error('Failed to submit volunteer form. Please try again.')
+        }
     };
 
     return (

@@ -4,15 +4,16 @@ import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth'
 import AdminSidebar from './components/AdminSidebar'
 import AdminDashboard from './pages/AdminDashboard'
 import ReportsManagement from './pages/ReportsManagement'
-import AdoptionsManagement from './pages/AdoptionsManagement'
-import AnimalsManagement from './pages/AnimalsManagement'
+import AdoptionsManagement from './pages/Forms/AdoptionsManagement'
+import AnimalsManagement from './pages/Content/AnimalsManagement'
 import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import AdminSettings from './pages/AdminSettings'
-import Volunteers from './pages/Volunteers'
-import Donors from './pages/Donors'
-import ContentManager from './pages/ContentManager'
+import Volunteers from './pages/Forms/VolunteersManagement'
+import Donors from './pages/Forms/DonorsManagement'
+import ContentHome from './pages/Content/Lost&FoundManagement'
 import AdminLoginModal from './authentication/AdminLoginModal'
 import { useState } from 'react'
+import { Menu, X } from 'lucide-react'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -61,15 +62,36 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
-// Admin Layout Component (logo-only header)
+// Admin Layout Component (logo-only header + hamburger)
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="h-16 border-b border-gray-200 bg-white flex items-center px-4">
+      <div className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4">
         <img src={new URL('../assets/images/LOGO.png', import.meta.url).toString()} alt="StreetPaws" className="h-10 md:h-12" />
+        <button
+          className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          onClick={() => setMobileMenuOpen((v) => !v)}
+        >
+          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </button>
       </div>
-      <div className="flex flex-1">
-        <AdminSidebar />
+
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/30 z-20 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <div className="flex flex-1 relative">
+        <AdminSidebar
+          isOpen={mobileMenuOpen}
+          onNavigate={() => setMobileMenuOpen(false)}
+        />
         <main className="flex-1">
           {children}
         </main>
@@ -93,9 +115,8 @@ const AdminAppContent = () => {
         <Route path="/volunteers" element={<Volunteers />} />
         <Route path="/donors" element={<Donors />} />
         <Route path="/analytics" element={<AnalyticsDashboard />} />
+        <Route path="/content" element={<ContentHome />} />
         <Route path="/content/animals" element={<AnimalsManagement />} />
-        <Route path="/content/lost" element={<ContentManager type="lost" />} />
-        <Route path="/content/found" element={<ContentManager type="found" />} />
         <Route path="/settings" element={<AdminSettings />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>

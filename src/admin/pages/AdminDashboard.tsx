@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { 
   FileText, 
   Heart, 
@@ -11,99 +11,28 @@ import {
   Eye,
   MapPin
 } from 'lucide-react'
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 
-// Mock data - In production, this would come from your database
-const MOCK_STATS = {
-  totalReports: 156,
-  pendingReports: 23,
-  resolvedReports: 133,
-  totalAdoptions: 47,
-  pendingAdoptions: 8,
-  approvedAdoptions: 39,
-  totalAnimals: 89,
-  availableAnimals: 42,
-  adoptedAnimals: 47,
-  totalVolunteers: 34,
-  activeVolunteers: 28,
-  totalDonations: 125000,
-  monthlyDonations: 15000
+// Realtime dashboard data (reports only for now)
+type DashboardReport = {
+  id: string
+  type: 'lost' | 'found' | 'abuse' | string
+  animalName?: string
+  animalType?: string
+  location?: string
+  reporter?: string
+  date: string
+  status: string
+  priority: 'urgent' | 'high' | 'medium' | 'normal'
 }
-
-const MOCK_RECENT_REPORTS = [
-  {
-    id: '1',
-    type: 'lost',
-    animalName: 'Buddy',
-    animalType: 'dog',
-    location: 'Barangay 1',
-    reporter: 'Maria Santos',
-    date: '2024-01-15',
-    status: 'pending',
-    priority: 'high'
-  },
-  {
-    id: '2',
-    type: 'abuse',
-    animalName: 'Unknown',
-    animalType: 'cat',
-    location: 'Barangay 5',
-    reporter: 'Juan Dela Cruz',
-    date: '2024-01-15',
-    status: 'investigating',
-    priority: 'urgent'
-  },
-  {
-    id: '3',
-    type: 'found',
-    animalName: 'Luna',
-    animalType: 'dog',
-    location: 'Barangay 3',
-    reporter: 'Ana Rodriguez',
-    date: '2024-01-14',
-    status: 'resolved',
-    priority: 'medium'
-  }
-]
-
-const MOCK_RECENT_ADOPTIONS = [
-  {
-    id: '1',
-    animalName: 'Jepoy',
-    animalType: 'dog',
-    applicantName: 'Pedro Martinez',
-    date: '2024-01-15',
-    status: 'pending',
-    priority: 'normal'
-  },
-  {
-    id: '2',
-    animalName: 'Putchi',
-    animalType: 'cat',
-    applicantName: 'Sofia Garcia',
-    date: '2024-01-14',
-    status: 'approved',
-    priority: 'normal'
-  },
-  {
-    id: '3',
-    animalName: 'Josh',
-    animalType: 'dog',
-    applicantName: 'Miguel Torres',
-    date: '2024-01-13',
-    status: 'rejected',
-    priority: 'normal'
-  }
-]
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'adoptions'>('overview')
+  const [recentReports, setRecentReports] = useState<DashboardReport[]>([])
+  const [reportCounts, setReportCounts] = useState({ total: 0, pending: 0, resolved: 0 })
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP'
-    }).format(amount)
-  }
+  // removed unused formatCurrency
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -126,6 +55,40 @@ const AdminDashboard = () => {
     }
   }
 
+  useEffect(() => {
+    if (!db) return
+    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+    const unsub = onSnapshot(q, (snap) => {
+      let pending = 0
+      let resolved = 0
+      const all: DashboardReport[] = []
+      snap.docs.forEach((doc) => {
+        const d: any = doc.data()
+        const type: string = d?.type || 'unknown'
+        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : new Date().toISOString())
+        const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
+        if (status === 'pending' || status === 'investigating') pending += 1
+        if (status === 'resolved') resolved += 1
+        all.push({
+          id: doc.id,
+          type: type as any,
+          animalName: d?.animalName || 'Unknown',
+          animalType: d?.animalType || 'unknown',
+          location: d?.lastSeenLocation || d?.location || '',
+          reporter: d?.contactName || d?.reporterName || 'Unknown',
+          date: createdAtIso,
+          status,
+          priority: (d?.priority || 'normal') as DashboardReport['priority']
+        })
+      })
+      setReportCounts({ total: snap.size, pending, resolved })
+      setRecentReports(all)
+    })
+    return () => unsub()
+  }, [])
+
+  const urgentReportsCount = useMemo(() => recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length, [recentReports])
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -136,7 +99,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           {/* Reports Stats */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center">
@@ -145,8 +108,8 @@ const AdminDashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Reports</p>
-                <p className="text-2xl font-bold text-gray-900">{MOCK_STATS.totalReports}</p>
-                <p className="text-xs text-gray-500">{MOCK_STATS.pendingReports} pending</p>
+                <p className="text-2xl font-bold text-gray-900">{reportCounts.total}</p>
+                <p className="text-xs text-gray-500">{reportCounts.pending} pending • {reportCounts.resolved} resolved</p>
               </div>
             </div>
           </div>
@@ -159,8 +122,8 @@ const AdminDashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Adoptions</p>
-                <p className="text-2xl font-bold text-gray-900">{MOCK_STATS.totalAdoptions}</p>
-                <p className="text-xs text-gray-500">{MOCK_STATS.pendingAdoptions} pending</p>
+                <p className="text-2xl font-bold text-gray-900">—</p>
+                <p className="text-xs text-gray-500">Data pending</p>
               </div>
             </div>
           </div>
@@ -173,8 +136,8 @@ const AdminDashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Animals</p>
-                <p className="text-2xl font-bold text-gray-900">{MOCK_STATS.totalAnimals}</p>
-                <p className="text-xs text-gray-500">{MOCK_STATS.availableAnimals} available</p>
+                <p className="text-2xl font-bold text-gray-900">—</p>
+                <p className="text-xs text-gray-500">Data pending</p>
               </div>
             </div>
           </div>
@@ -187,8 +150,8 @@ const AdminDashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Donations</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(MOCK_STATS.totalDonations)}</p>
-                <p className="text-xs text-gray-500">{formatCurrency(MOCK_STATS.monthlyDonations)} this month</p>
+                <p className="text-2xl font-bold text-gray-900">—</p>
+                <p className="text-xs text-gray-500">Data pending</p>
               </div>
             </div>
           </div>
@@ -197,26 +160,26 @@ const AdminDashboard = () => {
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
               <AlertTriangle className="h-5 w-5 text-red-600" />
               <div className="text-left">
                 <p className="font-medium text-gray-900">Urgent Reports</p>
-                <p className="text-sm text-gray-600">3 items need attention</p>
+                <p className="text-sm text-gray-600">{urgentReportsCount} items need attention</p>
               </div>
             </button>
             <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
               <Clock className="h-5 w-5 text-yellow-600" />
               <div className="text-left">
                 <p className="font-medium text-gray-900">Pending Reviews</p>
-                <p className="text-sm text-gray-600">8 adoption applications</p>
+                <p className="text-sm text-gray-600">0 adoption applications</p>
               </div>
             </button>
             <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
               <Users className="h-5 w-5 text-blue-600" />
               <div className="text-left">
                 <p className="font-medium text-gray-900">New Animals</p>
-                <p className="text-sm text-gray-600">5 animals added today</p>
+                <p className="text-sm text-gray-600">0 animals added today</p>
               </div>
             </button>
           </div>
@@ -257,31 +220,35 @@ const AdminDashboard = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Reports</h3>
                   <div className="space-y-3">
-                    {MOCK_RECENT_REPORTS.slice(0, 3).map((report) => (
-                      <div key={report.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className={`p-2 rounded-full ${
-                            report.type === 'lost' ? 'bg-blue-100 text-blue-600' :
-                            report.type === 'found' ? 'bg-green-100 text-green-600' :
-                            'bg-red-100 text-red-600'
-                          }`}>
-                            {report.type === 'lost' ? <AlertTriangle className="h-4 w-4" /> :
-                             report.type === 'found' ? <CheckCircle className="h-4 w-4" /> :
-                             <XCircle className="h-4 w-4" />}
+                    {recentReports.length === 0 ? (
+                      <p className="text-center text-gray-500">No recent reports to display.</p>
+                    ) : (
+                      recentReports.slice(0, 3).map((report) => (
+                        <div key={report.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-2 rounded-full ${
+                              report.type === 'lost' ? 'bg-blue-100 text-blue-600' :
+                              report.type === 'found' ? 'bg-green-100 text-green-600' :
+                              'bg-red-100 text-red-600'
+                            }`}>
+                              {report.type === 'lost' ? <AlertTriangle className="h-4 w-4" /> :
+                               report.type === 'found' ? <CheckCircle className="h-4 w-4" /> :
+                               <XCircle className="h-4 w-4" />}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{report.animalName} ({report.animalType})</p>
+                              <p className="text-sm text-gray-600">{report.location} • {report.reporter}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{report.animalName} ({report.animalType})</p>
-                            <p className="text-sm text-gray-600">{report.location} • {report.reporter}</p>
+                          <div className="text-right">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(report.status)}`}>
+                              {report.status}
+                            </span>
+                            <p className="text-xs text-gray-500 mt-1">{report.date}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(report.status)}`}>
-                            {report.status}
-                          </span>
-                          <p className="text-xs text-gray-500 mt-1">{report.date}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -289,25 +256,29 @@ const AdminDashboard = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Adoptions</h3>
                   <div className="space-y-3">
-                    {MOCK_RECENT_ADOPTIONS.slice(0, 3).map((adoption) => (
-                      <div key={adoption.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-orange-100 p-2 rounded-full">
-                            <Heart className="h-4 w-4 text-orange-600" />
+                    {recentReports.length === 0 ? (
+                      <p className="text-center text-gray-500">No recent adoptions.</p>
+                    ) : (
+                      recentReports.slice(0, 3).map((report) => (
+                        <div key={report.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-orange-100 p-2 rounded-full">
+                              <Heart className="h-4 w-4 text-orange-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">—</p>
+                              <p className="text-sm text-gray-600">—</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{adoption.animalName} ({adoption.animalType})</p>
-                            <p className="text-sm text-gray-600">{adoption.applicantName}</p>
+                          <div className="text-right">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor('pending')}`}>
+                              pending
+                            </span>
+                            <p className="text-xs text-gray-500 mt-1">—</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(adoption.status)}`}>
-                            {adoption.status}
-                          </span>
-                          <p className="text-xs text-gray-500 mt-1">{adoption.date}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -334,50 +305,56 @@ const AdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {MOCK_RECENT_REPORTS.map((report) => (
-                        <tr key={report.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className={`p-2 rounded-full ${
-                                report.type === 'lost' ? 'bg-blue-100 text-blue-600' :
-                                report.type === 'found' ? 'bg-green-100 text-green-600' :
-                                'bg-red-100 text-red-600'
-                              }`}>
-                                {report.type === 'lost' ? <AlertTriangle className="h-4 w-4" /> :
-                                 report.type === 'found' ? <CheckCircle className="h-4 w-4" /> :
-                                 <XCircle className="h-4 w-4" />}
-                              </div>
-                              <div className="ml-3">
-                                <div className="text-sm font-medium text-gray-900">{report.animalName}</div>
-                                <div className="text-sm text-gray-500 capitalize">{report.animalType} • {report.type}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center text-sm text-gray-900">
-                              <MapPin className="h-4 w-4 text-gray-400 mr-1" />
-                              {report.location}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{report.reporter}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(report.status)}`}>
-                              {report.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(report.priority)}`}>
-                              {report.priority}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button className="text-orange-600 hover:text-orange-900 flex items-center space-x-1">
-                              <Eye className="h-4 w-4" />
-                              <span>View</span>
-                            </button>
-                          </td>
+                      {recentReports.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No reports found.</td>
                         </tr>
-                      ))}
+                      ) : (
+                        recentReports.map((report) => (
+                          <tr key={report.id}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className={`p-2 rounded-full ${
+                                  report.type === 'lost' ? 'bg-blue-100 text-blue-600' :
+                                  report.type === 'found' ? 'bg-green-100 text-green-600' :
+                                  'bg-red-100 text-red-600'
+                                }`}>
+                                  {report.type === 'lost' ? <AlertTriangle className="h-4 w-4" /> :
+                                   report.type === 'found' ? <CheckCircle className="h-4 w-4" /> :
+                                   <XCircle className="h-4 w-4" />}
+                                </div>
+                                <div className="ml-3">
+                                  <div className="text-sm font-medium text-gray-900">{report.animalName}</div>
+                                  <div className="text-sm text-gray-500 capitalize">{report.animalType} • {report.type}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center text-sm text-gray-900">
+                                <MapPin className="h-4 w-4 text-gray-400 mr-1" />
+                                {report.location}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{report.reporter}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(report.status)}`}>
+                                {report.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(report.priority)}`}>
+                                {report.priority}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <button className="text-orange-600 hover:text-orange-900 flex items-center space-x-1">
+                                <Eye className="h-4 w-4" />
+                                <span>View</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -405,39 +382,9 @@ const AdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {MOCK_RECENT_ADOPTIONS.map((adoption) => (
-                        <tr key={adoption.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="bg-orange-100 p-2 rounded-full">
-                                <Heart className="h-4 w-4 text-orange-600" />
-                              </div>
-                              <div className="ml-3">
-                                <div className="text-sm font-medium text-gray-900">{adoption.animalName}</div>
-                                <div className="text-sm text-gray-500 capitalize">{adoption.animalType}</div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{adoption.applicantName}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{adoption.date}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(adoption.status)}`}>
-                              {adoption.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(adoption.priority)}`}>
-                              {adoption.priority}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button className="text-orange-600 hover:text-orange-900 flex items-center space-x-1">
-                              <Eye className="h-4 w-4" />
-                              <span>Review</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      <tr>
+                        <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No adoption data available.</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>

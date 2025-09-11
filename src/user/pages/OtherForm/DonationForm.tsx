@@ -1,5 +1,7 @@
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { db } from '../../../config/firebase'
 
 // Import actual QR code images
 import GCashQR from '../../../assets/images/QR/gcash.png'
@@ -26,13 +28,25 @@ const DonationForm = () => {
   const paymentMethod = watch('paymentMethod')
 
   const onSubmit = async (data: DonationData) => {
-    console.log('donation payload', data)
-
-    // 👉 Here: save donor info to Firebase / backend
-    await new Promise(res => setTimeout(res, 800))
-
-    toast.success('🙏 Thank you for your donation! We will verify your payment.')
-    reset()
+    try {
+      if (!db) throw new Error('Firestore not initialized')
+      await addDoc(collection(db, 'donations'), {
+        name: data.name,
+        email: data.email,
+        phone: data.phone || null,
+        amount: Number(data.amount),
+        paymentMethod: data.paymentMethod,
+        reference: data.reference || null,
+        message: data.message || null,
+        consent: !!data.consent,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      })
+      toast.success('🙏 Thank you for your donation! We will verify your payment.')
+      reset()
+    } catch (e) {
+      toast.error('Failed to submit donation. Please try again.')
+    }
   }
 
   return (

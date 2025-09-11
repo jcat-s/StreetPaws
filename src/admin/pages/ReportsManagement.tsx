@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { collection, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
+import { collection, doc, onSnapshot, orderBy, query, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { createSignedEvidenceUrl } from '../../user/utils/abuseReportService'
 import { 
@@ -12,7 +12,8 @@ import {
   MapPin,
   FileText,
   Download,
-  Edit
+  Edit,
+  Trash2
 } from 'lucide-react'
 
 type AdminReport = {
@@ -57,6 +58,7 @@ const ReportsManagement = () => {
   const [editAssignedTo, setEditAssignedTo] = useState<string>('')
   const [editPublished, setEditPublished] = useState<boolean>(false)
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([])
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const location = useLocation()
 
   useEffect(() => {
@@ -205,7 +207,8 @@ const ReportsManagement = () => {
         try {
           const signed = await createSignedEvidenceUrl(keyOrUrl, 3600)
           urls.push(signed)
-        } catch {
+        } catch (err) {
+          console.error('Failed to create signed URL for attachment', keyOrUrl, err)
           // ignore errors; no URL added
         }
       }
@@ -235,6 +238,17 @@ const ReportsManagement = () => {
       published: editPublished
     })
     setShowReportModal(false)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!db) return
+    setDeletingId(id)
+    try {
+      const ref = doc(db, 'reports', id)
+      await deleteDoc(ref)
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   const handleExportCsv = () => {
@@ -438,6 +452,10 @@ const ReportsManagement = () => {
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
                         </button>
+                        <button disabled={deletingId === report.id} onClick={() => handleDelete(report.id)} className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1">
+                          <Trash2 className="h-4 w-4" />
+                          <span>{deletingId === report.id ? 'Deleting...' : 'Delete'}</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -476,6 +494,20 @@ const ReportsManagement = () => {
                 {isEditing && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
                     You are editing this report's admin fields.
+                  </div>
+                )}
+
+                {/* Featured Attachment (large preview at top-left) */}
+                {attachmentUrls.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Attachment</h3>
+                    <a href={attachmentUrls[0]} target="_blank" rel="noreferrer" className="inline-block">
+                      <img
+                        src={attachmentUrls[0]}
+                        alt="featured-attachment"
+                        className="max-w-full max-h-80 w-auto h-auto object-contain rounded-lg border border-gray-200"
+                      />
+                    </a>
                   </div>
                 )}
                 {/* Animal Information */}
@@ -555,14 +587,14 @@ const ReportsManagement = () => {
                   </p>
                 </div>
 
-                {/* Attachments */}
-                {attachmentUrls.length > 0 && (
+                {/* Attachments (thumbnails) */}
+                {attachmentUrls.length > 1 && (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Attachments</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">More Attachments</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {attachmentUrls.map((url, idx) => (
+                      {attachmentUrls.slice(1).map((url, idx) => (
                         <a key={idx} href={url} target="_blank" rel="noreferrer" className="block group">
-                          <img src={url} alt={`attachment-${idx}`} className="w-full h-40 object-cover rounded-lg border border-gray-200 group-hover:opacity-90" />
+                          <img src={url} alt={`attachment-${idx+1}`} className="w-full h-40 object-cover rounded-lg border border-gray-200 group-hover:opacity-90" />
                         </a>
                       ))}
                     </div>

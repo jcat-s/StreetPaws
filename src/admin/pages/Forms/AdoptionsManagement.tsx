@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { 
   Search, 
   Eye, 
@@ -8,150 +8,33 @@ import {
   Download
 } from 'lucide-react'
 
-// Mock data - In production, this would come from your database
-const MOCK_ADOPTIONS = [
-  {
-    id: '1',
-    animalId: '1',
-    animalName: 'Jepoy',
-    animalType: 'dog',
-    animalBreed: 'Golden Retriever',
-    animalAge: '2 years',
-    applicantName: 'Pedro Martinez',
-    applicantEmail: 'pedro.martinez@email.com',
-    applicantPhone: '+63 912 345 6789',
-    applicantAge: 28,
-    applicantOccupation: 'Software Engineer',
-    applicantBarangay: 'Barangay 1',
-    applicantAddress: '123 Main Street, Barangay 1, Lipa City',
-    homeType: 'House',
-    hasYard: 'Yes',
-    yardSize: 'Large',
-    hasOtherPets: 'No',
-    otherPetsDetails: '',
-    hasChildren: 'No',
-    childrenAges: '',
-    petExperience: 'Yes, I have owned dogs before',
-    vetKnowledge: 'Basic knowledge of pet care',
-    timeCommitment: 'I work from home and can spend 4-6 hours daily',
-    exercisePlan: 'Daily walks and playtime in the yard',
-    reference1Name: 'Maria Santos',
-    reference1Phone: '+63 923 456 7890',
-    reference1Relation: 'Friend',
-    reference2Name: 'Juan Dela Cruz',
-    reference2Phone: '+63 934 567 8901',
-    reference2Relation: 'Neighbor',
-    adoptionReason: 'I have always wanted a Golden Retriever and have the time and resources to care for one properly.',
-    specialNeeds: 'None',
-    emergencyPlan: 'I have a local vet contact and emergency fund for pet care.',
-    consent: true,
-    status: 'pending',
-    priority: 'normal',
-    submittedAt: '2024-01-15T10:30:00Z',
-    reviewedBy: null,
-    reviewedAt: null,
-    notes: '',
-    decisionReason: ''
-  },
-  {
-    id: '2',
-    animalId: '2',
-    animalName: 'Putchi',
-    animalType: 'cat',
-    animalBreed: 'Persian',
-    animalAge: '1 year',
-    applicantName: 'Sofia Garcia',
-    applicantEmail: 'sofia.garcia@email.com',
-    applicantPhone: '+63 945 678 9012',
-    applicantAge: 35,
-    applicantOccupation: 'Teacher',
-    applicantBarangay: 'Barangay 3',
-    applicantAddress: '456 Oak Avenue, Barangay 3, Lipa City',
-    homeType: 'Apartment',
-    hasYard: 'No',
-    yardSize: '',
-    hasOtherPets: 'Yes',
-    otherPetsDetails: 'I have one cat already, a 3-year-old Siamese',
-    hasChildren: 'Yes',
-    childrenAges: '8 and 12 years old',
-    petExperience: 'Yes, I have owned cats for 10 years',
-    vetKnowledge: 'Experienced with cat health and behavior',
-    timeCommitment: 'I can spend 2-3 hours daily with the pet',
-    exercisePlan: 'Indoor play and climbing activities',
-    reference1Name: 'Ana Rodriguez',
-    reference1Phone: '+63 956 789 0123',
-    reference1Relation: 'Colleague',
-    reference2Name: 'Miguel Torres',
-    reference2Phone: '+63 967 890 1234',
-    reference2Relation: 'Veterinarian',
-    adoptionReason: 'My children love cats and we want to give a loving home to a rescue cat.',
-    specialNeeds: 'None',
-    emergencyPlan: 'I have a trusted vet and pet insurance.',
-    consent: true,
-    status: 'approved',
-    priority: 'normal',
-    submittedAt: '2024-01-14T14:20:00Z',
-    reviewedBy: 'Dr. Maria Santos',
-    reviewedAt: '2024-01-14T16:45:00Z',
-    notes: 'Excellent application. Experienced cat owner with stable home environment.',
-    decisionReason: 'Approved based on experience, stable home, and good references.'
-  },
-  {
-    id: '3',
-    animalId: '3',
-    animalName: 'Josh',
-    animalType: 'dog',
-    animalBreed: 'Labrador',
-    animalAge: '3 years',
-    applicantName: 'Miguel Torres',
-    applicantEmail: 'miguel.torres@email.com',
-    applicantPhone: '+63 978 901 2345',
-    applicantAge: 22,
-    applicantOccupation: 'Student',
-    applicantBarangay: 'Barangay 5',
-    applicantAddress: '789 Pine Street, Barangay 5, Lipa City',
-    homeType: 'Apartment',
-    hasYard: 'No',
-    yardSize: '',
-    hasOtherPets: 'No',
-    otherPetsDetails: '',
-    hasChildren: 'No',
-    childrenAges: '',
-    petExperience: 'No, this would be my first pet',
-    vetKnowledge: 'Limited knowledge',
-    timeCommitment: 'I can spend 1-2 hours daily',
-    exercisePlan: 'Walks around the neighborhood',
-    reference1Name: 'Carlos Lopez',
-    reference1Phone: '+63 989 012 3456',
-    reference1Relation: 'Roommate',
-    reference2Name: 'Elena Ruiz',
-    reference2Phone: '+63 990 123 4567',
-    reference2Relation: 'Friend',
-    adoptionReason: 'I want a companion while studying.',
-    specialNeeds: 'None',
-    emergencyPlan: 'I will ask my parents for help with vet bills.',
-    consent: true,
-    status: 'rejected',
-    priority: 'normal',
-    submittedAt: '2024-01-13T09:15:00Z',
-    reviewedBy: 'Dr. Ana Rodriguez',
-    reviewedAt: '2024-01-13T11:30:00Z',
-    notes: 'Concerns about financial stability and experience level.',
-    decisionReason: 'Rejected due to lack of pet experience, limited time commitment, and financial concerns.'
-  }
-]
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { db } from '../../../config/firebase'
+
+type Adoption = any
 
 const AdoptionsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
   const [animalFilter, setAnimalFilter] = useState<'all' | 'dog' | 'cat'>('all')
   const [selectedAdoption, setSelectedAdoption] = useState<any>(null)
+  const [items, setItems] = useState<Adoption[]>([])
+
+  useEffect(() => {
+    if (!db) return
+    const q = query(collection(db, 'adoptions'), orderBy('createdAt', 'desc'))
+    const unsub = onSnapshot(q, (snap) => {
+      const mapped = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Adoption[]
+      setItems(mapped)
+    })
+    return () => unsub()
+  }, [])
   const [showAdoptionModal, setShowAdoptionModal] = useState(false)
   const [showDecisionModal, setShowDecisionModal] = useState(false)
   const [decisionType, setDecisionType] = useState<'approve' | 'reject'>('approve')
   const [decisionReason, setDecisionReason] = useState('')
 
-  const filteredAdoptions = MOCK_ADOPTIONS.filter(adoption => {
+  const filteredAdoptions = items.filter((adoption: any) => {
     const matchesSearch = searchTerm === '' || 
       adoption.applicantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       adoption.animalName.toLowerCase().includes(searchTerm.toLowerCase()) ||

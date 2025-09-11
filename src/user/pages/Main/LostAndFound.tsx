@@ -1,6 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Search, Filter, MapPin, Calendar, Phone, Mail } from 'lucide-react'
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { db } from '../../../config/firebase'
+import { createSignedEvidenceUrl } from '../../utils/abuseReportService'
 
 // Import actual images
 import JepoyImage from '../../../assets/images/Animals/Jepoy.jpg'
@@ -29,97 +32,58 @@ interface LostFoundAnimal {
   additionalDetails?: string
 }
 
-// Mock data for demonstration
-const MOCK_LOST_FOUND: LostFoundAnimal[] = [
-  {
-    id: '1',
-    type: 'lost',
-    animalType: 'dog',
-    name: 'Buddy',
-    breed: 'Golden Retriever',
-    colors: 'Golden brown',
-    age: '3 years',
-    gender: 'Male',
-    size: 'Large',
-    location: 'Barangay 1 (Poblacion)',
-    date: '2024-01-15',
-    time: '14:30',
-    contactName: 'Maria Santos',
-    contactPhone: '09123456789',
-    contactEmail: 'maria@email.com',
-    description: 'Friendly golden retriever, last seen near the market. Wearing a blue collar.',
-    image: JepoyImage,
-    additionalDetails: 'Very friendly, responds to name Buddy. May be scared of loud noises.'
-  },
-  {
-    id: '2',
-    type: 'found',
-    animalType: 'cat',
-    breed: 'Persian',
-    colors: 'White and gray',
-    age: '2 years',
-    gender: 'Female',
-    size: 'Medium',
-    location: 'San Jose',
-    date: '2024-01-14',
-    time: '09:15',
-    contactName: 'Juan Dela Cruz',
-    contactPhone: '09876543210',
-    contactEmail: 'juan@email.com',
-    description: 'Found this beautiful Persian cat near the school. Very clean and well-groomed.',
-    image: PutchiImage,
-    additionalDetails: 'Seems to be well-cared for, possibly lost from a nearby home.'
-  },
-  {
-    id: '3',
-    type: 'lost',
-    animalType: 'dog',
-    breed: 'Labrador',
-    colors: 'Black',
-    age: '1 year',
-    gender: 'Male',
-    size: 'Medium',
-    location: 'Marawoy',
-    date: '2024-01-13',
-    time: '18:45',
-    contactName: 'Ana Rodriguez',
-    contactPhone: '09111222333',
-    contactEmail: 'ana@email.com',
-    description: 'Young black lab, very energetic. Last seen playing near the park.',
-    image: JoshImage,
-    additionalDetails: 'Still a puppy, very playful. May approach people for food.'
-  },
-  {
-    id: '4',
-    type: 'found',
-    animalType: 'cat',
-    breed: 'Siamese',
-    colors: 'Cream and brown',
-    age: '4 years',
-    gender: 'Female',
-    size: 'Small',
-    location: 'Dela Paz',
-    date: '2024-01-12',
-    time: '11:20',
-    contactName: 'Pedro Martinez',
-    contactPhone: '09444555666',
-    contactEmail: 'pedro@email.com',
-    description: 'Found this Siamese cat in our backyard. Very vocal and affectionate.',
-    image: MeelooImage,
-    additionalDetails: 'Appears to be spayed. Very clean and healthy looking.'
-  }
-]
+const MOCK_LOST_FOUND: LostFoundAnimal[] = []
 
 const LostAndFound = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'lost' | 'found'>('all')
   const [filterAnimalType, setFilterAnimalType] = useState<'all' | 'dog' | 'cat'>('all')
   const [selectedItem, setSelectedItem] = useState<LostFoundAnimal | null>(null)
+  const [items, setItems] = useState<LostFoundAnimal[]>([])
   const { search } = useLocation()
   const params = new URLSearchParams(search)
   const justSubmitted = params.get('submitted') === '1'
 
-  const filtered = MOCK_LOST_FOUND.filter((item) => {
+  useEffect(() => {
+    if (!db) return
+    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+    const unsub = onSnapshot(q, async (snap) => {
+      const mapped: LostFoundAnimal[] = []
+      for (const d of snap.docs) {
+        const data: any = d.data()
+        if ((data?.type !== 'lost' && data?.type !== 'found') || data?.published !== true) continue
+        let imageUrl = ''
+        const key = data?.uploadObjectKey as string | undefined
+        if (key) {
+          try { imageUrl = await createSignedEvidenceUrl(key, 3600) } catch {}
+        }
+        mapped.push({
+          id: d.id,
+          type: data.type,
+          animalType: (data?.animalType === 'dog' || data?.animalType === 'cat') ? data.animalType : 'dog',
+          name: data?.animalName,
+          breed: data?.breed || '',
+          colors: Array.isArray(data?.colors) ? data.colors.join(', ') : (data?.colors || ''),
+          age: (data?.age || data?.estimatedAge || '') as string,
+          gender: data?.gender || '',
+          size: data?.size || '',
+          location: (data?.lastSeenLocation || data?.foundLocation || ''),
+          date: (data?.lastSeenDate || data?.foundDate || ''),
+          time: (data?.lastSeenTime || data?.foundTime || ''),
+          contactName: data?.contactName || '',
+          contactPhone: data?.contactPhone || '',
+          contactEmail: data?.contactEmail || '',
+          description: data?.additionalDetails || '',
+          image: imageUrl || JepoyImage,
+          additionalDetails: data?.additionalDetails || ''
+        })
+      }
+      setItems(mapped)
+    })
+    return () => unsub()
+  }, [])
+
+  const filtered = items.filter((item) => {
     const matchesSearch = searchTerm === '' || 
       item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||

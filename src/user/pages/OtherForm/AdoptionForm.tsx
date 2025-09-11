@@ -2,6 +2,8 @@ import { useForm } from 'react-hook-form'
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { db } from '../../../config/firebase'
 
 interface AdoptionFormData {
   // Personal Information
@@ -62,8 +64,13 @@ const AdoptionForm = () => {
   const onSubmit = async (data: AdoptionFormData) => {
     setIsSubmitting(true)
     try {
-      console.log('adoption application', { animalId, ...data })
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      if (!db) throw new Error('Firestore not initialized')
+      await addDoc(collection(db, 'adoptions'), {
+        animalId: animalId || null,
+        ...data,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      })
       toast.success('Adoption application submitted successfully! We will contact you within 3-5 business days.')
       reset()
       navigate('/our-animals')

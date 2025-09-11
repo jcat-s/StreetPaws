@@ -1,12 +1,16 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth'
-import AdminNavbar from './components/AdminNavbar'
+// Removed AdminNavbar per requested layout
+import AdminSidebar from './components/AdminSidebar'
 import AdminDashboard from './pages/AdminDashboard'
 import ReportsManagement from './pages/ReportsManagement'
 import AdoptionsManagement from './pages/AdoptionsManagement'
 import AnimalsManagement from './pages/AnimalsManagement'
 import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import AdminSettings from './pages/AdminSettings'
+import Volunteers from './pages/Volunteers'
+import Donors from './pages/Donors'
+import ContentManager from './pages/ContentManager'
 import AdminLoginModal from './authentication/AdminLoginModal'
 import { useState } from 'react'
 
@@ -57,14 +61,19 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
-// Admin Layout Component
+// Admin Layout Component (logo-only header)
 const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <AdminNavbar />
-      <main className="flex-1">
-        {children}
-      </main>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="h-16 border-b border-gray-200 bg-white flex items-center px-4">
+        <img src={new URL('../assets/images/LOGO.png', import.meta.url).toString()} alt="StreetPaws" className="h-10 md:h-12" />
+      </div>
+      <div className="flex flex-1">
+        <AdminSidebar />
+        <main className="flex-1">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }
@@ -78,7 +87,15 @@ const AdminAppContent = () => {
         <Route path="/reports" element={<ReportsManagement />} />
         <Route path="/adoptions" element={<AdoptionsManagement />} />
         <Route path="/animals" element={<AnimalsManagement />} />
+        <Route path="/lost" element={<ReportsManagement />} />
+        <Route path="/found" element={<ReportsManagement />} />
+        <Route path="/abuse" element={<ReportsManagement />} />
+        <Route path="/volunteers" element={<Volunteers />} />
+        <Route path="/donors" element={<Donors />} />
         <Route path="/analytics" element={<AnalyticsDashboard />} />
+        <Route path="/content/animals" element={<AnimalsManagement />} />
+        <Route path="/content/lost" element={<ContentManager type="lost" />} />
+        <Route path="/content/found" element={<ContentManager type="found" />} />
         <Route path="/settings" element={<AdminSettings />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>

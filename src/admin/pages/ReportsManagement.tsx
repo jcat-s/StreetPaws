@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import { collection, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
+import { db } from '../../config/firebase'
+import { createSignedEvidenceUrl } from '../../user/utils/abuseReportService'
 import { 
   Search, 
   Eye, 
@@ -11,81 +15,33 @@ import {
   Edit
 } from 'lucide-react'
 
-// Mock data - In production, this would come from your database
-const MOCK_REPORTS = [
-  {
-    id: '1',
-    type: 'lost',
-    animalName: 'Buddy',
-    animalType: 'dog',
-    breed: 'Golden Retriever',
-    age: '2 years',
-    gender: 'Male',
-    colors: 'Golden brown',
-    size: 'Large',
-    lastSeenLocation: 'Barangay 1, near the market',
-    lastSeenDate: '2024-01-15',
-    lastSeenTime: '14:30',
-    reporterName: 'Maria Santos',
-    reporterPhone: '+63 912 345 6789',
-    reporterEmail: 'maria.santos@email.com',
-    additionalDetails: 'Buddy was wearing a blue collar with a tag. He is very friendly and responds to his name.',
-    images: ['buddy1.jpg', 'buddy2.jpg'],
-    status: 'pending',
-    priority: 'high',
-    createdAt: '2024-01-15T10:30:00Z',
-    assignedTo: null,
-    notes: ''
-  },
-  {
-    id: '2',
-    type: 'abuse',
-    animalName: 'Unknown',
-    animalType: 'cat',
-    breed: 'Mixed',
-    age: 'Unknown',
-    gender: 'Female',
-    colors: 'Black and white',
-    size: 'Medium',
-    lastSeenLocation: 'Barangay 5, behind the school',
-    lastSeenDate: '2024-01-15',
-    lastSeenTime: '16:45',
-    reporterName: 'Juan Dela Cruz',
-    reporterPhone: '+63 923 456 7890',
-    reporterEmail: 'juan.delacruz@email.com',
-    additionalDetails: 'Saw a group of teenagers throwing rocks at a cat. The cat appeared injured and was limping.',
-    images: ['abuse1.jpg'],
-    status: 'investigating',
-    priority: 'urgent',
-    createdAt: '2024-01-15T16:50:00Z',
-    assignedTo: 'Dr. Ana Rodriguez',
-    notes: 'Investigation in progress. Contacted local authorities.'
-  },
-  {
-    id: '3',
-    type: 'found',
-    animalName: 'Luna',
-    animalType: 'dog',
-    breed: 'Labrador',
-    age: '1 year',
-    gender: 'Female',
-    colors: 'Black',
-    size: 'Medium',
-    lastSeenLocation: 'Barangay 3, near the park',
-    lastSeenDate: '2024-01-14',
-    lastSeenTime: '09:15',
-    reporterName: 'Ana Rodriguez',
-    reporterPhone: '+63 934 567 8901',
-    reporterEmail: 'ana.rodriguez@email.com',
-    additionalDetails: 'Found this dog wandering around the park. She seems well-fed and friendly.',
-    images: ['luna1.jpg', 'luna2.jpg'],
-    status: 'resolved',
-    priority: 'medium',
-    createdAt: '2024-01-14T09:20:00Z',
-    assignedTo: 'Dr. Maria Santos',
-    notes: 'Owner found and reunited with pet. Case closed.'
-  }
-]
+type AdminReport = {
+  id: string
+  type: 'lost' | 'found' | 'abuse' | string
+  // animal info (varies by type)
+  animalName?: string
+  animalType?: string
+  breed?: string
+  age?: string
+  gender?: string
+  colors?: string
+  size?: string
+  // location/time (varies by type)
+  lastSeenLocation?: string
+  lastSeenDate?: string
+  lastSeenTime?: string
+  // reporter
+  reporterName?: string
+  reporterPhone?: string
+  reporterEmail?: string
+  // admin/meta
+  additionalDetails?: string
+  status: string
+  priority: 'urgent' | 'high' | 'medium' | 'normal'
+  createdAt: string
+  assignedTo?: string | null
+  attachments?: string[]
+}
 
 const ReportsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -94,12 +50,106 @@ const ReportsManagement = () => {
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'urgent' | 'high' | 'medium' | 'normal'>('all')
   const [selectedReport, setSelectedReport] = useState<any>(null)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [reports, setReports] = useState<AdminReport[]>([])
+  const [isEditing, setIsEditing] = useState(false)
+  const [editStatus, setEditStatus] = useState<'pending' | 'investigating' | 'resolved'>('pending')
+  const [editPriority, setEditPriority] = useState<'urgent' | 'high' | 'medium' | 'normal'>('normal')
+  const [editAssignedTo, setEditAssignedTo] = useState<string>('')
+  const [editPublished, setEditPublished] = useState<boolean>(false)
+  const [attachmentUrls, setAttachmentUrls] = useState<string[]>([])
+  const location = useLocation()
 
-  const filteredReports = MOCK_REPORTS.filter(report => {
+  useEffect(() => {
+    const path = location.pathname || ''
+    if (path.includes('/lost')) setTypeFilter('lost')
+    else if (path.includes('/found')) setTypeFilter('found')
+    else if (path.includes('/abuse')) setTypeFilter('abuse')
+    else setTypeFilter('all')
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!db) return
+    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const mapped: AdminReport[] = snap.docs.map((doc) => {
+        const d: any = doc.data()
+        const type: string = d?.type || 'unknown'
+        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : new Date().toISOString())
+        const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
+        const base = {
+          id: doc.id,
+          type,
+          reporterName: d?.contactName || 'Unknown',
+          reporterPhone: d?.contactPhone || '',
+          reporterEmail: d?.contactEmail || '',
+          additionalDetails: d?.additionalDetails || '',
+          status,
+          priority: (d?.priority || 'normal') as AdminReport['priority'],
+          createdAt: createdAtIso,
+          assignedTo: d?.assignedTo || null,
+          attachments: [] as string[]
+        }
+
+        if (type === 'lost') {
+          return {
+            ...base,
+            animalName: d?.animalName || 'Unknown',
+            animalType: d?.animalType || 'unknown',
+            breed: d?.breed || '',
+            age: d?.age || '',
+            gender: d?.gender || '',
+            colors: Array.isArray(d?.colors) ? d.colors.join(', ') : (d?.colors || ''),
+            size: d?.size || '',
+            lastSeenLocation: d?.lastSeenLocation || '',
+            lastSeenDate: d?.lastSeenDate || '',
+            lastSeenTime: d?.lastSeenTime || '',
+            attachments: d?.uploadObjectKey ? [d.uploadObjectKey] : []
+          }
+        }
+        if (type === 'found') {
+          return {
+            ...base,
+            animalName: d?.animalName || 'Unknown',
+            animalType: d?.animalType || 'unknown',
+            breed: d?.breed || '',
+            age: d?.estimatedAge || '',
+            gender: d?.gender || '',
+            colors: Array.isArray(d?.colors) ? d.colors.join(', ') : (d?.colors || ''),
+            size: d?.size || '',
+            lastSeenLocation: d?.foundLocation || '',
+            lastSeenDate: d?.foundDate || '',
+            lastSeenTime: d?.foundTime || '',
+            attachments: d?.uploadObjectKey ? [d.uploadObjectKey] : []
+          }
+        }
+        if (type === 'abuse') {
+          return {
+            ...base,
+            animalName: 'Unknown',
+            animalType: 'unknown',
+            breed: '',
+            age: '',
+            gender: '',
+            colors: '',
+            size: '',
+            lastSeenLocation: d?.incidentLocation || '',
+            lastSeenDate: d?.incidentDate || '',
+            lastSeenTime: d?.incidentTime || '',
+            attachments: Array.isArray(d?.evidenceObjects) ? d.evidenceObjects : []
+          }
+        }
+        return base as AdminReport
+      })
+      setReports(mapped)
+    })
+    return () => unsubscribe()
+  }, [])
+
+  const filteredReports = reports.filter(report => {
     const matchesSearch = searchTerm === '' || 
-      report.animalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.reporterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.lastSeenLocation.toLowerCase().includes(searchTerm.toLowerCase())
+      (report.animalName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (report.reporterName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (report.lastSeenLocation || '').toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = statusFilter === 'all' || report.status === statusFilter
     const matchesType = typeFilter === 'all' || report.type === typeFilter
@@ -145,9 +195,83 @@ const ReportsManagement = () => {
     }
   }
 
-  const handleViewReport = (report: any) => {
+  const resolveAttachments = async (attachments: string[] | undefined): Promise<string[]> => {
+    if (!attachments || attachments.length === 0) return []
+    const urls: string[] = []
+    for (const keyOrUrl of attachments) {
+      if (typeof keyOrUrl === 'string' && /^https?:\/\//i.test(keyOrUrl)) {
+        urls.push(keyOrUrl)
+      } else if (typeof keyOrUrl === 'string' && keyOrUrl.length > 0) {
+        try {
+          const signed = await createSignedEvidenceUrl(keyOrUrl, 3600)
+          urls.push(signed)
+        } catch {
+          // ignore errors; no URL added
+        }
+      }
+    }
+    return urls
+  }
+
+  const handleViewReport = async (report: AdminReport, edit = false) => {
     setSelectedReport(report)
+    setIsEditing(!!edit)
+    setEditStatus((report.status as 'pending' | 'investigating' | 'resolved') || 'pending')
+    setEditPriority((report.priority as 'urgent' | 'high' | 'medium' | 'normal') || 'normal')
+    setEditAssignedTo(report.assignedTo || '')
+    setEditPublished((report as any)?.published === true)
+    const urls = await resolveAttachments(report.attachments)
+    setAttachmentUrls(urls)
     setShowReportModal(true)
+  }
+
+  const handleSave = async () => {
+    if (!db || !selectedReport) return
+    const ref = doc(db, 'reports', selectedReport.id)
+    await updateDoc(ref, {
+      status: editStatus === 'pending' ? 'pending' : editStatus,
+      priority: editPriority,
+      assignedTo: editAssignedTo || null,
+      published: editPublished
+    })
+    setShowReportModal(false)
+  }
+
+  const handleExportCsv = () => {
+    const rows = filteredReports.map(r => ({
+      id: r.id,
+      type: r.type,
+      animalName: r.animalName || '',
+      animalType: r.animalType || '',
+      breed: r.breed || '',
+      age: r.age || '',
+      gender: r.gender || '',
+      colors: r.colors || '',
+      size: r.size || '',
+      location: r.lastSeenLocation || '',
+      date: r.lastSeenDate || '',
+      time: r.lastSeenTime || '',
+      reporterName: r.reporterName || '',
+      reporterPhone: r.reporterPhone || '',
+      reporterEmail: r.reporterEmail || '',
+      status: r.status,
+      priority: r.priority,
+      createdAt: r.createdAt,
+      assignedTo: r.assignedTo || ''
+    }))
+    const header = Object.keys(rows[0] || { id: 'id' }).join(',')
+    const body = rows.map(obj => Object.values(obj).map(v => {
+      const s = String(v ?? '')
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }).join(',')).join('\n')
+    const csv = [header, body].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `reports_${new Date().toISOString()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
 
@@ -239,7 +363,7 @@ const ReportsManagement = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Reports ({filteredReports.length})
               </h2>
-              <button className="flex items-center space-x-2 text-orange-600 hover:text-orange-700">
+              <button onClick={handleExportCsv} className="flex items-center space-x-2 text-orange-600 hover:text-orange-700">
                 <Download className="h-4 w-4" />
                 <span>Export</span>
               </button>
@@ -310,7 +434,7 @@ const ReportsManagement = () => {
                           <Eye className="h-4 w-4" />
                           <span>View</span>
                         </button>
-                        <button className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
+                        <button onClick={() => handleViewReport(report, true)} className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
                         </button>
@@ -348,6 +472,12 @@ const ReportsManagement = () => {
 
               {/* Modal Content */}
               <div className="p-6 space-y-6">
+                {/* Edit Toggle */}
+                {isEditing && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                    You are editing this report's admin fields.
+                  </div>
+                )}
                 {/* Animal Information */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Information</h3>
@@ -425,9 +555,24 @@ const ReportsManagement = () => {
                   </p>
                 </div>
 
+                {/* Attachments */}
+                {attachmentUrls.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Attachments</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {attachmentUrls.map((url, idx) => (
+                        <a key={idx} href={url} target="_blank" rel="noreferrer" className="block group">
+                          <img src={url} alt={`attachment-${idx}`} className="w-full h-40 object-cover rounded-lg border border-gray-200 group-hover:opacity-90" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Status Management */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Status Management</h3>
+                  {!isEditing ? (
                   <div className="flex items-center space-x-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Current Status</label>
@@ -446,6 +591,37 @@ const ReportsManagement = () => {
                       <p className="text-sm text-gray-900">{selectedReport.assignedTo || 'Unassigned'}</p>
                     </div>
                   </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as any)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                          <option value="pending">Pending</option>
+                          <option value="investigating">Investigating</option>
+                          <option value="resolved">Resolved</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                        <select value={editPriority} onChange={(e) => setEditPriority(e.target.value as any)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                          <option value="urgent">Urgent</option>
+                          <option value="high">High</option>
+                          <option value="medium">Medium</option>
+                          <option value="normal">Normal</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
+                        <input value={editAssignedTo} onChange={(e) => setEditAssignedTo(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" placeholder="Name or team" />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="inline-flex items-center space-x-2">
+                          <input type="checkbox" checked={editPublished} onChange={(e) => setEditPublished(e.target.checked)} />
+                          <span className="text-sm text-gray-700">Approve for website (publish to Content Management)</span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -456,9 +632,15 @@ const ReportsManagement = () => {
                   >
                     Close
                   </button>
-                  <button className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors">
-                    Update Status
+                  {isEditing ? (
+                    <button onClick={handleSave} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors">
+                      Save Changes
+                    </button>
+                  ) : (
+                    <button onClick={() => setIsEditing(true)} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors">
+                      Edit Status
                   </button>
+                  )}
                 </div>
               </div>
             </div>

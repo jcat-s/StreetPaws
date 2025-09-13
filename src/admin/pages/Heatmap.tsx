@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
@@ -6,6 +6,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
 import { HeatmapLayer } from 'react-leaflet-heatmap-layer-v3'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { LIPA_BARANGAY_COORDINATES } from '../../shared/constants/barangays'
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -31,6 +32,9 @@ type Coordinate = {
   location: string
 }
 
+// Use the accurate Lipa City Barangays from shared constants
+const LIPA_BARANGAYS = LIPA_BARANGAY_COORDINATES
+
 const Heatmap = () => {
   const [reports, setReports] = useState<ReportDoc[]>([])
   const [dateFrom, setDateFrom] = useState<string>('')
@@ -38,8 +42,14 @@ const Heatmap = () => {
   const [filterLost, setFilterLost] = useState(true)
   const [filterFound, setFilterFound] = useState(true)
   const [filterAbuse, setFilterAbuse] = useState(true)
-  const [selectedLocation, setSelectedLocation] = useState<string>('')
+  const [selectedBarangay, setSelectedBarangay] = useState<string>('')
   const [applyKey, setApplyKey] = useState(0)
+  const [mapCenter, setMapCenter] = useState<[number, number]>([13.9411, 121.1639])
+  const [mapZoom, setMapZoom] = useState(11)
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [searchResults, setSearchResults] = useState<string[]>([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!db) return
@@ -76,27 +86,68 @@ const Heatmap = () => {
     return null
   }
 
-  const locations = useMemo(() => {
-    const set = new Set<string>()
-    for (const r of reports) {
-      const loc = r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation
-      if (loc) set.add(loc)
+  const barangays = useMemo(() => {
+    return Object.keys(LIPA_BARANGAYS).sort()
+  }, [])
+
+  // Search functionality
+  const handleSearch = (query: string) => {
+    setSearchQuery(query)
+    if (query.length < 2) {
+      setSearchResults([])
+      setShowSearchResults(false)
+      return
     }
-    return Array.from(set).sort()
-  }, [reports])
+    
+    const results = barangays.filter(barangay => 
+      barangay.toLowerCase().includes(query.toLowerCase())
+    )
+    setSearchResults(results)
+    setShowSearchResults(true)
+  }
+
+  const handleSearchResultClick = (barangay: string) => {
+    setSelectedBarangay(barangay)
+    setSearchQuery(barangay)
+    setShowSearchResults(false)
+    
+    // Center map on selected barangay
+    if (LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS]) {
+      const barangayData = LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS]
+      setMapCenter([barangayData.lat, barangayData.lng])
+      setMapZoom(barangayData.zoom)
+      setApplyKey((v) => v + 1)
+    }
+  }
+
+  const clearSearch = () => {
+    setSearchQuery('')
+    setSearchResults([])
+    setShowSearchResults(false)
+  }
 
   const filtered = useMemo(() => {
     const from = dateFrom ? new Date(dateFrom) : null
     const to = dateTo ? new Date(dateTo) : null
     const types: Record<string, boolean> = { lost: filterLost, found: filterFound, abuse: filterAbuse }
+    
     return reports.filter((r) => {
       if (!types[r.type || '']) return false
       const d = getDate(r.createdAt)
       if (from && d && d < from) return false
       if (to && d && d > to) return false
+      
+      // Filter by barangay if selected
+      if (selectedBarangay) {
+        const loc = r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation
+        if (!loc || !loc.toLowerCase().includes(selectedBarangay.toLowerCase())) {
+          return false
+        }
+      }
+      
       return true
     })
-  }, [reports, dateFrom, dateTo, filterLost, filterFound, filterAbuse, applyKey])
+  }, [reports, dateFrom, dateTo, filterLost, filterFound, filterAbuse, selectedBarangay, applyKey])
 
   // Convert filtered reports to coordinates for heatmap
   const heatmapData = useMemo(() => {
@@ -135,16 +186,6 @@ const Heatmap = () => {
     return coordinates
   }, [filtered])
 
-  // const countsByLocation = useMemo(() => {
-  //   const map = new Map<string, number>()
-  //   for (const r of filtered) {
-  //     const loc = r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation
-  //     if (!loc) continue
-  //     map.set(loc, (map.get(loc) || 0) + 1)
-  //   }
-  //   return map
-  // }, [filtered])
-
   const maxCount = useMemo(() => {
     let max = 0
     heatmapData.forEach((coord) => { if (coord.intensity > max) max = coord.intensity })
@@ -152,30 +193,51 @@ const Heatmap = () => {
   }, [heatmapData])
 
   useEffect(() => {
-    if (!selectedLocation && locations.length > 0) {
-      setSelectedLocation(locations[0])
+    if (!selectedBarangay && barangays.length > 0) {
+      setSelectedBarangay(barangays[0])
     }
-  }, [locations, selectedLocation])
+  }, [barangays, selectedBarangay])
 
-  // const currentCount = countsByLocation.get(selectedLocation || '') || 0
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false)
+      }
+    }
 
-  // Default center (Manila, Philippines - adjust as needed)
-  const defaultCenter: [number, number] = [14.5995, 120.9842]
-  const defaultZoom = 11
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Default center (Lipa City, Philippines) - used in initial state
+
+  // Handle barangay selection and map centering
+  const handleApplyFilters = () => {
+    if (selectedBarangay && LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS]) {
+      const barangayData = LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS]
+      setMapCenter([barangayData.lat, barangayData.lng])
+      setMapZoom(barangayData.zoom)
+    }
+    setApplyKey((v) => v + 1)
+  }
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">Stray Animals Cases Heatmap</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-4">Lipa City Stray Animals Cases Heatmap</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Map / Heat area */}
         <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-2">
           <div className="relative w-full aspect-[4/3] overflow-hidden rounded-md border border-gray-200">
             <MapContainer
-              center={defaultCenter}
-              zoom={defaultZoom}
+              center={mapCenter}
+              zoom={mapZoom}
               style={{ height: '100%', width: '100%' }}
               className="z-0"
+              key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -226,6 +288,48 @@ const Heatmap = () => {
 
         {/* Filters & Stats */}
         <div className="bg-orange-50 rounded-lg shadow-sm border border-orange-200 p-4">
+          {/* Search */}
+          <div className="border border-orange-200 rounded-md mb-4">
+            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Search Location</div>
+            <div className="px-3 py-3 space-y-2">
+              <div className="relative" ref={searchRef}>
+                <input 
+                  type="text" 
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Search barangay..."
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 pr-8"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={clearSearch}
+                    className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+                {showSearchResults && searchResults.length > 0 && (
+                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {searchResults.map((barangay) => (
+                      <button
+                        key={barangay}
+                        onClick={() => handleSearchResultClick(barangay)}
+                        className="w-full text-left px-3 py-2 hover:bg-orange-50 border-b border-gray-100 last:border-b-0"
+                      >
+                        {barangay}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showSearchResults && searchResults.length === 0 && searchQuery.length >= 2 && (
+                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3 text-gray-500">
+                    No barangays found
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Statistics */}
           <div className="border border-orange-200 rounded-md mb-4">
             <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Statistics</div>
@@ -242,6 +346,12 @@ const Heatmap = () => {
                 <span className="text-gray-700">Max Cases:</span>
                 <span className="font-semibold text-gray-900">{maxCount}</span>
               </div>
+              {selectedBarangay && (
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Selected Barangay:</span>
+                  <span className="font-semibold text-gray-900">{selectedBarangay}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -273,16 +383,17 @@ const Heatmap = () => {
             </div>
           </div>
 
-          {/* Location */}
+          {/* Barangay */}
           <div className="border border-orange-200 rounded-md mb-4">
-            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Filter by Location</div>
+            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Filter by Barangay</div>
             <div className="px-3 py-3 space-y-3">
-              <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                {locations.map((loc) => (
-                  <option key={loc} value={loc}>{loc}</option>
+              <select value={selectedBarangay} onChange={(e) => setSelectedBarangay(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2">
+                <option value="">All Barangays</option>
+                {barangays.map((barangay) => (
+                  <option key={barangay} value={barangay}>{barangay}</option>
                 ))}
               </select>
-              <button onClick={() => setApplyKey((v) => v + 1)} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-md">Apply Filters</button>
+              <button onClick={handleApplyFilters} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-md">Apply Filters</button>
             </div>
           </div>
 
@@ -315,5 +426,3 @@ const Heatmap = () => {
 }
 
 export default Heatmap
-
-

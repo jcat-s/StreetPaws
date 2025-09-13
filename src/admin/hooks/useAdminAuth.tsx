@@ -89,7 +89,7 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
           return
         }
       }
-      if (email === 'superadmin@streetpaws.gov.ph' && password === 'superadmin123') {
+      if (email === 'superadmin@streetpaws.gov.ph' && password === 'supers') {
         const adminData = ADMIN_USERS[email]
         if (adminData) {
           setAdminUser(adminData)

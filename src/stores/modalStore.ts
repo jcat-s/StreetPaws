@@ -46,11 +46,13 @@ export const useModalStore = create<ModalState>((set) => ({
 
   openReportModal: () => set({ isReportModalOpen: true }),
   closeReportModal: () => set({ isReportModalOpen: false }),
+
   // Animal profile modal
   isAnimalProfileOpen: false,
   selectedAnimal: null,
   openAnimalProfile: (animal) => set({ isAnimalProfileOpen: true, selectedAnimal: animal }),
   closeAnimalProfile: () => set({ isAnimalProfileOpen: false, selectedAnimal: null }),
+
   // Close all modals
   closeAllModals: () => set({ 
     isLoginModalOpen: false, 

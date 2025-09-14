@@ -75,6 +75,9 @@ export const LIPA_BARANGAYS = [
 ] as const
 
 // Barangay coordinates for heatmap (approximate center coordinates)
+//Latitude → increase (up)
+//Longitude → increase (right)
+
 export const LIPA_BARANGAY_COORDINATES = {
   'Adya': { lat: 13.8814827, lng: 121.1342373, zoom: 15 },
   'Anilao': { lat: 13.9014692, lng: 121.1716944, zoom: 15 },
@@ -82,33 +85,36 @@ export const LIPA_BARANGAY_COORDINATES = {
   'Antipolo del Norte': { lat: 13.9316385, lng: 121.1670943, zoom: 15 },
   'Antipolo del Sur': { lat: 13.9119193, lng: 121.1864893, zoom: 15 },
 
-  'Bagong Pook': { lat: 13.9423, lng: 121.1103, zoom: 15 },
+  'Bagong Pook': { lat: 13.9423, lng: 121.1103, zoom: 15 }, //
   'Balintawak': { lat: 13.9538067, lng: 121.1584888, zoom: 15 },
-  'Banaybanay': { lat: 13.8970, lng: 121.2172, zoom: 15 },
-  'Barangay 12': { lat: 13.761003, lng: 121.055566, zoom: 15 },
+  'Banaybanay': { lat: 13.8970, lng: 121.2172, zoom: 15 },//
+  'Barangay 12': { lat: 13.761003, lng: 121.055566, zoom: 15 },//
   'Bolbok': { lat: 13.9238285, lng: 121.1487819, zoom: 15 },
 
-  'Bugtong na Pulo': { lat: 14.0000, lng: 121.1670, zoom: 15 },
-  'Bulacnin': { lat: 13.9854, lng: 121.1414, zoom: 15 },
-  'Bulaklakan': { lat: 13.9424, lng: 121.0978, zoom: 15 },
-  'Calamias': { lat: 13.8606, lng: 121.1467, zoom: 15 },
-  'Cumba': { lat: 13.9708, lng: 120.6584, zoom: 15 },
-  'Dagatan': { lat: 13.9414, lng: 121.1642, zoom: 15 },
+  'Bugtong na Pulo': { lat: 14.0000, lng: 121.1670, zoom: 15 }, //c
+  'Bulacnin': { lat: 13.9854, lng: 121.1414, zoom: 15 }, //c
+  'Bulaklakan': { lat: 13.9424, lng: 121.0978, zoom: 15 },//c
+  'Calamias': { lat: 13.8606, lng: 121.1467, zoom: 15 },//c
+  'Cumba': { lat: 13.9073827, lng: 121.1382821, zoom: 15 },
+
+  'Dagatan': { lat: 13.9660148, lng: 121.1815535, zoom: 15 },
+  'Duhatan': { lat: 13.9330, lng: 121.0809, zoom: 15 },//
+  'Halang': { lat: 13.9524, lng: 121.0830, zoom: 15 },//
+  'Inosloban': { lat: 13.9828, lng: 121.1706, zoom: 15 },
+  'Kayumanggi': { lat: 13.9258, lng: 121.1606, zoom: 15 },
+
+  'Latag': { lat: 13.9334, lng: 121.1722, zoom: 15 }, //c
+  'Lodlod': { lat: 13.9306, lng: 121.1415, zoom: 15 },//c
+  'Lumbang': { lat: 13.9842, lng: 121.2006, zoom: 15 },//c
+  'Mabini': { lat: 13.8968125, lng: 121.1491625, zoom: 15 },
+  'Malagonlong': { lat: 13.9098930, lng: 121.1562563, zoom: 15 },
   
-  'Duhatan': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Halang': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Inosloban': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Kayumanggi': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Latag': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Lodlod': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Lumbang': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Mabini': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Malagonlong': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Malitlit': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Marauoy': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Mataas na Lupa': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Munting Pulo': { /* lat: ?, lng: ?, zoom: 15 */ },
-  'Pagolingin Bata': { /* lat: ?, lng: ?, zoom: 15 */ },
+  'Malitlit': { lat: 13.9178, lng: 121.2352, zoom: 15 },
+  'Marauoy': { lat: 13.963461, lng: 121.161249, zoom: 15 },
+  'Mataas na Lupa': { lat: 13.8078, lng: 121.0135, zoom: 15 },
+  'Munting Pulo': { lat: 13.9545304, lng: 121.1853557, zoom: 15 },
+  'Pagolingin Bata': { lat: 13.8927, lng: 121.1623, zoom: 15 },
+
   'Pagolingin East': { /* lat: ?, lng: ?, zoom: 15 */ },
   'Pagolingin West': { /* lat: ?, lng: ?, zoom: 15 */ },
   'Pangao': { /* lat: ?, lng: ?, zoom: 15 */ },

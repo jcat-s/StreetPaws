@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Search, Filter } from 'lucide-react'
 import { useModalStore } from '../../../stores/modalStore'
-import AnimalProfileModal from '../../components/AnimalProfileModal'
+import AnimalProfileModal from '../../modal/AnimalProfileModal'
 
 // Import actual images
 import JepoyImage from '../../../assets/images/Animals/Jepoy.jpg'

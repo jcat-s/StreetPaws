@@ -35,6 +35,12 @@ type Coordinate = {
 // Use the accurate Lipa City Barangays from shared constants
 const LIPA_BARANGAYS = LIPA_BARANGAY_COORDINATES
 
+// Define bounds for Lipa City to crop the map
+const LIPA_BOUNDS = L.latLngBounds(
+  L.latLng(13.75, 121.0), // Southwest corner
+  L.latLng(14.05, 121.25) // Northeast corner
+)
+
 const Heatmap = () => {
   const [reports, setReports] = useState<ReportDoc[]>([])
   const [dateFrom, setDateFrom] = useState<string>('')
@@ -45,7 +51,7 @@ const Heatmap = () => {
   const [selectedBarangay, setSelectedBarangay] = useState<string>('')
   const [applyKey, setApplyKey] = useState(0)
   const [mapCenter, setMapCenter] = useState<[number, number]>([13.9411, 121.1639])
-  const [mapZoom, setMapZoom] = useState(11)
+  const [mapZoom, setMapZoom] = useState(12)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [searchResults, setSearchResults] = useState<string[]>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
@@ -113,10 +119,12 @@ const Heatmap = () => {
     
     // Center map on selected barangay
     if (LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS]) {
-      const barangayData = LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS]
-      setMapCenter([barangayData.lat, barangayData.lng])
-      setMapZoom(barangayData.zoom)
-      setApplyKey((v) => v + 1)
+      const barangayData = LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS] as any
+      if (barangayData && barangayData.lat && barangayData.lng) {
+        setMapCenter([barangayData.lat, barangayData.lng])
+        setMapZoom(Math.max(barangayData.zoom || 15, 11)) // Ensure minimum zoom of 11
+        setApplyKey((v) => v + 1)
+      }
     }
   }
 
@@ -217,9 +225,11 @@ const Heatmap = () => {
   // Handle barangay selection and map centering
   const handleApplyFilters = () => {
     if (selectedBarangay && LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS]) {
-      const barangayData = LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS]
-      setMapCenter([barangayData.lat, barangayData.lng])
-      setMapZoom(barangayData.zoom)
+      const barangayData = LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS] as any
+      if (barangayData && barangayData.lat && barangayData.lng) {
+        setMapCenter([barangayData.lat, barangayData.lng])
+        setMapZoom(Math.max(barangayData.zoom || 15, 11)) // Ensure minimum zoom of 11
+      }
     }
     setApplyKey((v) => v + 1)
   }
@@ -235,6 +245,9 @@ const Heatmap = () => {
             <MapContainer
               center={mapCenter}
               zoom={mapZoom}
+              minZoom={11}
+              maxBounds={LIPA_BOUNDS}
+              maxBoundsViscosity={1.0}
               style={{ height: '100%', width: '100%' }}
               className="z-0"
               key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
@@ -329,32 +342,6 @@ const Heatmap = () => {
               </div>
             </div>
           </div>
-
-          {/* Statistics */}
-          <div className="border border-orange-200 rounded-md mb-4">
-            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Statistics</div>
-            <div className="px-3 py-3 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-700">Total Reports:</span>
-                <span className="font-semibold text-gray-900">{filtered.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Mapped Locations:</span>
-                <span className="font-semibold text-gray-900">{heatmapData.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Max Cases:</span>
-                <span className="font-semibold text-gray-900">{maxCount}</span>
-              </div>
-              {selectedBarangay && (
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Selected Barangay:</span>
-                  <span className="font-semibold text-gray-900">{selectedBarangay}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Date */}
           <div className="border border-orange-200 rounded-md mb-4">
             <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Filter by Date</div>
@@ -394,6 +381,36 @@ const Heatmap = () => {
                 ))}
               </select>
               <button onClick={handleApplyFilters} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-md">Apply Filters</button>
+            </div>
+          </div>
+
+
+
+
+
+
+          {/* Statistics */}
+          <div className="border border-orange-200 rounded-md mb-4">
+            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Statistics</div>
+            <div className="px-3 py-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-700">Total Reports:</span>
+                <span className="font-semibold text-gray-900">{filtered.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Mapped Locations:</span>
+                <span className="font-semibold text-gray-900">{heatmapData.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Max Cases:</span>
+                <span className="font-semibold text-gray-900">{maxCount}</span>
+              </div>
+              {selectedBarangay && (
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Selected Barangay:</span>
+                  <span className="font-semibold text-gray-900">{selectedBarangay}</span>
+                </div>
+              )}
             </div>
           </div>
 

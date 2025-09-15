@@ -1,440 +1,236 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
-import { db } from '../../config/firebase'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-// @ts-ignore - No type definitions available for this package
-import { HeatmapLayer } from 'react-leaflet-heatmap-layer-v3'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
-import { LIPA_BARANGAY_COORDINATES } from '../../shared/constants/barangays'
+import React, { useState, useEffect, useMemo } from 'react'
+import { MapPin, AlertCircle } from 'lucide-react'
+import MapContainer from '../components/heatmap/MapContainer'
+import FiltersPanel from '../components/heatmap/FiltersPanel'
+import Legend from '../components/heatmap/Legend'
+import { useHeatmapData } from '../hooks/useHeatmapData'
+import { barangayData } from '../../data/lipa-city-barangays'
 
-// Fix for default markers in react-leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-})
-
-type ReportDoc = {
-  type?: 'lost' | 'found' | 'abuse'
-  createdAt?: any
-  lastSeenLocation?: string
-  foundLocation?: string
-  incidentLocation?: string
-}
-
-type Coordinate = {
-  lat: number
-  lng: number
-  intensity: number
-  type: string
-  location: string
-}
-
-// Use the accurate Lipa City Barangays from shared constants
-const LIPA_BARANGAYS = LIPA_BARANGAY_COORDINATES
-
-// Define bounds for Lipa City to crop the map
-const LIPA_BOUNDS = L.latLngBounds(
-  L.latLng(13.75, 121.0), // Southwest corner
-  L.latLng(14.05, 121.25) // Northeast corner
-)
-
-const Heatmap = () => {
-  const [reports, setReports] = useState<ReportDoc[]>([])
+const Heatmap: React.FC = () => {
+  // State for filters
   const [dateFrom, setDateFrom] = useState<string>('')
   const [dateTo, setDateTo] = useState<string>('')
   const [filterLost, setFilterLost] = useState(true)
   const [filterFound, setFilterFound] = useState(true)
   const [filterAbuse, setFilterAbuse] = useState(true)
   const [selectedBarangay, setSelectedBarangay] = useState<string>('')
-  const [applyKey, setApplyKey] = useState(0)
-  const [mapCenter, setMapCenter] = useState<[number, number]>([13.9411, 121.1639])
-  const [mapZoom, setMapZoom] = useState(12)
-  const [searchQuery, setSearchQuery] = useState<string>('')
-  const [searchResults, setSearchResults] = useState<string[]>([])
-  const [showSearchResults, setShowSearchResults] = useState(false)
-  const searchRef = useRef<HTMLDivElement>(null)
+  const [hoveredBarangay, setHoveredBarangay] = useState<string | null>(null)
+  const [hoveredActivityData, setHoveredActivityData] = useState<{ cases: number, percentage: number, level: string } | null>(null)
 
+  // Custom hook for data fetching
+  const { reports, isLoading, error, fetchReports, clearError } = useHeatmapData()
+
+  // Extract barangay names from GeoJSON
+  const barangayOptions = useMemo(() => {
+    return barangayData.features.map((feature: any) => feature.properties.name).sort()
+  }, [])
+
+  // On mount, fetch an initial dataset (all types) for Lipa City
   useEffect(() => {
-    if (!db) return
-    const unsub = onSnapshot(collection(db, 'reports'), (snap) => {
-      const list = snap.docs.map((d) => d.data() as ReportDoc)
-      setReports(list)
-    })
-    return () => unsub()
-  }, [])
+    const initialFilters: ('lost' | 'found' | 'abuse')[] = ['lost', 'found', 'abuse']
+    // fetch all types initially
+    fetchReports({ dateFrom: undefined, dateTo: undefined, types: initialFilters, barangay: selectedBarangay || undefined }, barangayData)
+  }, [fetchReports])
 
-  function getDate(v: any): Date | null {
-    if (!v) return null
-    if (typeof v?.toDate === 'function') return v.toDate() as Date
-    if (typeof v === 'string') return new Date(v)
-    return null
-  }
+  // Handle filter application
+  const handleApplyFilters = () => {
+    // Basic validation: at least one type should be selected
+    const types: ('lost' | 'found' | 'abuse')[] = []
+    if (filterLost) types.push('lost')
+    if (filterFound) types.push('found')
+    if (filterAbuse) types.push('abuse')
 
-  // Parse location string to coordinates
-  function parseLocation(location: string): Coordinate | null {
-    if (!location) return null
-    
-    // Try to parse as "lat,lng" format
-    const coords = location.split(',').map(s => s.trim())
-    if (coords.length === 2) {
-      const lat = parseFloat(coords[0])
-      const lng = parseFloat(coords[1])
-      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { lat, lng, intensity: 1, type: '', location }
-      }
-    }
-    
-    // For now, return null for non-coordinate strings
-    // In a real app, you might want to geocode these addresses
-    return null
-  }
-
-  const barangays = useMemo(() => {
-    return Object.keys(LIPA_BARANGAYS).sort()
-  }, [])
-
-  // Search functionality
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-    if (query.length < 2) {
-      setSearchResults([])
-      setShowSearchResults(false)
+    if (types.length === 0) {
+      // No types selected -> clear results and do nothing
+      // fetchReports expects types array; passing empty means "no results"
+      fetchReports({ dateFrom: undefined, dateTo: undefined, types: [], barangay: undefined }, barangayData)
       return
     }
-    
-    const results = barangays.filter(barangay => 
-      barangay.toLowerCase().includes(query.toLowerCase())
-    )
-    setSearchResults(results)
-    setShowSearchResults(true)
+
+    // Validate date range
+    if (dateFrom && dateTo) {
+      const from = new Date(dateFrom)
+      const to = new Date(dateTo)
+      if (from > to) {
+        // Show a simple browser alert for now
+        // This prevents running an invalid query
+        // You can replace this with a styled UI notification later
+        window.alert('Invalid date range: "From" must be before "To".')
+        return
+      }
+    }
+
+    const filters = {
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      types,
+      barangay: selectedBarangay || undefined
+    }
+
+    fetchReports(filters, barangayData)
   }
 
-  const handleSearchResultClick = (barangay: string) => {
-    setSelectedBarangay(barangay)
-    setSearchQuery(barangay)
-    setShowSearchResults(false)
-    
-    // Center map on selected barangay
-    if (LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS]) {
-      const barangayData = LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS] as any
-      if (barangayData && barangayData.lat && barangayData.lng) {
-        setMapCenter([barangayData.lat, barangayData.lng])
-        setMapZoom(Math.max(barangayData.zoom || 15, 11)) // Ensure minimum zoom of 11
-        setApplyKey((v) => v + 1)
-      }
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const totalReports = reports.length
+    const lostCount = reports.filter(r => r.type === 'lost').length
+    const foundCount = reports.filter(r => r.type === 'found').length
+    const abuseCount = reports.filter(r => r.type === 'abuse').length
+
+    return {
+      total: totalReports,
+      lost: lostCount,
+      found: foundCount,
+      abuse: abuseCount
     }
-  }
-
-  const clearSearch = () => {
-    setSearchQuery('')
-    setSearchResults([])
-    setShowSearchResults(false)
-  }
-
-  const filtered = useMemo(() => {
-    const from = dateFrom ? new Date(dateFrom) : null
-    const to = dateTo ? new Date(dateTo) : null
-    const types: Record<string, boolean> = { lost: filterLost, found: filterFound, abuse: filterAbuse }
-    
-    return reports.filter((r) => {
-      if (!types[r.type || '']) return false
-      const d = getDate(r.createdAt)
-      if (from && d && d < from) return false
-      if (to && d && d > to) return false
-      
-      // Filter by barangay if selected
-      if (selectedBarangay) {
-        const loc = r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation
-        if (!loc || !loc.toLowerCase().includes(selectedBarangay.toLowerCase())) {
-          return false
-        }
-      }
-      
-      return true
-    })
-  }, [reports, dateFrom, dateTo, filterLost, filterFound, filterAbuse, selectedBarangay, applyKey])
-
-  // Convert filtered reports to coordinates for heatmap
-  const heatmapData = useMemo(() => {
-    const coordinates: Coordinate[] = []
-    const locationCounts = new Map<string, { count: number; type: string }>()
-    
-    for (const r of filtered) {
-      const loc = r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation
-      if (!loc) continue
-      
-      const coord = parseLocation(loc)
-      if (coord) {
-        const key = `${coord.lat},${coord.lng}`
-        const existing = locationCounts.get(key)
-        if (existing) {
-          existing.count++
-          existing.type = r.type || 'unknown'
-        } else {
-          locationCounts.set(key, { count: 1, type: r.type || 'unknown' })
-        }
-      }
-    }
-    
-    // Convert to heatmap format
-    locationCounts.forEach(({ count, type }, key) => {
-      const [lat, lng] = key.split(',').map(Number)
-      coordinates.push({
-        lat,
-        lng,
-        intensity: count,
-        type,
-        location: key
-      })
-    })
-    
-    return coordinates
-  }, [filtered])
-
-  const maxCount = useMemo(() => {
-    let max = 0
-    heatmapData.forEach((coord) => { if (coord.intensity > max) max = coord.intensity })
-    return max
-  }, [heatmapData])
-
-  useEffect(() => {
-    if (!selectedBarangay && barangays.length > 0) {
-      setSelectedBarangay(barangays[0])
-    }
-  }, [barangays, selectedBarangay])
-
-  // Close search results when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSearchResults(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
-
-  // Default center (Lipa City, Philippines) - used in initial state
-
-  // Handle barangay selection and map centering
-  const handleApplyFilters = () => {
-    if (selectedBarangay && LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS]) {
-      const barangayData = LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS] as any
-      if (barangayData && barangayData.lat && barangayData.lng) {
-        setMapCenter([barangayData.lat, barangayData.lng])
-        setMapZoom(Math.max(barangayData.zoom || 15, 11)) // Ensure minimum zoom of 11
-      }
-    }
-    setApplyKey((v) => v + 1)
-  }
+  }, [reports])
 
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">Lipa City Stray Animals Cases Heatmap</h1>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Stray Animals Cases Heatmap</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Visualize report density across Lipa City barangays
+              </p>
+            </div>
+            <div className="flex items-center space-x-4 text-sm text-gray-600">
+              <div className="flex items-center space-x-1">
+                <MapPin className="h-4 w-4" />
+                <span>{stats.total} Total Reports</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Map / Heat area */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-2">
-          <div className="relative w-full aspect-[4/3] overflow-hidden rounded-md border border-gray-200">
-            <MapContainer
-              center={mapCenter}
-              zoom={mapZoom}
-              minZoom={11}
-              maxBounds={LIPA_BOUNDS}
-              maxBoundsViscosity={1.0}
-              style={{ height: '100%', width: '100%' }}
-              className="z-0"
-              key={`${mapCenter[0]}-${mapCenter[1]}-${mapZoom}`}
+      {/* Main Content */}
+      <div className="p-6">
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <span className="text-red-800 font-medium">Error loading data</span>
+            </div>
+            <p className="text-red-700 text-sm mt-1">{error}</p>
+            <button
+              onClick={clearError}
+              className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              
-              {/* Heatmap Layer */}
-              {heatmapData.length > 0 && (
-                <HeatmapLayer
-                  points={heatmapData}
-                  longitudeExtractor={(point: Coordinate) => point.lng}
-                  latitudeExtractor={(point: Coordinate) => point.lat}
-                  intensityExtractor={(point: Coordinate) => point.intensity}
-                  radius={30}
-                  max={maxCount}
-                  minOpacity={0.3}
-                  gradient={{
-                    0.2: '#22c55e', // green
-                    0.4: '#eab308', // yellow
-                    0.6: '#f97316', // orange
-                    0.8: '#ef4444', // red
-                    1.0: '#dc2626'  // dark red
-                  }}
-                />
-              )}
-              
-              {/* Markers for each location */}
-              {heatmapData.map((coord, index) => (
-                <Marker key={index} position={[coord.lat, coord.lng]}>
-                  <Popup>
-                    <div className="text-center">
-                      <div className="font-semibold text-gray-900 mb-1">
-                        {coord.location}
-                      </div>
-                      <div className="text-orange-600 font-bold text-lg">
-                        {coord.intensity} Cases
-                      </div>
-                      <div className="text-xs text-gray-500 capitalize">
-                        Type: {coord.type}
-                      </div>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Statistics Cards */}
+        <div className="heatmap-stats mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 stat-card">
+            <div className="stat-number font-bold text-gray-900">{stats.total}</div>
+            <div className="stat-label text-gray-600">Total Reports</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 stat-card">
+            <div className="stat-number font-bold text-blue-600">{stats.lost}</div>
+            <div className="stat-label text-gray-600">Lost Animals</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 stat-card">
+            <div className="stat-number font-bold text-green-600">{stats.found}</div>
+            <div className="stat-label text-gray-600">Found Animals</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 stat-card">
+            <div className="stat-number font-bold text-red-600">{stats.abuse}</div>
+            <div className="stat-label text-gray-600">Abuse Reports</div>
           </div>
         </div>
 
-        {/* Filters & Stats */}
-        <div className="bg-orange-50 rounded-lg shadow-sm border border-orange-200 p-4">
-          {/* Search */}
-          <div className="border border-orange-200 rounded-md mb-4">
-            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Search Location</div>
-            <div className="px-3 py-3 space-y-2">
-              <div className="relative" ref={searchRef}>
-                <input 
-                  type="text" 
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search barangay..."
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 pr-8"
+        {/* Main Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Filters Panel */}
+          <div className="lg:col-span-1 heatmap-filters">
+            <FiltersPanel
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onDateFromChange={setDateFrom}
+              onDateToChange={setDateTo}
+              filterLost={filterLost}
+              filterFound={filterFound}
+              filterAbuse={filterAbuse}
+              onFilterLostChange={setFilterLost}
+              onFilterFoundChange={setFilterFound}
+              onFilterAbuseChange={setFilterAbuse}
+              selectedBarangay={selectedBarangay}
+              onBarangayChange={setSelectedBarangay}
+              barangayOptions={barangayOptions}
+              onApplyFilters={handleApplyFilters}
+              isLoading={isLoading}
+            />
+          </div>
+
+          {/* Map Container */}
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="h-[600px] relative heatmap-container">
+                <MapContainer
+                  reports={reports}
+                  barangayData={barangayData}
+                  selectedBarangay={selectedBarangay}
+                  onBarangayHover={(barangay, activityData) => {
+                    setHoveredBarangay(barangay)
+                    setHoveredActivityData(activityData || null)
+                  }}
                 />
-                {searchQuery && (
-                  <button 
-                    onClick={clearSearch}
-                    className="absolute right-2 top-2 text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                )}
-                {showSearchResults && searchResults.length > 0 && (
-                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {searchResults.map((barangay) => (
-                      <button
-                        key={barangay}
-                        onClick={() => handleSearchResultClick(barangay)}
-                        className="w-full text-left px-3 py-2 hover:bg-orange-50 border-b border-gray-100 last:border-b-0"
-                      >
-                        {barangay}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {showSearchResults && searchResults.length === 0 && searchQuery.length >= 2 && (
-                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3 text-gray-500">
-                    No barangays found
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          {/* Date */}
-          <div className="border border-orange-200 rounded-md mb-4">
-            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Filter by Date</div>
-            <div className="px-3 py-3 space-y-2">
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-            </div>
-          </div>
 
-          {/* Type */}
-          <div className="border border-orange-200 rounded-md mb-4">
-            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Filter by Report Type</div>
-            <div className="px-3 py-3 grid grid-cols-3 gap-2 text-sm">
-              <label className="inline-flex items-center space-x-2">
-                <input type="checkbox" checked={filterLost} onChange={(e) => setFilterLost(e.target.checked)} />
-                <span>Lost</span>
-              </label>
-              <label className="inline-flex items-center space-x-2">
-                <input type="checkbox" checked={filterFound} onChange={(e) => setFilterFound(e.target.checked)} />
-                <span>Found</span>
-              </label>
-              <label className="inline-flex items-center space-x-2">
-                <input type="checkbox" checked={filterAbuse} onChange={(e) => setFilterAbuse(e.target.checked)} />
-                <span>Abuse</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Barangay */}
-          <div className="border border-orange-200 rounded-md mb-4">
-            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Filter by Barangay</div>
-            <div className="px-3 py-3 space-y-3">
-              <select value={selectedBarangay} onChange={(e) => setSelectedBarangay(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                <option value="">All Barangays</option>
-                {barangays.map((barangay) => (
-                  <option key={barangay} value={barangay}>{barangay}</option>
-                ))}
-              </select>
-              <button onClick={handleApplyFilters} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-md">Apply Filters</button>
-            </div>
-          </div>
-
-
-
-
-
-
-          {/* Statistics */}
-          <div className="border border-orange-200 rounded-md mb-4">
-            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Statistics</div>
-            <div className="px-3 py-3 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-700">Total Reports:</span>
-                <span className="font-semibold text-gray-900">{filtered.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Mapped Locations:</span>
-                <span className="font-semibold text-gray-900">{heatmapData.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Max Cases:</span>
-                <span className="font-semibold text-gray-900">{maxCount}</span>
-              </div>
-              {selectedBarangay && (
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Selected Barangay:</span>
-                  <span className="font-semibold text-gray-900">{selectedBarangay}</span>
+                {/* Legend positioned in bottom-right corner of map */}
+                <div className="absolute bottom-4 right-4 z-[1000]">
+                  <Legend />
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Legend */}
-          <div className="border border-orange-200 rounded-md">
-            <div className="px-3 py-2 bg-white text-gray-900 font-semibold rounded-t-md">Heatmap Legend</div>
-            <div className="px-3 py-3 space-y-3">
-              <div className="flex items-center space-x-3">
-                <span className="inline-block w-5 h-5 rounded bg-green-500 border border-green-600" />
-                <span className="text-gray-800">Low (1-2 cases)</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="inline-block w-5 h-5 rounded bg-yellow-500 border border-yellow-600" />
-                <span className="text-gray-800">Medium (3-5 cases)</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="inline-block w-5 h-5 rounded bg-orange-500 border border-orange-600" />
-                <span className="text-gray-800">High (6-10 cases)</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="inline-block w-5 h-5 rounded bg-red-500 border border-red-600" />
-                <span className="text-gray-800">Critical (10+ cases)</span>
+                {/* Loading overlay */}
+                {isLoading && (
+                  <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-[999]">
+                    <div className="flex items-center space-x-2">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+                      <span className="text-gray-700">Loading reports...</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Hovered Barangay Info */}
+            {hoveredBarangay && hoveredActivityData && (
+              <div className="mt-4 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">Barangay Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600">Barangay</p>
+                    <p className="font-medium text-gray-900">{hoveredBarangay}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Total Cases</p>
+                    <p className="font-medium text-gray-900">{hoveredActivityData.cases}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Activity Level</p>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium text-gray-900">{hoveredActivityData.percentage}%</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${hoveredActivityData.level === 'High' ? 'bg-red-100 text-red-800' :
+                        hoveredActivityData.level === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}>
+                        {hoveredActivityData.level}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Activity percentage is calculated relative to the highest density area in the current dataset
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

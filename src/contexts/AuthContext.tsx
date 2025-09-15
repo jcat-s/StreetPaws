@@ -13,9 +13,10 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
   Auth,
-  AuthError
+  AuthError,
+  signInWithPopup
 } from 'firebase/auth'
-import { auth } from '../config/firebase'
+import { auth, googleProvider, facebookProvider, appleProvider } from '../config/firebase'
 import { securityService } from '../shared/utils/securityService'
 
 interface AuthContextType {
@@ -28,6 +29,9 @@ interface AuthContextType {
   verifyPasswordResetCode: (code: string) => Promise<string>
   sendEmailVerification: () => Promise<void>
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
+  signInWithFacebook: () => Promise<void>
+  signInWithApple: () => Promise<void>
   loading: boolean
   isEmailVerified: boolean
   requiresEmailVerification: boolean
@@ -262,6 +266,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function signInWithGoogle(): Promise<void> {
+    if (!auth) {
+      throw new Error('Firebase auth not initialized')
+    }
+    try {
+      await signInWithPopup(auth as Auth, googleProvider)
+    } catch (error) {
+      throw new Error(getErrorMessage(error as AuthError))
+    }
+  }
+
+  async function signInWithFacebook(): Promise<void> {
+    if (!auth) {
+      throw new Error('Firebase auth not initialized')
+    }
+    try {
+      await signInWithPopup(auth as Auth, facebookProvider)
+    } catch (error) {
+      throw new Error(getErrorMessage(error as AuthError))
+    }
+  }
+
+  async function signInWithApple(): Promise<void> {
+    if (!auth) {
+      throw new Error('Firebase auth not initialized')
+    }
+    try {
+      await signInWithPopup(auth as Auth, appleProvider)
+    } catch (error) {
+      throw new Error(getErrorMessage(error as AuthError))
+    }
+  }
+
   useEffect(() => {
     if (!auth) {
       console.warn('Firebase auth not initialized - skipping auth state listener')
@@ -289,6 +326,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     verifyPasswordResetCode,
     sendEmailVerification,
     changePassword,
+    signInWithGoogle,
+    signInWithFacebook,
+    signInWithApple,
     loading,
     isEmailVerified,
     requiresEmailVerification

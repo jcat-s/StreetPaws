@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth, Auth } from 'firebase/auth'
+import { getAuth, Auth, GoogleAuthProvider, FacebookAuthProvider, OAuthProvider } from 'firebase/auth'
 import type { Analytics } from 'firebase/analytics'
 import { getAnalytics, isSupported } from 'firebase/analytics'
 import { getFirestore } from 'firebase/firestore'
@@ -73,5 +73,20 @@ try {
 	console.warn('Firebase initialization failed:', error)
 }
 
-export { auth, analytics, db, storage }
+// Initialize social auth providers
+const googleProvider = new GoogleAuthProvider()
+const facebookProvider = new FacebookAuthProvider()
+const appleProvider = new OAuthProvider('apple.com')
+
+// Configure providers
+googleProvider.addScope('email')
+googleProvider.addScope('profile')
+
+facebookProvider.addScope('email')
+facebookProvider.addScope('public_profile')
+
+appleProvider.addScope('email')
+appleProvider.addScope('name')
+
+export { auth, analytics, db, storage, googleProvider, facebookProvider, appleProvider }
 export default app

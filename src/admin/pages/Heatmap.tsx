@@ -119,7 +119,7 @@ const Heatmap = () => {
         const coords = barangayData as { lat: number; lng: number; zoom: number }
         setMapCenter([coords.lat, coords.lng])
         setMapZoom(coords.zoom)
-        setApplyKey((v) => v + 1)
+      setApplyKey((v) => v + 1)
       }
     }
   }

@@ -6,10 +6,7 @@ This folder contains shared utilities, services, and components used across the 
 
 ```
 src/shared/
-├── components/          # Reusable UI components
 ├── constants/          # Application constants
-├── hooks/             # Custom React hooks
-├── types/             # TypeScript type definitions
 └── utils/             # Utility services and helpers
 ```
 

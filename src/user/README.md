@@ -20,8 +20,6 @@ src/user/
 - **Features**:
   - Email verification enforcement
   - Strong password requirements
-  - Two-factor authentication (2FA)
-  - Session management with timeouts
   - Rate limiting and account lockout
 
 ### Email Verification System
@@ -41,45 +39,7 @@ src/user/
   - Visual password strength indicators
   - Secure password change with re-authentication
 
-### Two-Factor Authentication
-- **Location**: `src/user/components/TwoFactorSetupModal.tsx`
-- **Features**:
-  - TOTP-based 2FA using authenticator apps
-  - QR code generation for easy setup
-  - Backup codes for account recovery
-  - Time-based code validation with clock skew tolerance
 
-## 🛡️ Security Components
-
-### Account Security Settings
-- **Location**: `src/user/components/AccountSecuritySettings.tsx`
-- **Features**:
-  - Password change interface
-  - Email verification status
-  - Login activity monitoring
-  - Session information display
-  - Security statistics
-  - 2FA management
-
-### Session Management
-- **Location**: `src/user/components/SessionWarningModal.tsx`
-- **Features**:
-  - 30-minute session timeout
-  - 15-minute inactivity timeout
-  - Session warning 5 minutes before expiry
-  - Automatic logout on timeout
-  - Session extension capability
-  - Activity monitoring (mouse, keyboard, scroll, touch)
-
-### Privacy & Consent
-- **Location**: `src/user/components/PrivacyConsentModal.tsx`
-- **Features**:
-  - GDPR/RA 10173 compliance
-  - Granular consent management (essential, functional, analytics, marketing)
-  - Data export functionality
-  - Right to erasure
-  - Consent withdrawal capability
-  - Privacy policy integration
 
 ## 📱 User Interface Pages
 
@@ -146,53 +106,19 @@ await signup(email, password)
 await logout()
 ```
 
-### Privacy Management
-```typescript
-import { privacyService } from '../shared/utils/privacyService'
-
-// Get privacy settings
-const settings = privacyService.getPrivacySettings()
-
-// Update privacy settings
-privacyService.updatePrivacySettings({
-  analytics: true,
-  marketing: false
-})
-
-// Export user data
-const dataExport = privacyService.generateDataExport(userId)
-```
-
-### Two-Factor Authentication
-```typescript
-import { twoFactorAuthService } from '../shared/utils/twoFactorAuthService'
-
-// Setup 2FA
-const secret = twoFactorAuthService.generateSecret(userEmail)
-
-// Verify 2FA code
-const isValid = twoFactorAuthService.verifyCode(secret.secret, userCode)
-```
 
 ## 📋 User Security Checklist
 
 - [x] Email verification system
 - [x] Strong password requirements
-- [x] Two-factor authentication (2FA)
 - [x] Account lockout protection
 - [x] Rate limiting
-- [x] Session management
 - [x] Security audit logging
-- [x] GDPR compliance
-- [x] Data privacy controls
 - [x] Security monitoring
-- [x] User security settings
-- [x] Privacy consent management
-- [x] Data export and deletion rights
 
 ## 🔧 Configuration
 
-User authentication and privacy settings are configured through the shared security services. See the shared documentation for detailed configuration options.
+User authentication is configured through the shared security service. See the shared documentation for detailed configuration options.
 
 ## 📞 Support
 

@@ -16,10 +16,12 @@ import {
   Auth,
   AuthError,
   signInWithPopup,
-  fetchSignInMethodsForEmail
+  fetchSignInMethodsForEmail,
+  UserCredential
 } from 'firebase/auth'
 import { auth, googleProvider, facebookProvider, appleProvider } from '../config/firebase'
 import { securityService } from '../shared/utils/securityService'
+import toast from 'react-hot-toast'
 
 interface AuthContextType {
   currentUser: User | null
@@ -363,9 +365,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Firebase auth not initialized')
     }
     try {
-      await signInWithPopup(auth as Auth, googleProvider)
+      const result = await signInWithPopup(auth as Auth, googleProvider) as UserCredential
+      
+      // Check if this is a new user (first time signing in)
+      const isNewUser = (result as any).additionalUserInfo?.isNewUser
+      
+      if (isNewUser) {
+        // This is a new user signing up
+        console.log('New user signed up with Google')
+        toast.success('Successfully signed up with Google!')
+        // You can add any additional setup for new users here
+      } else {
+        // This is an existing user signing in
+        console.log('Existing user signed in with Google')
+        toast.success('Successfully logged in with Google!')
+      }
+      
+      // Record the authentication attempt
+      const userEmail = result.user.email
+      if (userEmail) {
+        const ipAddress = securityService.getClientIP()
+        securityService.recordLoginAttempt(userEmail, true, ipAddress)
+        securityService.generateAuditLog('GOOGLE_AUTH_SUCCESS', userEmail, true)
+      }
     } catch (error) {
-      throw new Error(getErrorMessage(error as AuthError))
+      // Record failed attempt
+      const authError = error as AuthError
+      securityService.generateAuditLog('GOOGLE_AUTH_FAILED', 'unknown', false, { error: authError.code })
+      throw new Error(getErrorMessage(authError))
     }
   }
 
@@ -374,9 +401,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Firebase auth not initialized')
     }
     try {
-      await signInWithPopup(auth as Auth, facebookProvider)
+      const result = await signInWithPopup(auth as Auth, facebookProvider) as UserCredential
+      
+      // Check if this is a new user (first time signing in)
+      const isNewUser = (result as any).additionalUserInfo?.isNewUser
+      
+      if (isNewUser) {
+        // This is a new user signing up
+        console.log('New user signed up with Facebook')
+        toast.success('Successfully signed up with Facebook!')
+      } else {
+        // This is an existing user signing in
+        console.log('Existing user signed in with Facebook')
+        toast.success('Successfully logged in with Facebook!')
+      }
+      
+      // Record the authentication attempt
+      const userEmail = result.user.email
+      if (userEmail) {
+        const ipAddress = securityService.getClientIP()
+        securityService.recordLoginAttempt(userEmail, true, ipAddress)
+        securityService.generateAuditLog('FACEBOOK_AUTH_SUCCESS', userEmail, true)
+      }
     } catch (error) {
-      throw new Error(getErrorMessage(error as AuthError))
+      // Record failed attempt
+      const authError = error as AuthError
+      securityService.generateAuditLog('FACEBOOK_AUTH_FAILED', 'unknown', false, { error: authError.code })
+      throw new Error(getErrorMessage(authError))
     }
   }
 
@@ -385,9 +436,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Firebase auth not initialized')
     }
     try {
-      await signInWithPopup(auth as Auth, appleProvider)
+      const result = await signInWithPopup(auth as Auth, appleProvider) as UserCredential
+      
+      // Check if this is a new user (first time signing in)
+      const isNewUser = (result as any).additionalUserInfo?.isNewUser
+      
+      if (isNewUser) {
+        // This is a new user signing up
+        console.log('New user signed up with Apple')
+        toast.success('Successfully signed up with Apple!')
+      } else {
+        // This is an existing user signing in
+        console.log('Existing user signed in with Apple')
+        toast.success('Successfully logged in with Apple!')
+      }
+      
+      // Record the authentication attempt
+      const userEmail = result.user.email
+      if (userEmail) {
+        const ipAddress = securityService.getClientIP()
+        securityService.recordLoginAttempt(userEmail, true, ipAddress)
+        securityService.generateAuditLog('APPLE_AUTH_SUCCESS', userEmail, true)
+      }
     } catch (error) {
-      throw new Error(getErrorMessage(error as AuthError))
+      // Record failed attempt
+      const authError = error as AuthError
+      securityService.generateAuditLog('APPLE_AUTH_FAILED', 'unknown', false, { error: authError.code })
+      throw new Error(getErrorMessage(authError))
     }
   }
 

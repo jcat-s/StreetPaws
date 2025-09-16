@@ -52,7 +52,7 @@ const LoginModal = () => {
     setIsLoading(true)
     try {
       await signInWithGoogle()
-      toast.success('Successfully logged in with Google!')
+      // The success message will be handled by the AuthContext based on whether it's a new user or existing user
       closeLoginModal()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to log in with Google.')
@@ -65,7 +65,7 @@ const LoginModal = () => {
     setIsLoading(true)
     try {
       await signInWithFacebook()
-      toast.success('Successfully logged in with Facebook!')
+      // The success message will be handled by the AuthContext based on whether it's a new user or existing user
       closeLoginModal()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to log in with Facebook.')
@@ -78,7 +78,7 @@ const LoginModal = () => {
     setIsLoading(true)
     try {
       await signInWithApple()
-      toast.success('Successfully logged in with Apple!')
+      // The success message will be handled by the AuthContext based on whether it's a new user or existing user
       closeLoginModal()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to log in with Apple.')

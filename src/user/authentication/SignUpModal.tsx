@@ -95,7 +95,7 @@ const SignUpModal = () => {
     setIsLoading(true)
     try {
       await signInWithGoogle()
-      toast.success('Successfully signed up with Google!')
+      // The success message will be handled by the AuthContext based on whether it's a new user or existing user
       closeSignUpModal()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to sign up with Google.')
@@ -108,7 +108,7 @@ const SignUpModal = () => {
     setIsLoading(true)
     try {
       await signInWithFacebook()
-      toast.success('Successfully signed up with Facebook!')
+      // The success message will be handled by the AuthContext based on whether it's a new user or existing user
       closeSignUpModal()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to sign up with Facebook.')
@@ -121,7 +121,7 @@ const SignUpModal = () => {
     setIsLoading(true)
     try {
       await signInWithApple()
-      toast.success('Successfully signed up with Apple!')
+      // The success message will be handled by the AuthContext based on whether it's a new user or existing user
       closeSignUpModal()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to sign up with Apple.')

@@ -28,13 +28,11 @@ export interface LostReportData extends BaseContactInfo {
 export interface FoundReportData extends BaseContactInfo {
 	type: 'found'
 	animalType: string
+	animalName?: string
 	breed?: string
 	colors?: string | string[]
 	estimatedAge?: string
 	gender?: string
-	size?: string
-	wearing?: string
-	condition?: string
 	foundLocation: string
 	foundDate?: string
 	foundTime?: string
@@ -119,13 +117,11 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 		payload = {
 			type: 'found',
 			animalType: data.animalType,
+			animalName: data.animalName || undefined,
 			breed: data.breed || undefined,
 			colors: Array.isArray(data.colors) ? data.colors : (data.colors ? [data.colors] : []),
 			estimatedAge: data.estimatedAge || undefined,
 			gender: data.gender || 'unknown',
-			size: data.size || undefined,
-			wearing: data.wearing || undefined,
-			condition: data.condition || undefined,
 			foundLocation: data.foundLocation,
 			foundDate: data.foundDate || undefined,
 			foundTime: data.foundTime || undefined,

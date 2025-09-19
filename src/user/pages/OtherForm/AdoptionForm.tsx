@@ -34,9 +34,6 @@ interface AdoptionFormData {
   reference1Name: string
   reference1Phone: string
   reference1Relation: string
-  reference2Name: string
-  reference2Phone: string
-  reference2Relation: string
   
   // Additional Information
   adoptionReason: string
@@ -361,25 +358,24 @@ const AdoptionForm = () => {
 
           {/* References */}
           <div className="bg-white rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">References</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Reference</h2>
               <div className="space-y-4">
-                <h3 className="font-medium text-gray-900">Reference 1 *</h3>
-                <div>
+
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
                   <input
-                    {...register('reference1Name', { required: 'Reference 1 name is required' })}
+                    {...register('reference1Name', { required: 'Reference name is required' })}
                     type="text"
                     className="input-field"
                     placeholder="Full name"
                   />
                   {errors.reference1Name && <p className="text-sm text-red-600">{errors.reference1Name.message}</p>}
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input
                     {...register('reference1Phone', { 
-                      required: 'Reference 1 phone is required',
+                      required: 'Reference phone is required',
                       validate: value => /^\d+$/.test(value) || 'Numbers only'
                     })}
                     type="tel"
@@ -389,7 +385,7 @@ const AdoptionForm = () => {
                   />
                   {errors.reference1Phone && <p className="text-sm text-red-600">{errors.reference1Phone.message}</p>}
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
                   <input
                     {...register('reference1Relation', { required: 'Relationship is required' })}
@@ -399,45 +395,7 @@ const AdoptionForm = () => {
                   />
                   {errors.reference1Relation && <p className="text-sm text-red-600">{errors.reference1Relation.message}</p>}
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-medium text-gray-900">Reference 2 *</h3>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                  <input
-                    {...register('reference2Name', { required: 'Reference 2 name is required' })}
-                    type="text"
-                    className="input-field"
-                    placeholder="Full name"
-                  />
-                  {errors.reference2Name && <p className="text-sm text-red-600">{errors.reference2Name.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <input
-                    {...register('reference2Phone', { 
-                      required: 'Reference 2 phone is required',
-                      validate: value => /^\d+$/.test(value) || 'Numbers only'
-                    })}
-                    type="tel"
-                    className="input-field"
-                    placeholder="Phone number"
-                    onKeyPress={e => { if (!/[0-9]/.test(e.key)) e.preventDefault() }}
-                  />
-                  {errors.reference2Phone && <p className="text-sm text-red-600">{errors.reference2Phone.message}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
-                  <input
-                    {...register('reference2Relation', { required: 'Relationship is required' })}
-                    type="text"
-                    className="input-field"
-                    placeholder="e.g., Friend, Colleague, Family"
-                  />
-                  {errors.reference2Relation && <p className="text-sm text-red-600">{errors.reference2Relation.message}</p>}
-                </div>
-              </div>
+              
             </div>
           </div>
 

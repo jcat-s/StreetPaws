@@ -9,13 +9,11 @@ import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
 
 interface FoundAnimalFormData {
     animalType: string
+    animalName: string
     breed: string
     colors: string
     estimatedAge: string
     gender: string
-    size: string
-    wearing: string
-    condition: string
     foundLocation: string
     foundDate: string
     foundTime: string
@@ -72,13 +70,11 @@ const FoundReport = () => {
                 {
                     type: 'found',
                     animalType: data.animalType,
+                    animalName: data.animalName,
                     breed: data.breed,
                     colors: data.colors,
                     estimatedAge: data.estimatedAge,
                     gender: data.gender,
-                    size: data.size,
-                    wearing: data.wearing,
-                    condition: data.condition,
                     foundLocation: data.foundLocation,
                     foundDate: data.foundDate,
                     foundTime: data.foundTime,
@@ -103,9 +99,18 @@ const FoundReport = () => {
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Animal Type *</label>
-                            <select {...register('animalType', { required: 'Animal type is required' })} className="input-field" defaultValue=""><option value="" disabled hidden>Select animal type</option><option value="dog">Dog</option><option value="cat">Cat</option></select>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Animal Type *</label>
+                            <select {...register('animalType', { required: 'Animal type is required' })} className="input-field" defaultValue="">
+                                <option value="" disabled hidden>Select animal type</option>
+                                <option value="dog">Dog</option>
+                                <option value="cat">Cat</option>
+                            </select>
                             {errors.animalType && <p className="mt-1 text-sm text-red-600">{errors.animalType.message}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Pet's Name (Optional)</label>
+                            <input {...register('animalName')} className="input-field" placeholder="e.g., Mingming" />
+                            {/* Remove required validation and error message */}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Breed *</label>
@@ -118,19 +123,18 @@ const FoundReport = () => {
                             {errors.colors && <p className="mt-1 text-sm text-red-600">{errors.colors.message}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Age *</label>
-                            <input {...register('estimatedAge', { required: 'Estimated age is required' })} className="input-field" placeholder="e.g., 2-3 years old" />
+                            <label className="block text-sm font-medium text-gray-700 mb-1"> Estimated Age *</label>
+                            <input {...register('estimatedAge', { required: 'Age is required' })} className="input-field" placeholder="e.g., 2-3 years old" />
                             {errors.estimatedAge && <p className="mt-1 text-sm text-red-600">{errors.estimatedAge.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
-                            <select {...register('gender', { required: 'Gender is required' })} className="input-field" defaultValue=""><option value="" disabled hidden>Select gender</option><option value="male">Male</option><option value="female">Female</option><option value="unknown">Unknown</option></select>
+                            <select {...register('gender', { required: 'Gender is required' })} className="input-field" defaultValue="">
+                                <option value="" disabled hidden>Select gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
                             {errors.gender && <p className="mt-1 text-sm text-red-600">{errors.gender.message}</p>}
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Size *</label>
-                            <select {...register('size', { required: 'Size is required' })} className="input-field" defaultValue=""><option value="" disabled hidden>Select size</option><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select>
-                            {errors.size && <p className="mt-1 text-sm text-red-600">{errors.size.message}</p>}
                         </div>
                     </div>
 

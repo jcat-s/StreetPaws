@@ -33,9 +33,20 @@ service cloud.firestore {
     // Reports collection - admins can read/write, users can create/read their own
     match /reports/{reportId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow create: if true;
       allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
+    }
+    
+    // Reports subcollections for lost, found, abuse
+    match /reports/{mainDocId}/lost/{reportId} {
+      allow read, write: if true;
+    }
+    match /reports/{mainDocId}/found/{reportId} {
+      allow read, write: if true;
+    }
+    match /reports/{mainDocId}/abuse/{reportId} {
+      allow read, write: if true;
     }
     
     // Animals collection - admins can manage, users can read

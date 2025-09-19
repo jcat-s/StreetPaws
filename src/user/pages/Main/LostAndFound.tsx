@@ -5,12 +5,6 @@ import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl } from '../../utils/abuseReportService'
 
-// Import actual images
-import JepoyImage from '../../../assets/images/Animals/Jepoy.jpg'
-import PutchiImage from '../../../assets/images/Animals/Putchi.jpg'
-import JoshImage from '../../../assets/images/Animals/Josh.jpg'
-import MeelooImage from '../../../assets/images/Animals/Meeloo.jpg'
-
 interface LostFoundAnimal {
   id: string
   type: 'lost' | 'found'
@@ -32,8 +26,6 @@ interface LostFoundAnimal {
   additionalDetails?: string
 }
 
-const MOCK_LOST_FOUND: LostFoundAnimal[] = []
-
 const LostAndFound = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'lost' | 'found'>('all')
@@ -46,20 +38,20 @@ const LostAndFound = () => {
 
   useEffect(() => {
     if (!db) return
-    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
-    const unsub = onSnapshot(q, async (snap) => {
-      const mapped: LostFoundAnimal[] = []
-      for (const d of snap.docs) {
+    const lostQuery = query(collection(db, 'reports', 'main', 'lost'), orderBy('createdAt', 'desc'))
+    const foundQuery = query(collection(db, 'reports', 'main', 'found'), orderBy('createdAt', 'desc'))
+    const lostUnsub = onSnapshot(lostQuery, async (lostSnap) => {
+      const lostMapped: LostFoundAnimal[] = []
+      for (const d of lostSnap.docs) {
         const data: any = d.data()
-        if ((data?.type !== 'lost' && data?.type !== 'found') || data?.published !== true) continue
         let imageUrl = ''
         const key = data?.uploadObjectKey as string | undefined
         if (key) {
           try { imageUrl = await createSignedEvidenceUrl(key, 3600) } catch {}
         }
-        mapped.push({
+        lostMapped.push({
           id: d.id,
-          type: data.type,
+          type: 'lost',
           animalType: (data?.animalType === 'dog' || data?.animalType === 'cat') ? data.animalType : 'dog',
           name: data?.animalName,
           breed: data?.breed || '',
@@ -74,14 +66,54 @@ const LostAndFound = () => {
           contactPhone: data?.contactPhone || '',
           contactEmail: data?.contactEmail || '',
           description: data?.additionalDetails || '',
-          image: imageUrl || JepoyImage,
+          image: imageUrl || '', // Changed from JepoyImage to ''
           additionalDetails: data?.additionalDetails || ''
         })
       }
-      setItems(mapped)
+      setItems((prev) => {
+        // Remove old lost items, add new
+        const found = prev.filter(i => i.type === 'found')
+        return [...lostMapped, ...found]
+      })
     })
-    return () => unsub()
-  }, [])
+    const foundUnsub = onSnapshot(foundQuery, async (foundSnap) => {
+      const foundMapped: LostFoundAnimal[] = []
+      for (const d of foundSnap.docs) {
+        const data: any = d.data()
+        let imageUrl = ''
+        const key = data?.uploadObjectKey as string | undefined
+        if (key) {
+          try { imageUrl = await createSignedEvidenceUrl(key, 3600) } catch {}
+        }
+        foundMapped.push({
+          id: d.id,
+          type: 'found',
+          animalType: (data?.animalType === 'dog' || data?.animalType === 'cat') ? data.animalType : 'dog',
+          name: data?.animalName,
+          breed: data?.breed || '',
+          colors: Array.isArray(data?.colors) ? data.colors.join(', ') : (data?.colors || ''),
+          age: (data?.age || data?.estimatedAge || '') as string,
+          gender: data?.gender || '',
+          size: data?.size || '',
+          location: (data?.lastSeenLocation || data?.foundLocation || ''),
+          date: (data?.lastSeenDate || data?.foundDate || ''),
+          time: (data?.lastSeenTime || data?.foundTime || ''),
+          contactName: data?.contactName || '',
+          contactPhone: data?.contactPhone || '',
+          contactEmail: data?.contactEmail || '',
+          description: data?.additionalDetails || '',
+          image: imageUrl || '', // Changed from JepoyImage to ''
+          additionalDetails: data?.additionalDetails || ''
+        })
+      }
+      setItems((prev) => {
+        // Remove old found items, add new
+        const lost = prev.filter(i => i.type === 'lost')
+        return [...lost, ...foundMapped]
+      })
+    })
+    return () => { lostUnsub(); foundUnsub(); }
+  }, [db])
 
   const filtered = items.filter((item) => {
     const matchesSearch = searchTerm === '' || 

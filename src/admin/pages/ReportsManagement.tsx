@@ -5,11 +5,9 @@ import { db } from '../../config/firebase'
 import { createSignedEvidenceUrl } from '../../user/utils/abuseReportService'
 import { 
   Search, 
-  Eye, 
   CheckCircle, 
   XCircle, 
   AlertTriangle,
-  MapPin,
   FileText,
   Download,
   Edit,
@@ -260,7 +258,9 @@ const ReportsManagement = () => {
 
   const handleSave = async () => {
     if (!db || !selectedReport) return
-    const ref = doc(db, 'reports', selectedReport.id)
+    // Determine the correct collection based on report type
+    const collectionName = selectedReport.type === 'abuse' ? 'reports' : selectedReport.type
+    const ref = doc(db, collectionName, selectedReport.id)
     await updateDoc(ref, {
       status: editStatus === 'pending' ? 'pending' : editStatus,
       priority: editPriority,
@@ -270,11 +270,13 @@ const ReportsManagement = () => {
     setShowReportModal(false)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, type: string) => {
     if (!db) return
     setDeletingId(id)
     try {
-      const ref = doc(db, 'reports', id)
+      // Determine the correct collection based on report type
+      const collectionName = type === 'abuse' ? 'reports' : type
+      const ref = doc(db, collectionName, id)
       await deleteDoc(ref)
     } finally {
       setDeletingId(null)
@@ -316,17 +318,6 @@ const ReportsManagement = () => {
     a.download = `reports_${new Date().toISOString()}.csv`
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
   }
 
   return (
@@ -420,7 +411,6 @@ const ReportsManagement = () => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Report</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal Info</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporter</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
@@ -438,19 +428,12 @@ const ReportsManagement = () => {
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900 capitalize">{report.type}</div>
-                          <div className="text-sm text-gray-500">#{report.id}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{report.animalName}</div>
                       <div className="text-sm text-gray-500 capitalize">{report.animalType} • {report.breed}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
-                        <MapPin className="h-4 w-4 text-gray-400 mr-1" />
-                        {report.lastSeenLocation}
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{report.reporterName}</div>
@@ -467,22 +450,23 @@ const ReportsManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(report.createdAt)}
+                      <div>{new Date(report.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}</div>
+                      <div className="text-gray-500">{new Date(report.createdAt).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleViewReport(report)}
-                          className="text-orange-600 hover:text-orange-900 flex items-center space-x-1"
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span>View</span>
-                        </button>
                         <button onClick={() => handleViewReport(report, true)} className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
                         </button>
-                        <button disabled={deletingId === report.id} onClick={() => handleDelete(report.id)} className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1">
+                        <button disabled={deletingId === report.id} onClick={() => handleDelete(report.id, report.type)} className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1">
                           <Trash2 className="h-4 w-4" />
                           <span>{deletingId === report.id ? 'Deleting...' : 'Delete'}</span>
                         </button>

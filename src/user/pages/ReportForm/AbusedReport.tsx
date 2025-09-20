@@ -28,7 +28,7 @@ const AbusedReport = () => {
     const [filePreviews, setFilePreviews] = useState<string[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const { register, handleSubmit, reset, setValue, watch } = useForm<AbusedAnimalFormData>()
+    const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<AbusedAnimalFormData>()
     const [isBarangayOpen, setIsBarangayOpen] = useState(false)
     const selectedBarangay = watch('incidentLocation')
 
@@ -53,7 +53,11 @@ const AbusedReport = () => {
             toast.success('Abuse report submitted')
             reset(); setUploadedFiles([]); setFilePreviews([])
             navigate(-1)
-        } catch (e) { toast.error('Failed to submit report') } finally { setIsSubmitting(false) }
+        } catch (e: any) { 
+            console.error('Report submission error:', e)
+            const errorMessage = e?.message || e?.error?.message || 'Failed to submit report'
+            toast.error(errorMessage)
+        } finally { setIsSubmitting(false) }
     }
 
     return (
@@ -69,25 +73,30 @@ const AbusedReport = () => {
                                 <button type="button" onClick={() => setIsBarangayOpen(!isBarangayOpen)} className="input-field text-left">{selectedBarangay || 'Select barangay'}</button>
                                 {isBarangayOpen && (<div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">{barangays.map(b => (<button key={b} type="button" onClick={() => { setValue('incidentLocation', b, { shouldValidate: true }); setIsBarangayOpen(false) }} className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}>{b}</button>))}</div>)}
                             </div>
+                            {errors.incidentLocation && <p className="mt-1 text-sm text-red-600">{errors.incidentLocation.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Incident Date *</label>
                             <input {...register('incidentDate', { required: 'Incident date is required' })} type="date" className="input-field" />
+                            {errors.incidentDate && <p className="mt-1 text-sm text-red-600">{errors.incidentDate.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Incident Time *</label>
                             <input {...register('incidentTime', { required: 'Incident time is required' })} type="time" className="input-field" />
+                            {errors.incidentTime && <p className="mt-1 text-sm text-red-600">{errors.incidentTime.message}</p>}
                         </div>
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Type of Abuse *</label>
                         <select {...register('abuseType', { required: 'Abuse type is required' })} className="input-field"><option value="">Select abuse type</option><option value="physical">Physical abuse</option><option value="neglect">Neglect</option><option value="abandonment">Abandonment</option><option value="fighting">Animal fighting</option><option value="hoarding">Hoarding</option><option value="other">Other</option></select>
+                        {errors.abuseType && <p className="mt-1 text-sm text-red-600">{errors.abuseType.message}</p>}
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Animal Description *</label>
                         <textarea {...register('animalDescription', { required: 'Animal description is required' })} rows={3} className="input-field" placeholder="Describe the animal(s) involved (type, breed, color, size, etc.)" />
+                        {errors.animalDescription && <p className="mt-1 text-sm text-red-600">{errors.animalDescription.message}</p>}
                     </div>
 
                     <div>
@@ -104,14 +113,17 @@ const AbusedReport = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name *</label>
                             <input {...register('contactName', { required: 'Contact name is required' })} className="input-field" placeholder="Your full name" />
+                            {errors.contactName && <p className="mt-1 text-sm text-red-600">{errors.contactName.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone *</label>
                             <input {...register('contactPhone', { required: 'Contact phone is required' })} type="tel" className="input-field" placeholder="Your phone number" />
+                            {errors.contactPhone && <p className="mt-1 text-sm text-red-600">{errors.contactPhone.message}</p>}
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email *</label>
                             <input {...register('contactEmail', { required: 'Contact email is required', pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Invalid email address' } })} type="email" className="input-field" placeholder="Your email address" />
+                            {errors.contactEmail && <p className="mt-1 text-sm text-red-600">{errors.contactEmail.message as string}</p>}
                         </div>
                     </div>
 

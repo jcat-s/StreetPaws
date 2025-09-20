@@ -11,12 +11,13 @@ const ContentHome = () => {
 
   useEffect(() => {
     if (!db) return
-    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+    const collectionName = type === 'lost' ? 'lost' : 'found'
+    const q = query(collection(db, collectionName), orderBy('createdAt', 'desc'))
     const unsub = onSnapshot(q, async (snap) => {
       const mapped: Array<{ id: string; title: string; subtitle: string; imageUrl?: string }> = []
       for (const d of snap.docs) {
         const data: any = d.data()
-        if (data?.type !== type || data?.published !== true) continue
+        if (data?.published !== true) continue
         let url: string | undefined
         const key = data?.uploadObjectKey as string | undefined
         if (key) {
@@ -36,7 +37,8 @@ const ContentHome = () => {
 
   const handleDelete = async (id: string) => {
     if (!db) return
-    await deleteDoc(doc(db, 'reports', id))
+    const collectionName = type === 'lost' ? 'lost' : 'found'
+    await deleteDoc(doc(db, collectionName, id))
   }
 
   return (

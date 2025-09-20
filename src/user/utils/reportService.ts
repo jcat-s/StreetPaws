@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { supabase } from '../../config/supabase'
 
@@ -18,7 +18,6 @@ export interface LostReportData extends BaseContactInfo {
 	colors?: string | string[]
 	age?: string
 	gender?: string
-	size?: string
 	lastSeenLocation: string
 	lastSeenDate?: string
 	lastSeenTime?: string
@@ -81,23 +80,23 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 		throw new Error('Firebase Firestore not initialized')
 	}
 
-	let uploadObjectKey: string | undefined
-	if (file) {
-		uploadObjectKey = await uploadImage(file, userId)
-	}
+	// Add a unique submission ID to prevent duplicates
+	const submissionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
+	// 1. Prepare the payload WITHOUT the image key
 	const basePayload = {
 		contactName: data.contactName,
 		contactPhone: data.contactPhone,
 		contactEmail: data.contactEmail,
 		additionalDetails: data.additionalDetails || undefined,
-		uploadObjectKey: uploadObjectKey || undefined,
 		status: 'open' as const,
 		createdAt: serverTimestamp(),
-		createdBy: userId || null
+		createdBy: userId || null,
+		submissionId // Add unique identifier
 	}
 
 	let payload: Record<string, unknown>
+	let collectionName = 'reports'
 	if (data.type === 'lost') {
 		payload = {
 			type: 'lost',
@@ -107,13 +106,13 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 			colors: Array.isArray(data.colors) ? data.colors : (data.colors ? [data.colors] : []),
 			age: data.age || undefined,
 			gender: data.gender || 'unknown',
-			size: data.size || undefined,
 			lastSeenLocation: data.lastSeenLocation,
 			lastSeenDate: data.lastSeenDate || undefined,
 			lastSeenTime: data.lastSeenTime || undefined,
 			...basePayload
 		}
-	} else {
+		collectionName = 'lost'
+	} else if (data.type === 'found') {
 		payload = {
 			type: 'found',
 			animalType: data.animalType,
@@ -127,11 +126,33 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 			foundTime: data.foundTime || undefined,
 			...basePayload
 		}
+		collectionName = 'found'
+	} else {
+		throw new Error('Unknown report type');
 	}
 
 	const cleaned = omitUndefinedDeep(payload)
-	const docRef = await addDoc(collection(db, 'reports'), cleaned)
-	return docRef.id
+	
+	try {
+		const docRef = await addDoc(collection(db, collectionName), cleaned)
+
+		if (file) {
+			try {
+				const uploadObjectKey = await uploadImage(file, userId)
+				await updateDoc(doc(db, collectionName, docRef.id), { uploadObjectKey })
+			} catch (err) {
+				// If image upload fails, clean up the document
+				await deleteDoc(doc(db, collectionName, docRef.id))
+				throw new Error('Image upload failed, report not saved.')
+			}
+		}
+
+		return docRef.id
+	} catch (error) {
+		// Log the error for debugging
+		console.error('Report submission failed:', error)
+		throw error
+	}
 }
 
 

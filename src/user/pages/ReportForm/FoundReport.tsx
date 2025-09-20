@@ -89,7 +89,11 @@ const FoundReport = () => {
             toast.success('Found report submitted')
             reset(); setUploadedImage(null); setImagePreview(null)
             navigate('/lost-and-found?submitted=1')
-        } catch (e: any) { console.error(e); toast.error(e?.message || 'Failed to submit report') } finally { setIsSubmitting(false) }
+        } catch (e: any) { 
+            console.error('Report submission error:', e)
+            const errorMessage = e?.message || e?.error?.message || 'Failed to submit report'
+            toast.error(errorMessage)
+        } finally { setIsSubmitting(false) }
     }
 
     return (
@@ -166,6 +170,7 @@ const FoundReport = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name *</label>
                             <input {...register('contactName', { required: 'Contact name is required' })} className="input-field" placeholder="Your full name" />
+                            {errors.contactName && <p className="mt-1 text-sm text-red-600">{errors.contactName.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone *</label>

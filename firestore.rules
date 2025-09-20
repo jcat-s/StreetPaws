@@ -38,6 +38,22 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
+    // Lost reports collection - anyone can create, admins can read/write
+    match /lost/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow create: if true;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow delete: if isAdmin();
+    }
+    
+    // Found reports collection - anyone can create, admins can read/write
+    match /found/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow create: if true;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow delete: if isAdmin();
+    }
+    
     // Reports subcollections for lost, found, abuse
     match /reports/{mainDocId}/lost/{reportId} {
       allow read, write: if true;

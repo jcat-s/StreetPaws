@@ -57,34 +57,71 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (!db) return
-    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
-    const unsub = onSnapshot(q, (snap) => {
-      let pending = 0
-      let resolved = 0
-      const all: DashboardReport[] = []
-      snap.docs.forEach((doc) => {
+    
+    let allReports: DashboardReport[] = []
+    let totalCount = 0
+    let pendingCount = 0
+    let resolvedCount = 0
+    
+    // Helper function to process documents
+    const processDocs = (docs: any[], collectionType: string) => {
+      return docs.map((doc) => {
         const d: any = doc.data()
-        const type: string = d?.type || 'unknown'
+        const type: string = d?.type || collectionType
         const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : new Date().toISOString())
         const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
-        if (status === 'pending' || status === 'investigating') pending += 1
-        if (status === 'resolved') resolved += 1
-        all.push({
+        
+        return {
           id: doc.id,
           type: type as any,
           animalName: d?.animalName || 'Unknown',
           animalType: d?.animalType || 'unknown',
-          location: d?.lastSeenLocation || d?.location || '',
+          location: d?.lastSeenLocation || d?.foundLocation || d?.incidentLocation || '',
           reporter: d?.contactName || d?.reporterName || 'Unknown',
           date: createdAtIso,
           status,
           priority: (d?.priority || 'normal') as DashboardReport['priority']
-        })
+        }
       })
-      setReportCounts({ total: snap.size, pending, resolved })
-      setRecentReports(all)
+    }
+    
+    // Query all collections
+    const reportsQuery = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+    const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
+    const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
+    
+    const unsubscribeReports = onSnapshot(reportsQuery, (snap) => {
+      const reportsData = processDocs(snap.docs, 'abuse')
+      allReports = [...reportsData]
+      updateCounts()
     })
-    return () => unsub()
+    
+    const unsubscribeLost = onSnapshot(lostQuery, (snap) => {
+      const lostData = processDocs(snap.docs, 'lost')
+      allReports = allReports.filter(r => r.type !== 'lost').concat(lostData)
+      updateCounts()
+    })
+    
+    const unsubscribeFound = onSnapshot(foundQuery, (snap) => {
+      const foundData = processDocs(snap.docs, 'found')
+      allReports = allReports.filter(r => r.type !== 'found').concat(foundData)
+      updateCounts()
+    })
+    
+    const updateCounts = () => {
+      totalCount = allReports.length
+      pendingCount = allReports.filter(r => r.status === 'pending' || r.status === 'investigating').length
+      resolvedCount = allReports.filter(r => r.status === 'resolved').length
+      
+      setReportCounts({ total: totalCount, pending: pendingCount, resolved: resolvedCount })
+      setRecentReports([...allReports])
+    }
+    
+    return () => {
+      unsubscribeReports()
+      unsubscribeLost()
+      unsubscribeFound()
+    }
   }, [])
 
   const urgentReportsCount = useMemo(() => recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length, [recentReports])

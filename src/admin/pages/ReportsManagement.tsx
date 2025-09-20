@@ -71,11 +71,14 @@ const ReportsManagement = () => {
 
   useEffect(() => {
     if (!db) return
-    const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const mapped: AdminReport[] = snap.docs.map((doc) => {
+    
+    let allReports: AdminReport[] = []
+    
+    // Helper function to process documents from any collection
+    const processDocs = (docs: any[], collectionType: string) => {
+      return docs.map((doc) => {
         const d: any = doc.data()
-        const type: string = d?.type || 'unknown'
+        const type: string = d?.type || collectionType
         const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : new Date().toISOString())
         const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
         const base = {
@@ -142,9 +145,36 @@ const ReportsManagement = () => {
         }
         return base as AdminReport
       })
-      setReports(mapped)
+    }
+    
+    // Query all report collections
+    const reportsQuery = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+    const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
+    const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
+    
+    const unsubscribeReports = onSnapshot(reportsQuery, (snap) => {
+      const reportsData = processDocs(snap.docs, 'abuse')
+      allReports = [...reportsData]
+      setReports([...allReports])
     })
-    return () => unsubscribe()
+    
+    const unsubscribeLost = onSnapshot(lostQuery, (snap) => {
+      const lostData = processDocs(snap.docs, 'lost')
+      allReports = allReports.filter(r => r.type !== 'lost').concat(lostData)
+      setReports([...allReports])
+    })
+    
+    const unsubscribeFound = onSnapshot(foundQuery, (snap) => {
+      const foundData = processDocs(snap.docs, 'found')
+      allReports = allReports.filter(r => r.type !== 'found').concat(foundData)
+      setReports([...allReports])
+    })
+    
+    return () => {
+      unsubscribeReports()
+      unsubscribeLost()
+      unsubscribeFound()
+    }
   }, [])
 
   const filteredReports = reports.filter(report => {

@@ -40,6 +40,11 @@ type AdminReport = {
   createdAt: string
   assignedTo?: string | null
   attachments?: string[]
+  // abuse-specific fields
+  abuseType?: string
+  animalDescription?: string
+  perpetratorDescription?: string
+  witnessDetails?: string
 }
 
 const ReportsManagement = () => {
@@ -128,17 +133,23 @@ const ReportsManagement = () => {
         if (type === 'abuse') {
           return {
             ...base,
-            animalName: 'Unknown',
-            animalType: 'unknown',
-            breed: '',
-            age: '',
-            gender: '',
-            colors: '',
-            size: '',
+            // Abuse reports don't have animal info, use incident info instead
+            animalName: 'N/A',
+            animalType: 'N/A',
+            breed: 'N/A',
+            age: 'N/A',
+            gender: 'N/A',
+            colors: 'N/A',
+            size: 'N/A',
             lastSeenLocation: d?.incidentLocation || '',
             lastSeenDate: d?.incidentDate || '',
             lastSeenTime: d?.incidentTime || '',
-            attachments: Array.isArray(d?.evidenceObjects) ? d.evidenceObjects : []
+            attachments: Array.isArray(d?.evidenceObjects) ? d.evidenceObjects : [],
+            // Add abuse-specific fields
+            abuseType: d?.abuseType || '',
+            animalDescription: d?.animalDescription || '',
+            perpetratorDescription: d?.perpetratorDescription || '',
+            witnessDetails: d?.witnessDetails || ''
           }
         }
         return base as AdminReport
@@ -524,36 +535,67 @@ const ReportsManagement = () => {
                     </a>
                   </div>
                 )}
-                {/* Animal Information */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Name</label>
-                      <p className="text-sm text-gray-900">{selectedReport.animalName}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Type</label>
-                      <p className="text-sm text-gray-900 capitalize">{selectedReport.animalType}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Breed</label>
-                      <p className="text-sm text-gray-900">{selectedReport.breed}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Age</label>
-                      <p className="text-sm text-gray-900">{selectedReport.age}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Gender</label>
-                      <p className="text-sm text-gray-900">{selectedReport.gender}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Colors</label>
-                      <p className="text-sm text-gray-900">{selectedReport.colors}</p>
+                {/* Animal Information - Only for Lost/Found reports */}
+                {selectedReport.type !== 'abuse' && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Name</label>
+                        <p className="text-sm text-gray-900">{selectedReport.animalName}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Type</label>
+                        <p className="text-sm text-gray-900 capitalize">{selectedReport.animalType}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Breed</label>
+                        <p className="text-sm text-gray-900">{selectedReport.breed}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Age</label>
+                        <p className="text-sm text-gray-900">{selectedReport.age}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Gender</label>
+                        <p className="text-sm text-gray-900">{selectedReport.gender}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Colors</label>
+                        <p className="text-sm text-gray-900">{selectedReport.colors}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* Abuse Report Information - Only for Abuse reports */}
+                {selectedReport.type === 'abuse' && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Incident Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Abuse Type</label>
+                        <p className="text-sm text-gray-900 capitalize">{selectedReport.abuseType || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Animal Description</label>
+                        <p className="text-sm text-gray-900">{selectedReport.animalDescription || 'Not provided'}</p>
+                      </div>
+                      {selectedReport.perpetratorDescription && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Perpetrator Description</label>
+                          <p className="text-sm text-gray-900">{selectedReport.perpetratorDescription}</p>
+                        </div>
+                      )}
+                      {selectedReport.witnessDetails && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Witness Details</label>
+                          <p className="text-sm text-gray-900">{selectedReport.witnessDetails}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Location Information */}
                 <div>
@@ -660,12 +702,14 @@ const ReportsManagement = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
                         <input value={editAssignedTo} onChange={(e) => setEditAssignedTo(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" placeholder="Name or team" />
                       </div>
-                      <div className="md:col-span-3">
-                        <label className="inline-flex items-center space-x-2">
-                          <input type="checkbox" checked={editPublished} onChange={(e) => setEditPublished(e.target.checked)} />
-                          <span className="text-sm text-gray-700">Approve for website (publish to Content Management)</span>
-                        </label>
-                      </div>
+                      {selectedReport.type !== 'abuse' && (
+                        <div className="md:col-span-3">
+                          <label className="inline-flex items-center space-x-2">
+                            <input type="checkbox" checked={editPublished} onChange={(e) => setEditPublished(e.target.checked)} />
+                            <span className="text-sm text-gray-700">Approve for website (publish to Content Management)</span>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

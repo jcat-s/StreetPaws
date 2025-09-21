@@ -68,8 +68,8 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4">
+    <div className="min-h-screen bg-gray-50">
+      <div className="fixed top-0 left-0 right-0 h-16 border-b border-gray-200 bg-white flex items-center justify-between px-4 z-40">
         <img src={new URL('../assets/images/LOGO.png', import.meta.url).toString()} alt="StreetPaws" className="h-10 md:h-12" />
         <button
           className="md:hidden p-2 text-gray-600 hover:text-gray-900"
@@ -88,12 +88,12 @@ const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         />
       )}
 
-      <div className="flex flex-1 relative">
+      <div className="flex">
         <AdminSidebar
           isOpen={mobileMenuOpen}
           onNavigate={() => setMobileMenuOpen(false)}
         />
-        <main className="flex-1">
+        <main className="flex-1 md:ml-80 min-h-[calc(100vh-4rem)] pt-16">
           {children}
         </main>
       </div>

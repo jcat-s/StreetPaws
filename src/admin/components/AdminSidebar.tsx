@@ -59,9 +59,9 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
       </button>
       {formsOpen && (
         <div className="ml-4 space-y-2">
-          <NavItem to="/admin/adoptions" icon={Heart} label="Adopt" onNavigate={onNavigate} />
-          <NavItem to="/admin/volunteers" icon={Users} label="Volunteers" onNavigate={onNavigate} />
-          <NavItem to="/admin/donors" icon={Heart} label="Donors" onNavigate={onNavigate} />
+          <NavItem to="/admin/adoptions" icon={Heart} label="Adoption Management" onNavigate={onNavigate} />
+          <NavItem to="/admin/volunteers" icon={Users} label="Volunteers Management" onNavigate={onNavigate} />
+          <NavItem to="/admin/donors" icon={Heart} label="Donations Management" onNavigate={onNavigate} />
         </div>
       )}
       <NavItem to="/admin/heatmap" icon={Flame} label="Heatmap" onNavigate={onNavigate} />
@@ -79,7 +79,7 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
       {contentOpen && (
         <div className="ml-4 space-y-2">
           <NavItem to="/admin/content" icon={Search} label="Lost & Found Management" onNavigate={onNavigate} />
-          <NavItem to="/admin/content/animals" icon={Users} label="Our Animals" onNavigate={onNavigate} />
+          <NavItem to="/admin/content/animals" icon={Users} label="Our Animals Management" onNavigate={onNavigate} />
         </div>
       )}
       <div className="mt-auto pt-2 space-y-2">

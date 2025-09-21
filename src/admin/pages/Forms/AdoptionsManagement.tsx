@@ -159,12 +159,10 @@ const AdoptionsManagement = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adoption</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -178,23 +176,13 @@ const AdoptionsManagement = () => {
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900">{adoption.animalName}</div>
-                          <div className="text-sm text-gray-500 capitalize">{adoption.animalType} • {adoption.animalBreed}</div>
+                          <div className="text-sm text-gray-500">{adoption.applicantName}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{adoption.applicantName}</div>
-                      <div className="text-sm text-gray-500">{adoption.applicantAge} years • {adoption.applicantOccupation}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{adoption.applicantPhone}</div>
-                      <div className="text-sm text-gray-500">{adoption.applicantEmail}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {adoption.petExperience === 'Yes, I have owned dogs before' || adoption.petExperience === 'Yes, I have owned cats for 10 years' ? 'Experienced' : 'First-time'}
-                      </div>
-                      <div className="text-sm text-gray-500">{adoption.homeType} • {adoption.hasYard === 'Yes' ? 'Has yard' : 'No yard'}</div>
+                      <div className="text-sm font-medium text-gray-900">{adoption.applicantEmail}</div>
+                      <div className="text-sm text-gray-500">{adoption.applicantPhone}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(adoption.status)}`}>
@@ -202,13 +190,21 @@ const AdoptionsManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDate(adoption.submittedAt)}
+                      <div>{new Date(adoption.submittedAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })}</div>
+                      <div className="text-gray-500">{new Date(adoption.submittedAt).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => handleViewAdoption(adoption)}
-                          className="text-orange-600 hover:text-orange-900 flex items-center space-x-1"
+                          className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
                         >
                           <Eye className="h-4 w-4" />
                           <span>View</span>

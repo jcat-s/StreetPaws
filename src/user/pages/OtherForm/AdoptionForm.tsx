@@ -59,20 +59,76 @@ const AdoptionForm = () => {
   const hasChildren = watch('hasChildren') === 'true'
 
   const onSubmit = async (data: AdoptionFormData) => {
+    console.log('Form submission started with data:', data)
+    console.log('Form errors:', errors)
+    console.log('Is form valid?', Object.keys(errors).length === 0)
+    
     setIsSubmitting(true)
     try {
-      if (!db) throw new Error('Firestore not initialized')
-      await addDoc(collection(db, 'adoptions'), {
+      if (!db) {
+        console.error('Firestore not initialized')
+        throw new Error('Firestore not initialized')
+      }
+      
+      console.log('Firebase db instance:', db)
+      console.log('Animal ID from params:', animalId)
+      
+      const adoptionData = {
         animalId: animalId || null,
-        ...data,
+        // Map form fields to admin expected fields
+        applicantName: data.fullName,
+        applicantEmail: data.email,
+        applicantPhone: data.phone,
+        applicantAge: data.age,
+        applicantOccupation: data.occupation,
+        applicantBarangay: data.barangay,
+        applicantAddress: data.address,
+        // Animal information (will be populated from animal data if animalId is provided)
+        animalName: 'Selected Animal', // This should be populated from animal data
+        animalType: 'Unknown', // This should be populated from animal data
+        animalBreed: 'Unknown', // This should be populated from animal data
+        // Keep other fields as they are
+        homeType: data.homeType,
+        hasYard: data.hasYard,
+        yardSize: data.yardSize,
+        hasOtherPets: data.hasOtherPets,
+        otherPetsDetails: data.otherPetsDetails,
+        hasChildren: data.hasChildren,
+        childrenAges: data.childrenAges,
+        petExperience: data.petExperience,
+        vetKnowledge: data.vetKnowledge,
+        timeCommitment: data.timeCommitment,
+        exercisePlan: data.exercisePlan,
+        reference1Name: data.reference1Name,
+        reference1Phone: data.reference1Phone,
+        reference1Relation: data.reference1Relation,
+        adoptionReason: data.adoptionReason,
+        specialNeeds: data.specialNeeds,
+        emergencyPlan: data.emergencyPlan,
+        consent: data.consent,
         status: 'pending',
+        submittedAt: serverTimestamp(),
         createdAt: serverTimestamp()
-      })
+      }
+      
+      console.log('Submitting adoption data to Firestore:', adoptionData)
+      console.log('Collection reference:', collection(db, 'adoptions'))
+      
+      const docRef = await addDoc(collection(db, 'adoptions'), adoptionData)
+      console.log('Adoption application submitted successfully with ID:', docRef.id)
+      
       toast.success('Adoption application submitted successfully! We will contact you within 3-5 business days.')
       reset()
       navigate('/our-animals')
-    } catch (error) {
-      toast.error('Failed to submit application. Please try again.')
+    } catch (error: any) {
+      console.error('Adoption form submission error:', error)
+      console.error('Error details:', {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack
+      })
+      toast.error(`Failed to submit application: ${error?.message || 'Unknown error'}. Please try again.`)
     } finally {
       setIsSubmitting(false)
     }
@@ -88,7 +144,10 @@ const AdoptionForm = () => {
           Thank you for your interest in adopting a pet. Please fill out this form completely and honestly.
         </p>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={handleSubmit(onSubmit, (errors) => {
+          console.log('Form validation failed:', errors)
+          console.log('Number of validation errors:', Object.keys(errors).length)
+        })} className="space-y-8">
           {/* Personal Information */}
           <div className="bg-white rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Personal Information</h2>

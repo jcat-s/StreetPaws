@@ -71,26 +71,26 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Adoptions collection - admins can manage, users can read
+    // Adoptions collection - admins can manage, anyone can create (for adoption forms)
     match /adoptions/{adoptionId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow create: if true; // Allow anonymous users to submit adoption applications
       allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
     }
     
-    // Donations collection - admins can manage, users can create/read their own
+    // Donations collection - admins can manage, anyone can create (for donation forms)
     match /donations/{donationId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow create: if true; // Allow anonymous users to submit donations
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
     
-    // Volunteers collection - admins can manage, users can create/read their own
+    // Volunteers collection - admins can manage, anyone can create (for volunteer forms)
     match /volunteers/{volunteerId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow create: if true; // Allow anonymous users to submit volunteer applications
       allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
     }

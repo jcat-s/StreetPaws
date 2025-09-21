@@ -9,17 +9,17 @@ const NavItem = ({ to, icon: Icon, label, onNavigate }: { to: string; icon: any;
   return (
     <Link
       to={to}
-      className={`w-full flex items-center h-14 rounded-xl transition-all duration-200 ${
+      className={`w-full flex items-center h-12 rounded-lg transition-all duration-200 ${
         active 
           ? 'bg-gradient-to-r from-orange-100 to-orange-50 text-orange-700 ring-2 ring-orange-200 shadow-md' 
           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800 hover:shadow-sm'
       }`}
       onClick={onNavigate}
     >
-      <div className={`h-full w-14 flex items-center justify-center ${active ? 'text-orange-600' : 'text-gray-400'}`}>
-        <Icon className="h-6 w-6" />
+      <div className={`h-full w-12 flex items-center justify-center ${active ? 'text-orange-600' : 'text-gray-400'}`}>
+        <Icon className="h-5 w-5" />
       </div>
-      <span className="px-4 text-sm font-semibold tracking-wide truncate">{label}</span>
+      <span className="px-3 text-sm font-medium tracking-wide">{label}</span>
     </Link>
   )
 }
@@ -38,18 +38,14 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
   return (
     <aside
       className={`flex flex-col bg-white border-gray-200 md:border-r shadow-lg
-      fixed top-16 left-0 h-[calc(100vh-4rem)] w-80 z-30
+      fixed top-16 left-0 h-[calc(100vh-4rem)] w-72 z-30
       transform transition-transform duration-200 ease-in-out
       ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
     >
       {/* Scrollable content area */}
       <div className="flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <div className="flex-shrink-0 p-6 pb-4 border-b border-gray-100">
-        </div>
-        
         {/* Scrollable menu items */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
           <NavItem to="/admin" icon={LayoutGrid} label="Dashboard" onNavigate={onNavigate} />
           <NavItem to="/admin/reports" icon={FileText} label="Report Management" onNavigate={onNavigate} />
           <NavItem to="/admin/adoptions" icon={Heart} label="Adoption Management" onNavigate={onNavigate} />
@@ -60,16 +56,16 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
           {/* Content folder */}
           <button
             onClick={() => setContentOpen(!contentOpen)}
-            className={`w-full flex items-center h-14 rounded-xl transition-all duration-200 ${contentOpen ? 'bg-gradient-to-r from-orange-100 to-orange-50 text-orange-700 ring-2 ring-orange-200 shadow-md' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800 hover:shadow-sm'}`}
+            className={`w-full flex items-center h-12 rounded-lg transition-all duration-200 ${contentOpen ? 'bg-gradient-to-r from-orange-100 to-orange-50 text-orange-700 ring-2 ring-orange-200 shadow-md' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800 hover:shadow-sm'}`}
           >
-            <div className={`h-full w-14 flex items-center justify-center ${contentOpen ? 'text-orange-600' : 'text-gray-400'}`}>
-              <FolderCog className="h-6 w-6" />
+            <div className={`h-full w-12 flex items-center justify-center ${contentOpen ? 'text-orange-600' : 'text-gray-400'}`}>
+              <FolderCog className="h-5 w-5" />
             </div>
-            <span className="px-4 text-sm font-semibold tracking-wide flex-1 text-left">Content</span>
-            {contentOpen ? <ChevronDown className="h-5 w-5 mr-4" /> : <ChevronRight className="h-5 w-5 mr-4" />}
+            <span className="px-3 text-sm font-medium tracking-wide flex-1 text-left">Content</span>
+            {contentOpen ? <ChevronDown className="h-4 w-4 mr-3" /> : <ChevronRight className="h-4 w-4 mr-3" />}
           </button>
           {contentOpen && (
-            <div className="ml-6 space-y-2 mt-2">
+            <div className="ml-4 space-y-1 mt-1">
               <NavItem to="/admin/content" icon={Search} label="Lost & Found Management" onNavigate={onNavigate} />
               <NavItem to="/admin/content/animals" icon={Users} label="Our Animals Management" onNavigate={onNavigate} />
             </div>
@@ -77,10 +73,10 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
         </div>
         
         {/* Fixed footer */}
-        <div className="flex-shrink-0 p-6 pt-4 space-y-3 border-t border-gray-100 bg-gray-50/50">
+        <div className="flex-shrink-0 p-4 pt-3 space-y-2 border-t border-gray-100 bg-gray-50/50">
           <NavItem to="/admin/settings" icon={Settings} label="Admin Settings" onNavigate={onNavigate} />
-          <button onClick={logout} className="w-full flex items-center h-12 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all duration-200 hover:shadow-sm border border-red-200">
-            <div className="h-full w-12 flex items-center justify-center text-red-600">
+          <button onClick={logout} className="w-full flex items-center h-11 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all duration-200 hover:shadow-sm border border-red-200">
+            <div className="h-full w-11 flex items-center justify-center text-red-600">
               <LogOut className="h-5 w-5" />
             </div>
             <span className="px-3 text-sm font-medium tracking-wide">Logout</span>

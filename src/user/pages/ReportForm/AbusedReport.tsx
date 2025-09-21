@@ -4,7 +4,7 @@ import { Upload, FileText, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { submitAbuseReport } from '../../utils/abuseReportService'
+import { submitAbuseReport } from '../../utils/reportService'
 import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
 
 interface AbusedAnimalFormData {
@@ -35,8 +35,18 @@ const AbusedReport = () => {
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || [])
         files.forEach(file => {
-            if (file.size > 150 * 1024 * 1024) { toast.error(`${file.name} is too large`); return }
-            if (!['image/jpeg', 'image/png', 'video/mp4'].includes(file.type)) { toast.error(`${file.name} is not supported`); return }
+            // Check file size - videos limited to 150MB, photos unlimited
+            const isVideo = file.type.startsWith('video/')
+            const maxSize = isVideo ? 150 * 1024 * 1024 : Infinity // 150MB for videos, no limit for photos
+            
+            if (file.size > maxSize) { 
+                toast.error(`${file.name} is too large (max ${isVideo ? '150MB' : 'unlimited'} for ${isVideo ? 'videos' : 'photos'})`); 
+                return 
+            }
+            if (!['image/jpeg', 'image/png', 'video/mp4', 'image/jpg'].includes(file.type)) { 
+                toast.error(`${file.name} is not supported`); 
+                return 
+            }
             setUploadedFiles(prev => [...prev, file])
             const reader = new FileReader(); reader.onload = (e) => setFilePreviews(prev => [...prev, e.target?.result as string]); reader.readAsDataURL(file)
         })
@@ -47,16 +57,43 @@ const AbusedReport = () => {
     const barangays = LIPA_BARANGAYS
 
     const onSubmit = async (data: AbusedAnimalFormData) => {
+        console.log('Abuse report submission started with data:', data)
+        console.log('Uploaded files:', uploadedFiles)
+        console.log('Form errors:', errors)
+        console.log('User ID:', currentUser?.uid)
+        
         setIsSubmitting(true)
         try {
-            await submitAbuseReport(data, uploadedFiles, currentUser?.uid || null)
+            const reportData = {
+                type: 'abuse' as const,
+                incidentLocation: data.incidentLocation,
+                incidentDate: data.incidentDate,
+                incidentTime: data.incidentTime,
+                abuseType: data.abuseType,
+                animalDescription: data.animalDescription,
+                perpetratorDescription: data.perpetratorDescription,
+                witnessDetails: data.witnessDetails,
+                contactName: data.contactName,
+                contactPhone: data.contactPhone,
+                contactEmail: data.contactEmail,
+                additionalDetails: data.additionalDetails
+            }
+            
+            const result = await submitAbuseReport(reportData, uploadedFiles, currentUser?.uid || null)
+            console.log('Abuse report submitted successfully with ID:', result)
             toast.success('Abuse report submitted')
             reset(); setUploadedFiles([]); setFilePreviews([])
             navigate(-1)
         } catch (e: any) { 
-            console.error('Report submission error:', e)
+            console.error('Abuse report submission error:', e)
+            console.error('Error details:', {
+                name: e?.name,
+                message: e?.message,
+                code: e?.code,
+                stack: e?.stack
+            })
             const errorMessage = e?.message || e?.error?.message || 'Failed to submit report'
-            toast.error(errorMessage)
+            toast.error(`Failed to submit abuse report: ${errorMessage}`)
         } finally { setIsSubmitting(false) }
     }
 
@@ -133,12 +170,13 @@ const AbusedReport = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Evidence Files (Photos/Videos) *</label>
-                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Evidence Files (1-2 Photos Required, Videos Optional) *</label>
+                        <div className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg ${uploadedFiles.filter(f => f.type.startsWith('image/')).length === 0 ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}>
                             <div className="space-y-1 text-center">
-                                <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                                <div className="flex text-sm text-gray-600"><label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium"><span>Upload files</span><input id="file-upload" name="file-upload" type="file" multiple className="sr-only" accept="image/jpeg,image/png,video/mp4" onChange={handleFileUpload} /></label><p className="pl-1">or drag and drop</p></div>
-                                <p className="text-xs text-gray-500">JPEG, PNG, MP4 up to 150MB each</p>
+                                <Upload className={`mx-auto h-12 w-12 ${uploadedFiles.filter(f => f.type.startsWith('image/')).length === 0 ? 'text-red-400' : 'text-gray-400'}`} />
+                                <div className="flex text-sm text-gray-600"><label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium"><span>Upload files</span><input id="file-upload" name="file-upload" type="file" multiple className="sr-only" accept="image/jpeg,image/png,image/jpg,video/mp4" onChange={handleFileUpload} /></label><p className="pl-1">or drag and drop</p></div>
+                                <p className="text-xs text-gray-500">Photos: unlimited size • Videos: max 150MB each</p>
+                                {uploadedFiles.filter(f => f.type.startsWith('image/')).length === 0 && <p className="text-xs text-red-600 font-medium">At least 1-2 photos are required</p>}
                             </div>
                         </div>
                     </div>
@@ -164,7 +202,7 @@ const AbusedReport = () => {
 
                     <div className="flex justify-end space-x-3">
                         <button type="button" onClick={() => navigate(-1)} className="btn-secondary">Cancel</button>
-                        <button type="submit" disabled={isSubmitting || uploadedFiles.length === 0} className="btn-primary disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Submit Report'}</button>
+                        <button type="submit" disabled={isSubmitting || uploadedFiles.filter(f => f.type.startsWith('image/')).length === 0} className="btn-primary disabled:opacity-50">{isSubmitting ? 'Submitting...' : 'Submit Report'}</button>
                     </div>
                 </form>
             </div>
@@ -173,3 +211,5 @@ const AbusedReport = () => {
 }
 
 export default AbusedReport
+
+

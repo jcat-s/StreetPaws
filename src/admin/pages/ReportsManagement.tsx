@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { collection, doc, onSnapshot, orderBy, query, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../config/firebase'
-import { createSignedEvidenceUrl } from '../../user/utils/abuseReportService'
+import { createSignedEvidenceUrl } from '../../user/utils/reportService'
 import { 
   Search, 
   CheckCircle, 

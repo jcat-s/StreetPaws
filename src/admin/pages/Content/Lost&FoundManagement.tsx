@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Plus, Edit, Trash2 } from 'lucide-react'
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
-import { createSignedEvidenceUrl } from '../../../user/utils/abuseReportService'
+import { createSignedEvidenceUrl } from '../../../user/utils/reportService'
 
 const ContentHome = () => {
   const [type, setType] = useState<'lost' | 'found'>('lost')

@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 const EmailVerificationModal = () => {
   const [isResending, setIsResending] = useState(false)
   const [countdown, setCountdown] = useState(0)
-  const { currentUser, sendEmailVerification, isEmailVerified } = useAuth()
+  const { currentUser, sendEmailVerification } = useAuth()
   const { openLoginModal } = useModalStore()
 
   // Countdown timer for resend button

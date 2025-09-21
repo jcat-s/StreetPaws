@@ -38,7 +38,19 @@ export interface FoundReportData extends BaseContactInfo {
 	additionalDetails?: string
 }
 
-export type SubmitReportData = LostReportData | FoundReportData
+export interface AbuseReportData extends BaseContactInfo {
+	type: 'abuse'
+	incidentLocation: string
+	incidentDate: string
+	incidentTime: string
+	abuseType: string
+	animalDescription: string
+	perpetratorDescription?: string
+	witnessDetails?: string
+	additionalDetails?: string
+}
+
+export type SubmitReportData = LostReportData | FoundReportData | AbuseReportData
 
 async function uploadImage(file: File, userId: string | null): Promise<string> {
 	if (!supabase) {
@@ -57,6 +69,20 @@ async function uploadImage(file: File, userId: string | null): Promise<string> {
 		throw new Error(`Upload failed: ${uploadError.message}`)
 	}
 	return key
+}
+
+async function uploadMultipleFiles(files: File[], userId: string | null): Promise<string[]> {
+	if (!supabase) {
+		throw new Error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
+	}
+	const uploadedKeys: string[] = []
+	
+	for (const file of files) {
+		const key = await uploadImage(file, userId)
+		uploadedKeys.push(key)
+	}
+	
+	return uploadedKeys
 }
 
 function omitUndefinedDeep(value: any): any {
@@ -127,6 +153,19 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 			...basePayload
 		}
 		collectionName = 'found'
+	} else if (data.type === 'abuse') {
+		payload = {
+			type: 'abuse',
+			incidentLocation: data.incidentLocation,
+			incidentDate: data.incidentDate,
+			incidentTime: data.incidentTime,
+			abuseType: data.abuseType,
+			animalDescription: data.animalDescription,
+			perpetratorDescription: data.perpetratorDescription || undefined,
+			witnessDetails: data.witnessDetails || undefined,
+			...basePayload
+		}
+		collectionName = 'reports'
 	} else {
 		throw new Error('Unknown report type');
 	}
@@ -151,6 +190,91 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 	} catch (error) {
 		// Log the error for debugging
 		console.error('Report submission failed:', error)
+		throw error
+	}
+}
+
+export async function submitAbuseReport(data: AbuseReportData, files: File[], userId: string | null): Promise<string> {
+	if (!db) {
+		throw new Error('Firebase Firestore not initialized')
+	}
+
+	if (files.length === 0) {
+		throw new Error('At least one evidence file is required for abuse reports')
+	}
+
+	// Add a unique submission ID to prevent duplicates
+	const submissionId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+	const basePayload = {
+		contactName: data.contactName,
+		contactPhone: data.contactPhone,
+		contactEmail: data.contactEmail,
+		additionalDetails: data.additionalDetails || undefined,
+		status: 'open' as const,
+		createdAt: serverTimestamp(),
+		createdBy: userId || null,
+		submissionId
+	}
+
+	const payload = {
+		type: 'abuse',
+		incidentLocation: data.incidentLocation,
+		incidentDate: data.incidentDate,
+		incidentTime: data.incidentTime,
+		abuseType: data.abuseType,
+		animalDescription: data.animalDescription,
+		perpetratorDescription: data.perpetratorDescription || undefined,
+		witnessDetails: data.witnessDetails || undefined,
+		...basePayload
+	}
+
+	const cleaned = omitUndefinedDeep(payload)
+	
+	try {
+		// First upload all files
+		const uploadedKeys = await uploadMultipleFiles(files, userId)
+		
+		// Then create the document with all file keys
+		const docRef = await addDoc(collection(db, 'reports'), {
+			...cleaned,
+			evidenceObjects: uploadedKeys
+		})
+
+		return docRef.id
+	} catch (error) {
+		console.error('Abuse report submission failed:', error)
+		throw error
+	}
+}
+
+/**
+ * Creates a signed URL for accessing evidence files from Supabase storage
+ * @param objectKey - The storage key/path of the file
+ * @param expiresIn - Expiration time in seconds (default: 1 hour)
+ * @returns Promise<string> - The signed URL
+ */
+export async function createSignedEvidenceUrl(objectKey: string, expiresIn: number = 3600): Promise<string> {
+	if (!supabase) {
+		throw new Error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
+	}
+
+	try {
+		const { data, error } = await supabase.storage
+			.from('report-uploads')
+			.createSignedUrl(objectKey, expiresIn)
+
+		if (error) {
+			throw new Error(`Failed to create signed URL: ${error.message}`)
+		}
+
+		if (!data?.signedUrl) {
+			throw new Error('No signed URL returned from Supabase')
+		}
+
+		return data.signedUrl
+	} catch (error) {
+		console.error('Error creating signed evidence URL:', error)
 		throw error
 	}
 }

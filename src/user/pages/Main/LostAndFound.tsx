@@ -38,12 +38,15 @@ const LostAndFound = () => {
 
   useEffect(() => {
     if (!db) return
-    const lostQuery = query(collection(db, 'reports', 'main', 'lost'), orderBy('createdAt', 'desc'))
-    const foundQuery = query(collection(db, 'reports', 'main', 'found'), orderBy('createdAt', 'desc'))
+    const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
+    const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
     const lostUnsub = onSnapshot(lostQuery, async (lostSnap) => {
       const lostMapped: LostFoundAnimal[] = []
       for (const d of lostSnap.docs) {
         const data: any = d.data()
+        // Only show published items to users
+        if (data?.published !== true) continue
+        
         let imageUrl = ''
         const key = data?.uploadObjectKey as string | undefined
         if (key) {
@@ -80,6 +83,9 @@ const LostAndFound = () => {
       const foundMapped: LostFoundAnimal[] = []
       for (const d of foundSnap.docs) {
         const data: any = d.data()
+        // Only show published items to users
+        if (data?.published !== true) continue
+        
         let imageUrl = ''
         const key = data?.uploadObjectKey as string | undefined
         if (key) {

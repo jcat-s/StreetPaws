@@ -3,6 +3,7 @@ import { Search, Edit, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, 
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, addDoc } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
+import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
 
 type LostFoundItem = {
   id: string;
@@ -503,7 +504,14 @@ const ContentHome = () => {
                   <div><span className="font-medium">Breed:</span> {editMode ? (<input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.breed || ''} onChange={e => setEditData(editData ? { ...editData, breed: e.target.value } : null)} />) : selectedItem.breed}</div>
                   <div><span className="font-medium">Colors:</span> {editMode ? (<input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.colors || ''} onChange={e => setEditData(editData ? { ...editData, colors: e.target.value } : null)} />) : selectedItem.colors}</div>
                   <div><span className="font-medium">Age:</span> {editMode ? (<input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.age || ''} onChange={e => setEditData(editData ? { ...editData, age: e.target.value } : null)} />) : selectedItem.age}</div>
-                  <div><span className="font-medium">Gender:</span> {editMode ? (<input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.gender || ''} onChange={e => setEditData(editData ? { ...editData, gender: e.target.value } : null)} />) : selectedItem.gender}</div>
+                  <div><span className="font-medium">Gender:</span> {editMode ? (
+                    <select className="ml-2 border rounded px-2 py-1 focus:outline-none focus:border-orange-500" value={editData?.gender || ''} onChange={e => setEditData(editData ? { ...editData, gender: e.target.value } : null)}>
+                      <option value="">Select gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  ) : selectedItem.gender}</div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center">
@@ -512,7 +520,16 @@ const ContentHome = () => {
                   </div>
                   <div className="flex items-center">
                     <span className="font-medium mr-2">Location:</span>
-                    {editMode ? (<input className="border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.location || ''} onChange={e => setEditData(editData ? { ...editData, location: e.target.value } : null)} />) : <span>{selectedItem.location}</span>}
+                    {editMode ? (
+                      <select className="border rounded px-2 py-1 focus:outline-none focus:border-orange-500" value={editData?.location || ''} onChange={e => setEditData(editData ? { ...editData, location: e.target.value } : null)}>
+                        <option value="">Select barangay</option>
+                        {LIPA_BARANGAYS.map((b) => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>{selectedItem.location}</span>
+                    )}
                   </div>
                 </div>
                 {editMode ? (
@@ -574,11 +591,21 @@ const ContentHome = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                <input value={newForm.gender} onChange={(e) => setNewForm({ ...newForm, gender: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <select value={newForm.gender} onChange={(e) => setNewForm({ ...newForm, gender: e.target.value })} className="w-full border rounded px-3 py-2">
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="unknown">Unknown</option>
+                </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                <input value={newForm.location} onChange={(e) => setNewForm({ ...newForm, location: e.target.value })} className="w-full border rounded px-3 py-2" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location (Barangay)</label>
+                <select value={newForm.location} onChange={(e) => setNewForm({ ...newForm, location: e.target.value })} className="w-full border rounded px-3 py-2">
+                  <option value="">Select barangay</option>
+                  {LIPA_BARANGAYS.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>

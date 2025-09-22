@@ -328,7 +328,6 @@ const ReportsManagement = () => {
     try {
       // Restore the report by adding it back to the appropriate collection
       const collectionName = lastDeleted.type === 'abuse' ? 'reports' : lastDeleted.type
-      const ref = doc(collection(db, collectionName))
       
       // Create the document with the same data
       const reportData = {

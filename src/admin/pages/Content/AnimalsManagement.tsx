@@ -38,6 +38,7 @@ const AnimalsManagement = () => {
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [editing, setEditing] = useState(false)
   const [editValues, setEditValues] = useState<Partial<AnimalRecord>>({})
+  const [editImageFile, setEditImageFile] = useState<File | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -93,11 +94,10 @@ const AnimalsManagement = () => {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    if (!dateString) return '—'
+    const dt = new Date(dateString)
+    if (isNaN(dt.getTime())) return '—'
+    return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
   }
 
   const formatCurrency = (amount: number) => {
@@ -220,87 +220,68 @@ const AnimalsManagement = () => {
           </div>
         </div>
 
-        {/* Animals Grid */}
+        {/* Animals Table - matches Lost&Found layout style */}
         {loading ? (
           <div className="text-center py-16 text-gray-600">Loading animals…</div>
         ) : error ? (
           <div className="text-center py-16 text-red-600">{error}</div>
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAnimals.map((animal) => (
-            <div key={animal.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-              {/* Animal Image */}
-              <div className="h-48 bg-gray-200 relative">
-                {animal.images && animal.images.length > 0 ? (
-                  <img src={animal.images[0]} alt={animal.name} className="w-full h-full object-cover" />
-                ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="bg-orange-100 p-4 rounded-full w-16 h-16 mx-auto mb-2">
-                      {animal.type === 'dog' ? (
-                        <span className="text-2xl">🐕</span>
-                      ) : (
-                        <span className="text-2xl">🐱</span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-500">No image available</p>
-                  </div>
-                </div>
-                )}
-                <div className="absolute top-2 right-2">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(animal.status)}`}>
-                    {animal.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Animal Info */}
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">{animal.name}</h3>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getHealthColor(animal.healthStatus)}`}>
-                    {animal.healthStatus}
-                  </span>
-                </div>
-                
-                <div className="space-y-1 text-sm text-gray-600">
-                  <p><strong>Breed:</strong> {animal.breed}</p>
-                  <p><strong>Age:</strong> {animal.age}</p>
-                  <p><strong>Gender:</strong> {animal.gender}</p>
-                  <p><strong>Size:</strong> {animal.size}</p>
-                  <p><strong>Microchip:</strong> {animal.microchipId}</p>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-500">
-                    <p>Intake: {formatDate(animal.intakeDate)}</p>
-                    <p>Fee: {formatCurrency(animal.adoptionFee)}</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleViewAnimal(animal)}
-                      className="text-orange-600 hover:text-orange-700 p-1"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                <button 
-                  onClick={() => { setSelectedAnimal(animal); setEditValues(animal); setShowAnimalModal(true); setEditing(true) }}
-                  className="text-blue-600 hover:text-blue-700 p-1">
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button 
-                      disabled={deletingId === animal.id}
-                      onClick={() => handleDeleteClick(animal)} 
-                      className="text-red-600 hover:text-red-700 disabled:opacity-50 p-1"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredAnimals.map((animal: any) => (
+                    <tr key={animal.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-12 h-12 rounded bg-gray-100 overflow-hidden flex items-center justify-center">
+                            {animal.images && animal.images.length > 0 ? (
+                              <img src={animal.images[0]} alt={animal.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xl">{animal.type === 'dog' ? '🐕' : '🐱'}</span>
+                            )}
+                          </div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-900">{animal.name}</div>
+                            <div className="text-sm text-gray-500 capitalize">{animal.type} • {animal.breed || '—'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(animal.status)}`}>{animal.status}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">{animal.type}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{animal.adoptionFee != null ? formatCurrency(animal.adoptionFee) : '—'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(animal.updatedAt)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center space-x-2">
+                          <button onClick={() => handleViewAnimal(animal)} className="text-orange-600 hover:text-orange-700 flex items-center space-x-1">
+                            <Eye className="h-4 w-4" /><span>View</span>
+                          </button>
+                          <button onClick={() => { setSelectedAnimal(animal); setEditValues(animal); setShowAnimalModal(true); setEditing(true) }} className="text-blue-600 hover:text-blue-700 flex items-center space-x-1">
+                            <Edit className="h-4 w-4" /><span>Edit</span>
+                          </button>
+                          <button disabled={deletingId === animal.id} onClick={() => handleDeleteClick(animal)} className="text-red-600 hover:text-red-700 disabled:opacity-50 flex items-center space-x-1">
+                            <Trash2 className="h-4 w-4" /><span>{deletingId === animal.id ? 'Deleting...' : 'Delete'}</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
+          </div>
         )}
 
         {/* Animal Detail Modal */}
@@ -309,184 +290,115 @@ const AnimalsManagement = () => {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               {/* Modal Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <div className="flex items-center space-x-3">
-                  <div className="bg-orange-100 p-3 rounded-full">
-                    {selectedAnimal.type === 'dog' ? (
-                      <span className="text-2xl">🐕</span>
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-orange-100 flex items-center justify-center">
+                    {selectedAnimal.images && selectedAnimal.images.length > 0 ? (
+                      <img src={selectedAnimal.images[0]} alt={selectedAnimal.name} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-2xl">🐱</span>
+                      <span className="text-xl">{selectedAnimal.type === 'dog' ? '🐕' : '🐱'}</span>
                     )}
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedAnimal.name}</h2>
-                    <p className="text-sm text-gray-600">#{selectedAnimal.id} • {selectedAnimal.breed}</p>
+                    <h2 className="text-xl font-bold text-gray-900">{selectedAnimal.name || 'Untitled'}</h2>
+                    <p className="text-sm text-gray-600">#{selectedAnimal.id} {selectedAnimal.breed ? `• ${selectedAnimal.breed}` : ''}</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  {editing ? (
                 <button
-                  onClick={() => setShowAnimalModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
+                      onClick={async () => {
+                        await updateAnimal(selectedAnimal.id, editValues)
+                        setAnimals((prev: any[]) => prev.map(a => a.id === selectedAnimal.id ? { ...a, ...editValues } : a))
+                        setSelectedAnimal((prev: any) => ({ ...prev, ...editValues }))
+                        setEditing(false)
+                      }}
+                      className="text-green-600 hover:text-green-700 font-medium"
+                    >
+                      Save
+                    </button>
+                  ) : (
+                    <button onClick={() => { setEditing(true); setEditValues(selectedAnimal) }} className="text-blue-600 hover:text-blue-700 font-medium">Edit</button>
+                  )}
+                  <button onClick={() => { setShowAnimalModal(false); setEditing(false) }} className="text-gray-400 hover:text-gray-600">
                   <XCircle className="h-6 w-6" />
                 </button>
+                </div>
               </div>
 
               {/* Modal Content */}
               <div className="p-6 space-y-6">
-                {/* Basic Information */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Name</label>
-                      {editing ? (
-                        <input className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.name || ''} onChange={(e) => setEditValues((s) => ({...s, name: e.target.value}))} />
+                {/* Compact view like user modal when not editing */}
+                {/* Single layout with inline edit controls like Lost&Found */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-1 flex flex-col items-center">
+                    <div className="w-full h-48 md:h-64 rounded-lg overflow-hidden bg-gray-100">
+                      {selectedAnimal.images && selectedAnimal.images.length > 0 ? (
+                        <img src={editImageFile ? URL.createObjectURL(editImageFile) : selectedAnimal.images[0]} alt={selectedAnimal.name} className="w-full h-full object-cover" />
                       ) : (
-                      <p className="text-sm text-gray-900">{selectedAnimal.name}</p>
+                        <div className="w-full h-full flex items-center justify-center text-4xl">{selectedAnimal.type === 'dog' ? '🐕' : '🐱'}</div>
                       )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Type</label>
+                    {editing && (
+                      <div className="w-full mt-3">
+                        <input type="file" accept="image/*" onChange={(e) => setEditImageFile(e.target.files?.[0] || null)} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="md:col-span-2 space-y-3">
+                    <div className="flex flex-wrap gap-3 items-center">
                       {editing ? (
-                        <select className="text-sm w-full px-3 py-2 border rounded-lg" value={(editValues.type as any) || 'dog'} onChange={(e) => setEditValues((s) => ({...s, type: e.target.value as AnimalType}))}>
-                          <option value="dog">Dog</option>
-                          <option value="cat">Cat</option>
-                        </select>
+                        <input className="border-b border-gray-300 focus:outline-none focus:border-orange-500 text-2xl font-bold" value={editValues.name || ''} onChange={(e) => setEditValues((v) => ({...v, name: e.target.value}))} />
                       ) : (
-                      <p className="text-sm text-gray-900 capitalize">{selectedAnimal.type}</p>
+                        <h2 className="text-2xl font-bold">{selectedAnimal.name || 'Untitled'}</h2>
                       )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Breed</label>
+                    <div className="flex flex-wrap gap-3 items-center">
+                      <div className="px-3 py-1 bg-pink-50 rounded text-sm">
+                        Breed: {editing ? (
+                          <input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editValues.breed || ''} onChange={(e) => setEditValues((v) => ({...v, breed: e.target.value}))} />
+                        ) : (selectedAnimal.breed || '—')}
+                      </div>
+                      <div className="px-3 py-1 bg-pink-50 rounded text-sm">
+                        Age: {editing ? (
+                          <input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editValues.age || ''} onChange={(e) => setEditValues((v) => ({...v, age: e.target.value}))} />
+                        ) : (selectedAnimal.age || '—')}
+                      </div>
+                      <div className="px-3 py-1 bg-pink-50 rounded text-sm">
+                        Sex: {editing ? (
+                          <select className="ml-2 border rounded px-2 py-1 focus:outline-none focus:border-orange-500" value={editValues.gender || ''} onChange={(e) => setEditValues((v) => ({...v, gender: e.target.value}))}>
+                            <option value="">Select</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                          </select>
+                        ) : (selectedAnimal.gender || '—')}
+                      </div>
+                    </div>
+                    <div className="text-gray-700 whitespace-pre-line">
                       {editing ? (
-                        <input className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.breed || ''} onChange={(e) => setEditValues((s) => ({...s, breed: e.target.value}))} />
+                        <textarea className="w-full border rounded px-3 py-2" rows={4} value={editValues.description || ''} onChange={(e) => setEditValues((v) => ({...v, description: e.target.value}))} />
                       ) : (
-                      <p className="text-sm text-gray-900">{selectedAnimal.breed}</p>
+                        selectedAnimal.description || '—'
                       )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Age</label>
-                      {editing ? (
-                        <input className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.age || ''} onChange={(e) => setEditValues((s) => ({...s, age: e.target.value}))} />
-                      ) : (
-                      <p className="text-sm text-gray-900">{selectedAnimal.age}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Gender</label>
-                      {editing ? (
-                        <select className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.gender || ''} onChange={(e) => setEditValues((s) => ({...s, gender: e.target.value}))}>
-                          <option value="">Select gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                        </select>
-                      ) : (
-                      <p className="text-sm text-gray-900">{selectedAnimal.gender}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Size</label>
-                      <p className="text-sm text-gray-900">{selectedAnimal.size}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Colors</label>
-                      <p className="text-sm text-gray-900">{selectedAnimal.colors}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Microchip ID</label>
-                      <p className="text-sm text-gray-900">{selectedAnimal.microchipId}</p>
                     </div>
                   </div>
                 </div>
-
-                {/* Health Information */}
+                {/* Adoption Fee (kept minimal) */}
+                {editing ? (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Health Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Health Status</label>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getHealthColor(selectedAnimal.healthStatus)}`}>
-                        {selectedAnimal.healthStatus}
-                      </span>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Adoption Fee</h3>
+                    <input type="number" className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.adoptionFee ?? ''} onChange={(e) => setEditValues((s) => ({...s, adoptionFee: Number(e.target.value)}))} />
                     </div>
+                ) : (
+                  selectedAnimal.adoptionFee != null && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Vaccination Status</label>
-                      <p className="text-sm text-gray-900">{selectedAnimal.vaccinationStatus}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Spay/Neuter Status</label>
-                      <p className="text-sm text-gray-900">{selectedAnimal.spayNeuterStatus}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Adoption Fee</label>
-                      {editing ? (
-                        <input type="number" className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.adoptionFee ?? ''} onChange={(e) => setEditValues((s) => ({...s, adoptionFee: Number(e.target.value)}))} />
-                      ) : (
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Adoption Fee</h3>
                       <p className="text-sm text-gray-900">{formatCurrency(selectedAnimal.adoptionFee)}</p>
-                      )}
                     </div>
-                  </div>
-                </div>
-
-                {/* Intake Information */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Intake Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Intake Date</label>
-                      <p className="text-sm text-gray-900">{formatDate(selectedAnimal.intakeDate)}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Intake Reason</label>
-                      <p className="text-sm text-gray-900">{selectedAnimal.intakeReason}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Location</label>
-                      <p className="text-sm text-gray-900">{selectedAnimal.location}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Foster Family</label>
-                      <p className="text-sm text-gray-900">{selectedAnimal.fosterFamily || 'None'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Description</h3>
-                  {editing ? (
-                    <textarea className="text-sm w-full px-3 py-2 border rounded-lg" rows={4} value={editValues.description || ''} onChange={(e) => setEditValues((s) => ({...s, description: e.target.value}))} />
-                  ) : (
-                  <p className="text-sm text-gray-900 bg-gray-50 p-4 rounded-lg">
-                    {selectedAnimal.description}
-                  </p>
-                  )}
-                </div>
-
-                {/* Special Needs */}
-                {selectedAnimal.specialNeeds && selectedAnimal.specialNeeds !== 'None' && (
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Special Needs</h3>
-                    <p className="text-sm text-gray-900 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                      {selectedAnimal.specialNeeds}
-                    </p>
-                  </div>
+                  )
                 )}
 
-                {/* Behavior Notes */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Behavior Notes</h3>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-4 rounded-lg">
-                    {selectedAnimal.behaviorNotes}
-                  </p>
-                </div>
-
-                {/* Medical History */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Medical History</h3>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-4 rounded-lg">
-                    {selectedAnimal.medicalHistory}
-                  </p>
-                </div>
+                {/* Removed Intake/Description/Behavior/Medical sections per UX simplification */}
+                )
 
                 {/* Publish & Status Controls */}
                 <div className="flex items-center justify-between py-4">

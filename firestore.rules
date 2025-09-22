@@ -65,9 +65,9 @@ service cloud.firestore {
       allow read, write: if true;
     }
     
-    // Animals collection - admins can manage, users can read
+    // Animals collection - public can read published, admins can manage
     match /animals/{animalId} {
-      allow read: if isAuthenticated();
+      allow read: if resource.data.isPublished == true || isAdmin();
       allow write: if isAdmin();
     }
     

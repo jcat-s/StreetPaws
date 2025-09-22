@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { 
   Search, 
   Plus, 
@@ -8,117 +8,8 @@ import {
   XCircle
 } from 'lucide-react'
 
-// Mock data - In production, this would come from your database
-const MOCK_ANIMALS = [
-  {
-    id: '1',
-    name: 'Jepoy',
-    type: 'dog',
-    breed: 'Golden Retriever',
-    age: '2 years',
-    gender: 'Male',
-    size: 'Large',
-    colors: 'Golden brown',
-    description: 'Jepoy is a sweet, playful pup with a heart full of love and a tail that never stops wagging. Curious, cuddly, and always ready for belly rubs, Jepoy is the perfect companion for cozy afternoons and fun-filled adventures.',
-    images: ['jepoy1.jpg', 'jepoy2.jpg'],
-    status: 'available',
-    healthStatus: 'Healthy',
-    vaccinationStatus: 'Up to date',
-    spayNeuterStatus: 'Neutered',
-    microchipId: 'MC001234567',
-    intakeDate: '2024-01-10',
-    intakeReason: 'Found as stray',
-    location: 'Barangay 1',
-    specialNeeds: 'None',
-    behaviorNotes: 'Very friendly, good with children and other dogs',
-    medicalHistory: 'Routine checkup completed, all vaccinations current',
-    adoptionFee: 2000,
-    fosterFamily: null,
-    createdAt: '2024-01-10T08:00:00Z',
-    updatedAt: '2024-01-15T10:30:00Z'
-  },
-  {
-    id: '2',
-    name: 'Putchi',
-    type: 'cat',
-    breed: 'Persian',
-    age: '1 year',
-    gender: 'Female',
-    size: 'Medium',
-    colors: 'White and gray',
-    description: 'Calm and affectionate cat perfect for a quiet home. Putchi loves to cuddle and is very gentle with people.',
-    images: ['putchi1.jpg'],
-    status: 'adopted',
-    healthStatus: 'Healthy',
-    vaccinationStatus: 'Up to date',
-    spayNeuterStatus: 'Spayed',
-    microchipId: 'MC001234568',
-    intakeDate: '2024-01-05',
-    intakeReason: 'Owner surrender',
-    location: 'Barangay 3',
-    specialNeeds: 'None',
-    behaviorNotes: 'Calm, prefers quiet environments',
-    medicalHistory: 'Spayed, all vaccinations current',
-    adoptionFee: 1500,
-    fosterFamily: null,
-    createdAt: '2024-01-05T14:20:00Z',
-    updatedAt: '2024-01-14T16:45:00Z'
-  },
-  {
-    id: '3',
-    name: 'Josh',
-    type: 'dog',
-    breed: 'Labrador',
-    age: '3 years',
-    gender: 'Male',
-    size: 'Large',
-    colors: 'Black',
-    description: 'Playful and loyal companion ready for adventures. Josh loves to play fetch and is great with kids.',
-    images: ['josh1.jpg', 'josh2.jpg'],
-    status: 'available',
-    healthStatus: 'Healthy',
-    vaccinationStatus: 'Up to date',
-    spayNeuterStatus: 'Neutered',
-    microchipId: 'MC001234569',
-    intakeDate: '2024-01-12',
-    intakeReason: 'Rescue from abuse case',
-    location: 'Barangay 5',
-    specialNeeds: 'Needs patient owner due to past trauma',
-    behaviorNotes: 'Initially shy but warms up quickly, very loyal once bonded',
-    medicalHistory: 'Recovered from minor injuries, all treatments completed',
-    adoptionFee: 2000,
-    fosterFamily: 'Maria Santos',
-    createdAt: '2024-01-12T11:15:00Z',
-    updatedAt: '2024-01-15T09:20:00Z'
-  },
-  {
-    id: '4',
-    name: 'Meeloo',
-    type: 'cat',
-    breed: 'Siamese',
-    age: '2 years',
-    gender: 'Female',
-    size: 'Medium',
-    colors: 'Cream and brown',
-    description: 'Curious and intelligent cat who loves to explore. Meeloo is very social and enjoys interactive play.',
-    images: ['meeloo1.jpg'],
-    status: 'pending',
-    healthStatus: 'Healthy',
-    vaccinationStatus: 'Up to date',
-    spayNeuterStatus: 'Spayed',
-    microchipId: 'MC001234570',
-    intakeDate: '2024-01-08',
-    intakeReason: 'Found as stray',
-    location: 'Barangay 2',
-    specialNeeds: 'None',
-    behaviorNotes: 'Very active, needs lots of stimulation',
-    medicalHistory: 'All vaccinations current, spayed',
-    adoptionFee: 1500,
-    fosterFamily: null,
-    createdAt: '2024-01-08T16:30:00Z',
-    updatedAt: '2024-01-15T14:10:00Z'
-  }
-]
+import { listAllAnimalsForAdmin, deleteAnimal, createAnimal, updateAnimal, setAnimalStatus, type AnimalRecord, type AnimalType, type AnimalStatus } from '../../../shared/utils/animalsService'
+import { supabase } from '../../../config/supabase'
 
 const AnimalsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -132,13 +23,45 @@ const AnimalsManagement = () => {
   const [animalToDelete, setAnimalToDelete] = useState<{id: string, name: string, type: string} | null>(null)
   const [deletedAnimals, setDeletedAnimals] = useState<any[]>([])
   const [showUndo, setShowUndo] = useState(false)
-  const [animals, setAnimals] = useState<any[]>(MOCK_ANIMALS)
+  const [animals, setAnimals] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [addError, setAddError] = useState<string | null>(null)
+  const [addWarning, setAddWarning] = useState<string | null>(null)
+  const [newAnimal, setNewAnimal] = useState<Partial<AnimalRecord>>({
+    name: '',
+    type: 'dog',
+    status: 'available',
+    isPublished: false
+  })
+  const [newImageFile, setNewImageFile] = useState<File | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [editValues, setEditValues] = useState<Partial<AnimalRecord>>({})
+
+  useEffect(() => {
+    let mounted = true
+    async function load() {
+      try {
+        setLoading(true)
+        const rows: AnimalRecord[] = await listAllAnimalsForAdmin(200)
+        if (!mounted) return
+        setAnimals(rows)
+      } catch (e: any) {
+        if (mounted) setError(e?.message || 'Failed to load animals')
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+    load()
+    return () => { mounted = false }
+  }, [])
 
   const filteredAnimals = animals.filter(animal => {
     const matchesSearch = searchTerm === '' || 
-      animal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      animal.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      animal.microchipId.toLowerCase().includes(searchTerm.toLowerCase())
+      (animal.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (animal.breed || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (animal.microchipId || '').toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = statusFilter === 'all' || animal.status === statusFilter
     const matchesType = typeFilter === 'all' || animal.type === typeFilter
@@ -195,25 +118,27 @@ const AnimalsManagement = () => {
 
   const handleDelete = async () => {
     if (!animalToDelete) return
-    
     // Store the animal for potential undo
     const animalToUndo = animals.find(a => a.id === animalToDelete.id)
     if (animalToUndo) {
       setDeletedAnimals(prev => [...prev, animalToUndo])
       setShowUndo(true)
-      // Auto-hide undo after 10 seconds
       setTimeout(() => setShowUndo(false), 10000)
     }
     
     setDeletingId(animalToDelete.id)
     setShowDeleteConfirm(false)
     
-    // Simulate async operation
-    setTimeout(() => {
+    try {
+      await deleteAnimal(animalToDelete.id)
       setAnimals(prev => prev.filter(animal => animal.id !== animalToDelete.id))
+    } catch (e) {
+      // If deletion fails, revert undo notification
+      setShowUndo(false)
+    } finally {
       setDeletingId(null)
       setAnimalToDelete(null)
-    }, 1000)
+    }
   }
 
   const handleUndoDelete = () => {
@@ -296,11 +221,19 @@ const AnimalsManagement = () => {
         </div>
 
         {/* Animals Grid */}
+        {loading ? (
+          <div className="text-center py-16 text-gray-600">Loading animals…</div>
+        ) : error ? (
+          <div className="text-center py-16 text-red-600">{error}</div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAnimals.map((animal) => (
             <div key={animal.id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow">
               {/* Animal Image */}
               <div className="h-48 bg-gray-200 relative">
+                {animal.images && animal.images.length > 0 ? (
+                  <img src={animal.images[0]} alt={animal.name} className="w-full h-full object-cover" />
+                ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
                     <div className="bg-orange-100 p-4 rounded-full w-16 h-16 mx-auto mb-2">
@@ -313,6 +246,7 @@ const AnimalsManagement = () => {
                     <p className="text-sm text-gray-500">No image available</p>
                   </div>
                 </div>
+                )}
                 <div className="absolute top-2 right-2">
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(animal.status)}`}>
                     {animal.status}
@@ -349,7 +283,9 @@ const AnimalsManagement = () => {
                     >
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button className="text-blue-600 hover:text-blue-700 p-1">
+                <button 
+                  onClick={() => { setSelectedAnimal(animal); setEditValues(animal); setShowAnimalModal(true); setEditing(true) }}
+                  className="text-blue-600 hover:text-blue-700 p-1">
                       <Edit className="h-4 w-4" />
                     </button>
                     <button 
@@ -365,6 +301,7 @@ const AnimalsManagement = () => {
             </div>
           ))}
         </div>
+        )}
 
         {/* Animal Detail Modal */}
         {showAnimalModal && selectedAnimal && (
@@ -401,23 +338,50 @@ const AnimalsManagement = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Name</label>
+                      {editing ? (
+                        <input className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.name || ''} onChange={(e) => setEditValues((s) => ({...s, name: e.target.value}))} />
+                      ) : (
                       <p className="text-sm text-gray-900">{selectedAnimal.name}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Type</label>
+                      {editing ? (
+                        <select className="text-sm w-full px-3 py-2 border rounded-lg" value={(editValues.type as any) || 'dog'} onChange={(e) => setEditValues((s) => ({...s, type: e.target.value as AnimalType}))}>
+                          <option value="dog">Dog</option>
+                          <option value="cat">Cat</option>
+                        </select>
+                      ) : (
                       <p className="text-sm text-gray-900 capitalize">{selectedAnimal.type}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Breed</label>
+                      {editing ? (
+                        <input className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.breed || ''} onChange={(e) => setEditValues((s) => ({...s, breed: e.target.value}))} />
+                      ) : (
                       <p className="text-sm text-gray-900">{selectedAnimal.breed}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Age</label>
+                      {editing ? (
+                        <input className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.age || ''} onChange={(e) => setEditValues((s) => ({...s, age: e.target.value}))} />
+                      ) : (
                       <p className="text-sm text-gray-900">{selectedAnimal.age}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Gender</label>
+                      {editing ? (
+                        <select className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.gender || ''} onChange={(e) => setEditValues((s) => ({...s, gender: e.target.value}))}>
+                          <option value="">Select gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                        </select>
+                      ) : (
                       <p className="text-sm text-gray-900">{selectedAnimal.gender}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Size</label>
@@ -454,7 +418,11 @@ const AnimalsManagement = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Adoption Fee</label>
+                      {editing ? (
+                        <input type="number" className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.adoptionFee ?? ''} onChange={(e) => setEditValues((s) => ({...s, adoptionFee: Number(e.target.value)}))} />
+                      ) : (
                       <p className="text-sm text-gray-900">{formatCurrency(selectedAnimal.adoptionFee)}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -485,9 +453,13 @@ const AnimalsManagement = () => {
                 {/* Description */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Description</h3>
+                  {editing ? (
+                    <textarea className="text-sm w-full px-3 py-2 border rounded-lg" rows={4} value={editValues.description || ''} onChange={(e) => setEditValues((s) => ({...s, description: e.target.value}))} />
+                  ) : (
                   <p className="text-sm text-gray-900 bg-gray-50 p-4 rounded-lg">
                     {selectedAnimal.description}
                   </p>
+                  )}
                 </div>
 
                 {/* Special Needs */}
@@ -516,20 +488,80 @@ const AnimalsManagement = () => {
                   </p>
                 </div>
 
+                {/* Publish & Status Controls */}
+                <div className="flex items-center justify-between py-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="modalPublish"
+                      type="checkbox"
+                      checked={Boolean(editing ? editValues.isPublished : selectedAnimal.isPublished)}
+                      onChange={async (e) => {
+                        const next = e.target.checked
+                        if (editing) {
+                          setEditValues((s) => ({...s, isPublished: next}))
+                        } else {
+                          await updateAnimal(selectedAnimal.id, { isPublished: next })
+                          setSelectedAnimal((prev: any) => ({...prev, isPublished: next}))
+                          setAnimals((prev: any[]) => prev.map(a => a.id === selectedAnimal.id ? {...a, isPublished: next} : a))
+                        }
+                      }}
+                      className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="modalPublish" className="text-sm text-gray-700">Published</label>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-700 mr-2">Status</label>
+                    <select
+                      className="text-sm px-3 py-2 border rounded-lg"
+                      value={(editing ? (editValues.status as any) : selectedAnimal.status) || 'available'}
+                      onChange={async (e) => {
+                        const newStatus = e.target.value as AnimalStatus
+                        if (!editing) {
+                          await setAnimalStatus(selectedAnimal.id, newStatus)
+                          setSelectedAnimal((prev: any) => ({...prev, status: newStatus}))
+                          setAnimals((prev: any[]) => prev.map(a => a.id === selectedAnimal.id ? {...a, status: newStatus} : a))
+                        } else {
+                          setEditValues((s) => ({...s, status: newStatus}))
+                        }
+                      }}
+                    >
+                      <option value="available">Available</option>
+                      <option value="pending">Pending</option>
+                      <option value="adopted">Adopted</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
                   <button
-                    onClick={() => setShowAnimalModal(false)}
+                    onClick={() => { setShowAnimalModal(false); setEditing(false) }}
                     className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                   >
                     Close
                   </button>
-                  <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                  {!editing ? (
+                    <button onClick={() => { setEditing(true); setEditValues(selectedAnimal) }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
                     Edit Animal
                   </button>
-                  <button className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors">
-                    Update Status
+                  ) : (
+                    <>
+                      <button onClick={() => { setEditing(false); setEditValues({}) }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                        Cancel
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await updateAnimal(selectedAnimal.id, editValues)
+                          setAnimals((prev: any[]) => prev.map(a => a.id === selectedAnimal.id ? {...a, ...editValues} : a))
+                          setSelectedAnimal((prev: any) => ({...prev, ...editValues}))
+                          setEditing(false)
+                        }}
+                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+                      >
+                        Save Changes
                   </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -542,16 +574,178 @@ const AnimalsManagement = () => {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl">
               <div className="p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Animal</h2>
-                <p className="text-gray-600 mb-6">This feature will be implemented to add new animals to the system.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                    <input
+                      value={newAnimal.name || ''}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, name: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      placeholder="e.g., Jepoy"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Type</label>
+                    <select
+                      value={(newAnimal.type as AnimalType) || 'dog'}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, type: e.target.value as AnimalType }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="dog">Dog</option>
+                      <option value="cat">Cat</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Breed</label>
+                    <input
+                      value={newAnimal.breed || ''}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, breed: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      placeholder="e.g., Labrador"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Age</label>
+                    <input
+                      value={newAnimal.age || ''}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, age: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      placeholder="e.g., 2 years"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Gender</label>
+                    <select
+                      value={newAnimal.gender || ''}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, gender: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="">Select gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Status</label>
+                    <select
+                      value={(newAnimal.status as AnimalStatus) || 'available'}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, status: e.target.value as AnimalStatus }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="available">Available</option>
+                      <option value="pending">Pending</option>
+                      <option value="adopted">Adopted</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Adoption Fee (PHP)</label>
+                    <input
+                      type="number"
+                      value={newAnimal.adoptionFee ?? ''}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, adoptionFee: Number(e.target.value) }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      placeholder="e.g., 2000"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea
+                      value={newAnimal.description || ''}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, description: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      rows={3}
+                      placeholder="Short description"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700">Image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setNewImageFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+                      className="mt-1 w-full"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2 md:col-span-2">
+                    <input
+                      id="isPublished"
+                      type="checkbox"
+                      checked={Boolean(newAnimal.isPublished)}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, isPublished: e.target.checked }))}
+                      className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isPublished" className="text-sm text-gray-700">Published (visible to public)</label>
+                  </div>
+                </div>
+
                 <div className="flex items-center justify-end space-x-4">
+                  {addError && (
+                    <div className="w-full mb-3 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">{addError}</div>
+                  )}
+                  {addWarning && (
+                    <div className="w-full mb-3 p-3 rounded-lg bg-yellow-50 text-yellow-800 text-sm border border-yellow-200">{addWarning}</div>
+                  )}
                   <button
-                    onClick={() => setShowAddModal(false)}
+                    onClick={() => { setShowAddModal(false); setNewAnimal({ name: '', type: 'dog', status: 'available', isPublished: false }) }}
                     className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    disabled={saving}
                   >
                     Close
                   </button>
-                  <button className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors">
-                    Add Animal
+                  <button
+                    onClick={async () => {
+                      if (!newAnimal.name || !newAnimal.type || !newAnimal.status) return
+                      try {
+                        setSaving(true)
+                        setAddError(null)
+                        setAddWarning(null)
+                        let images: string[] | undefined = undefined
+                        if (newImageFile && supabase) {
+                          try {
+                            const bucket = 'report-uploads'
+                            const safeName = newImageFile.name.replace(/[^a-zA-Z0-9_.-]/g, '_')
+                            const key = `animals/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+                            const { error: uploadError } = await supabase.storage.from(bucket).upload(key, newImageFile, {
+                              upsert: false,
+                              cacheControl: '3600',
+                              contentType: newImageFile.type
+                            })
+                            if (uploadError) throw new Error(uploadError.message)
+                            const { data, error: urlError } = await supabase.storage.from(bucket).createSignedUrl(key, 60 * 60 * 24 * 365)
+                            if (urlError || !data?.signedUrl) throw new Error(urlError?.message || 'No signed URL')
+                            images = [data.signedUrl]
+                          } catch (e: any) {
+                            setAddWarning('Image upload failed. Saved without image. (Check Supabase config/rules)')
+                          }
+                        }
+                        const id = await createAnimal({
+                          name: newAnimal.name!,
+                          type: newAnimal.type as AnimalType,
+                          status: newAnimal.status as AnimalStatus,
+                          isPublished: Boolean(newAnimal.isPublished),
+                          breed: newAnimal.breed,
+                          age: newAnimal.age,
+                          gender: newAnimal.gender,
+                          description: newAnimal.description,
+                          adoptionFee: newAnimal.adoptionFee,
+                          images
+                        })
+                        setAnimals((prev) => [{ id, ...newAnimal, images } as any, ...prev])
+                        setShowAddModal(false)
+                        setNewAnimal({ name: '', type: 'dog', status: 'available', isPublished: false })
+                        setNewImageFile(null)
+                      } catch (e: any) {
+                        const msg = e?.message || 'Failed to save. Are you logged in as an admin?'
+                        setAddError(msg)
+                      } finally {
+                        setSaving(false)
+                      }
+                    }}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                    disabled={saving || !newAnimal.name}
+                  >
+                    {saving ? 'Saving…' : 'Add Animal'}
                   </button>
                 </div>
               </div>

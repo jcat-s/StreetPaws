@@ -1,13 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search, Filter } from 'lucide-react'
 import { useModalStore } from '../../../stores/modalStore'
 import AnimalProfileModal from '../../modal/AnimalProfileModal'
-
-// Import actual images
-import JepoyImage from '../../../assets/images/Animals/Jepoy.jpg'
-import PutchiImage from '../../../assets/images/Animals/Putchi.jpg'
-import JoshImage from '../../../assets/images/Animals/Josh.jpg'
-import MeelooImage from '../../../assets/images/Animals/Meeloo.jpg'
+import { listPublishedAnimals, type AnimalRecord } from '../../../shared/utils/animalsService'
 
 type Animal = {
   id: string
@@ -20,19 +15,46 @@ type Animal = {
   description?: string
 }
 
-const MOCK_ANIMALS: Animal[] = [
-  { id: '1', name: 'Jepoy', type: 'dog', breed: 'Golden Retriever', age: '2 years', gender: 'Male', image: JepoyImage, description: 'Jepoy is a sweet, playful pup with a heart full of love and a tail that never stops wagging. Curious, cuddly, and always ready for belly rubs, Jepoy is the perfect companion for cozy afternoons and fun-filled adventures.' },
-  { id: '2', name: 'Putchi', type: 'cat', breed: 'Persian', age: '1 year', gender: 'Female', image: PutchiImage, description: 'Calm and affectionate cat perfect for a quiet home.' },
-  { id: '3', name: 'Josh', type: 'dog', breed: 'Labrador', age: '3 years', gender: 'Male', image: JoshImage, description: 'Playful and loyal companion ready for adventures.' },
-  { id: '4', name: 'Meeloo', type: 'cat', breed: 'Siamese', age: '2 years', gender: 'Female', image: MeelooImage, description: 'Curious and intelligent cat who loves to explore.' }
-]
-
 export default function OurAnimals() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'dog' | 'cat'>('all')
+  const [animals, setAnimals] = useState<Animal[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { openAnimalProfile } = useModalStore()
 
-  const filtered = MOCK_ANIMALS.filter((a) => {
+  useEffect(() => {
+    let isMounted = true
+    async function fetchAnimals() {
+      try {
+        setLoading(true)
+        const records: AnimalRecord[] = await listPublishedAnimals(100)
+        if (!isMounted) return
+        const mapped: Animal[] = (records || []).map((r) => ({
+          id: r.id || `${Math.random()}`,
+          name: r.name,
+          type: r.type,
+          breed: r.breed,
+          age: r.age,
+          gender: r.gender,
+          image: (r.images && r.images[0]) || `https://via.placeholder.com/400x400/ffd6e0/8a2be2?text=${encodeURIComponent(r.name)}`,
+          description: r.description
+        }))
+        setAnimals(mapped)
+      } catch (e: any) {
+        if (isMounted) {
+          setError(e?.message || 'Failed to load animals')
+          setAnimals([])
+        }
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+    fetchAnimals()
+    return () => { isMounted = false }
+  }, [])
+
+  const filtered = animals.filter((a) => {
     const q = searchTerm.trim().toLowerCase()
     const matchesSearch = q === '' || a.name.toLowerCase().includes(q) || (a.breed || '').toLowerCase().includes(q)
     const matchesFilter = filterType === 'all' || a.type === filterType
@@ -73,7 +95,13 @@ export default function OurAnimals() {
         </div>
 
         {/* Animals Grid: only picture + name; clicking opens profile modal */}
-        {filtered.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 mb-4"><Search className="h-16 w-16 mx-auto animate-pulse" /></div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Loading animals…</h3>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
+        ) : filtered.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filtered.map((animal) => (
               <button

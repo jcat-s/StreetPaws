@@ -13,6 +13,8 @@ type Animal = {
   gender?: string
   image: string
   description?: string
+  status?: string
+  adoptionFee?: number
 }
 
 export default function OurAnimals() {
@@ -38,7 +40,9 @@ export default function OurAnimals() {
           age: r.age,
           gender: r.gender,
           image: (r.images && r.images[0]) || `https://via.placeholder.com/400x400/ffd6e0/8a2be2?text=${encodeURIComponent(r.name)}`,
-          description: r.description
+          description: r.description,
+          status: r.status,
+          adoptionFee: r.adoptionFee
         }))
         setAnimals(mapped)
       } catch (e: any) {
@@ -94,7 +98,7 @@ export default function OurAnimals() {
           </div>
         </div>
 
-        {/* Animals Grid: only picture + name; clicking opens profile modal */}
+        {/* Animals Grid: show picture, name, status pill and fee; click opens modal */}
         {loading ? (
           <div className="text-center py-12">
             <div className="text-gray-400 mb-4"><Search className="h-16 w-16 mx-auto animate-pulse" /></div>
@@ -127,8 +131,18 @@ export default function OurAnimals() {
                   </div>
                 </div>
 
-                <div className="p-3 text-center bg-white">
-                  <h4 className="text-sm font-medium text-gray-900 truncate">{animal.name}</h4>
+                <div className="p-3 bg-white">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-medium text-gray-900 truncate">{animal.name}</h4>
+                    {animal.status && (
+                      <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full capitalize ${
+                        animal.status === 'available' ? 'bg-green-100 text-green-800' :
+                        animal.status === 'adopted' ? 'bg-blue-100 text-blue-800' :
+                        animal.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                      }`}>{animal.status}</span>
+                    )}
+                  </div>
+                  
                 </div>
               </button>
             ))}

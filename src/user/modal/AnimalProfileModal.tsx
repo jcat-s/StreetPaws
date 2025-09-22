@@ -48,6 +48,9 @@ const AnimalProfileModal = () => {
               {((selectedAnimal as any).status) && (
                 <div className="mb-3 text-sm text-gray-600">Status: {(selectedAnimal as any).status}</div>
               )}
+              {((selectedAnimal as any).adoptionFee != null) && (
+                <div className="mb-3 text-sm text-gray-700 font-medium">Adoption Fee: ₱{Number((selectedAnimal as any).adoptionFee).toLocaleString('en-PH')}</div>
+              )}
 
               <div className="flex gap-3 mt-4">
                 <button onClick={handleAdopt} className="btn-primary">Adopt Now</button>

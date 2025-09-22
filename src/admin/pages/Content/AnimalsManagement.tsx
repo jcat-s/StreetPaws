@@ -79,6 +79,15 @@ const AnimalsManagement = () => {
     }
   }
 
+  const getStatusTextColor = (status: string) => {
+    switch (status) {
+      case 'available': return 'text-green-600'
+      case 'adopted': return 'text-blue-600'
+      case 'pending': return 'text-yellow-600'
+      default: return 'text-gray-600'
+    }
+  }
+
   const getHealthColor = (health: string) => {
     switch (health) {
       case 'Healthy': return 'bg-green-100 text-green-800'
@@ -234,8 +243,8 @@ const AnimalsManagement = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Updated</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spay/Neuter</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -249,39 +258,39 @@ const AnimalsManagement = () => {
                               <img src={animal.images[0]} alt={animal.name} className="w-full h-full object-cover" />
                             ) : (
                               <span className="text-xl">{animal.type === 'dog' ? '🐕' : '🐱'}</span>
-                            )}
-                          </div>
+                      )}
+                    </div>
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900">{animal.name}</div>
                             <div className="text-sm text-gray-500 capitalize">{animal.type} • {animal.breed || '—'}</div>
-                          </div>
-                        </div>
+                  </div>
+                </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(animal.status)}`}>{animal.status}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">{animal.type}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{animal.adoptionFee != null ? formatCurrency(animal.adoptionFee) : '—'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(animal.updatedAt)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{animal.gender || '—'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{animal.spayNeuterStatus || '—'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2">
                           <button onClick={() => handleViewAnimal(animal)} className="text-orange-600 hover:text-orange-700 flex items-center space-x-1">
                             <Eye className="h-4 w-4" /><span>View</span>
-                          </button>
+                    </button>
                           <button onClick={() => { setSelectedAnimal(animal); setEditValues(animal); setShowAnimalModal(true); setEditing(true) }} className="text-blue-600 hover:text-blue-700 flex items-center space-x-1">
                             <Edit className="h-4 w-4" /><span>Edit</span>
-                          </button>
+                    </button>
                           <button disabled={deletingId === animal.id} onClick={() => handleDeleteClick(animal)} className="text-red-600 hover:text-red-700 disabled:opacity-50 flex items-center space-x-1">
                             <Trash2 className="h-4 w-4" /><span>{deletingId === animal.id ? 'Deleting...' : 'Delete'}</span>
-                          </button>
-                        </div>
+                    </button>
+                  </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+        </div>
         )}
 
         {/* Animal Detail Modal */}
@@ -343,7 +352,7 @@ const AnimalsManagement = () => {
                         <input type="file" accept="image/*" onChange={(e) => setEditImageFile(e.target.files?.[0] || null)} />
                       </div>
                     )}
-                  </div>
+                    </div>
                   <div className="md:col-span-2 space-y-3">
                     <div className="flex flex-wrap gap-3 items-center">
                       {editing ? (
@@ -357,12 +366,12 @@ const AnimalsManagement = () => {
                         Breed: {editing ? (
                           <input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editValues.breed || ''} onChange={(e) => setEditValues((v) => ({...v, breed: e.target.value}))} />
                         ) : (selectedAnimal.breed || '—')}
-                      </div>
+                    </div>
                       <div className="px-3 py-1 bg-pink-50 rounded text-sm">
                         Age: {editing ? (
                           <input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editValues.age || ''} onChange={(e) => setEditValues((v) => ({...v, age: e.target.value}))} />
                         ) : (selectedAnimal.age || '—')}
-                      </div>
+                    </div>
                       <div className="px-3 py-1 bg-pink-50 rounded text-sm">
                         Sex: {editing ? (
                           <select className="ml-2 border rounded px-2 py-1 focus:outline-none focus:border-orange-500" value={editValues.gender || ''} onChange={(e) => setEditValues((v) => ({...v, gender: e.target.value}))}>
@@ -372,6 +381,29 @@ const AnimalsManagement = () => {
                           </select>
                         ) : (selectedAnimal.gender || '—')}
                       </div>
+                      <div className="px-3 py-1 bg-pink-50 rounded text-sm">
+                        Spay/Neuter: {editing ? (
+                          <select className="ml-2 border rounded px-2 py-1 focus:outline-none focus:border-orange-500" value={editValues.spayNeuterStatus || ''} onChange={(e) => setEditValues((v) => ({...v, spayNeuterStatus: e.target.value}))}>
+                            <option value="">Select</option>
+                            <option value="Spayed">Spayed</option>
+                            <option value="Neutered">Neutered</option>
+                            <option value="Intact">Intact</option>
+                            <option value="Unknown">Unknown</option>
+                          </select>
+                        ) : (selectedAnimal.spayNeuterStatus || '—')}
+                    </div>
+                      <div className="px-3 py-1 bg-pink-50 rounded text-sm">
+                        Adoption Fee: {editing ? (
+                          <input
+                            type="number"
+                            className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500 w-28"
+                            value={editValues.adoptionFee ?? ''}
+                            onChange={(e) => setEditValues((v) => ({...v, adoptionFee: e.target.value === '' ? undefined : Number(e.target.value)}))}
+                          />
+                        ) : (
+                          (selectedAnimal.adoptionFee != null ? formatCurrency(Number(selectedAnimal.adoptionFee)) : '—')
+                        )}
+                      </div>
                     </div>
                     <div className="text-gray-700 whitespace-pre-line">
                       {editing ? (
@@ -380,25 +412,19 @@ const AnimalsManagement = () => {
                         selectedAnimal.description || '—'
                       )}
                     </div>
+                    {(() => { const current = editing ? editValues : selectedAnimal; return (
+                      <>
+                        {current.status && (
+                          <div className={`text-sm ${getStatusTextColor(current.status)} mt-1`}>Status: {current.status}</div>
+                        )}
+                        {current.adoptionFee != null && (
+                          <div className="text-sm text-gray-800 font-medium">Adoption Fee: {formatCurrency(Number(current.adoptionFee))}</div>
+                        )}
+                      </>
+                    )})()}
                   </div>
                 </div>
-                {/* Adoption Fee (kept minimal) */}
-                {editing ? (
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Adoption Fee</h3>
-                    <input type="number" className="text-sm w-full px-3 py-2 border rounded-lg" value={editValues.adoptionFee ?? ''} onChange={(e) => setEditValues((s) => ({...s, adoptionFee: Number(e.target.value)}))} />
-                    </div>
-                ) : (
-                  selectedAnimal.adoptionFee != null && (
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Adoption Fee</h3>
-                      <p className="text-sm text-gray-900">{formatCurrency(selectedAnimal.adoptionFee)}</p>
-                    </div>
-                  )
-                )}
-
-                {/* Removed Intake/Description/Behavior/Medical sections per UX simplification */}
-                )
+                {/* Removed extra sections per UX simplification */}
 
                 {/* Publish & Status Controls */}
                 <div className="flex items-center justify-between py-4">
@@ -539,6 +565,20 @@ const AnimalsManagement = () => {
                     </select>
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-700">Spay/Neuter Status</label>
+                    <select
+                      value={(newAnimal.spayNeuterStatus as any) || ''}
+                      onChange={(e) => setNewAnimal((s) => ({ ...s, spayNeuterStatus: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="">Select status</option>
+                      <option value="Spayed">Spayed</option>
+                      <option value="Neutered">Neutered</option>
+                      <option value="Intact">Intact</option>
+                      <option value="Unknown">Unknown</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700">Status</label>
                     <select
                       value={(newAnimal.status as AnimalStatus) || 'available'}
@@ -639,6 +679,7 @@ const AnimalsManagement = () => {
                           breed: newAnimal.breed,
                           age: newAnimal.age,
                           gender: newAnimal.gender,
+                          spayNeuterStatus: newAnimal.spayNeuterStatus,
                           description: newAnimal.description,
                           adoptionFee: newAnimal.adoptionFee,
                           images

@@ -127,8 +127,14 @@ const AnimalsManagement = () => {
   const [selectedAnimal, setSelectedAnimal] = useState<any>(null)
   const [showAnimalModal, setShowAnimalModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [animalToDelete, setAnimalToDelete] = useState<{id: string, name: string, type: string} | null>(null)
+  const [deletedAnimals, setDeletedAnimals] = useState<any[]>([])
+  const [showUndo, setShowUndo] = useState(false)
+  const [animals, setAnimals] = useState<any[]>(MOCK_ANIMALS)
 
-  const filteredAnimals = MOCK_ANIMALS.filter(animal => {
+  const filteredAnimals = animals.filter(animal => {
     const matchesSearch = searchTerm === '' || 
       animal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       animal.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -176,6 +182,51 @@ const AnimalsManagement = () => {
       style: 'currency',
       currency: 'PHP'
     }).format(amount)
+  }
+
+  const handleDeleteClick = (animal: any) => {
+    setAnimalToDelete({
+      id: animal.id,
+      name: animal.name,
+      type: animal.type
+    })
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDelete = async () => {
+    if (!animalToDelete) return
+    
+    // Store the animal for potential undo
+    const animalToUndo = animals.find(a => a.id === animalToDelete.id)
+    if (animalToUndo) {
+      setDeletedAnimals(prev => [...prev, animalToUndo])
+      setShowUndo(true)
+      // Auto-hide undo after 10 seconds
+      setTimeout(() => setShowUndo(false), 10000)
+    }
+    
+    setDeletingId(animalToDelete.id)
+    setShowDeleteConfirm(false)
+    
+    // Simulate async operation
+    setTimeout(() => {
+      setAnimals(prev => prev.filter(animal => animal.id !== animalToDelete.id))
+      setDeletingId(null)
+      setAnimalToDelete(null)
+    }, 1000)
+  }
+
+  const handleUndoDelete = () => {
+    if (deletedAnimals.length === 0) return
+    
+    const lastDeleted = deletedAnimals[deletedAnimals.length - 1]
+    
+    // Restore the animal
+    setAnimals(prev => [...prev, lastDeleted])
+    
+    // Remove from deleted animals
+    setDeletedAnimals(prev => prev.slice(0, -1))
+    setShowUndo(false)
   }
 
   return (
@@ -301,7 +352,11 @@ const AnimalsManagement = () => {
                     <button className="text-blue-600 hover:text-blue-700 p-1">
                       <Edit className="h-4 w-4" />
                     </button>
-                    <button className="text-red-600 hover:text-red-700 p-1">
+                    <button 
+                      disabled={deletingId === animal.id}
+                      onClick={() => handleDeleteClick(animal)} 
+                      className="text-red-600 hover:text-red-700 disabled:opacity-50 p-1"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -497,6 +552,84 @@ const AnimalsManagement = () => {
                   </button>
                   <button className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors">
                     Add Animal
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && animalToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <Trash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Animal</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700">
+                  Are you sure you want to delete <span className="font-medium">{animalToDelete.name}</span>, the {animalToDelete.type}?
+                </p>
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deletingId === animalToDelete.id}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>{deletingId === animalToDelete.id ? 'Deleting...' : 'Delete Animal'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Undo Notification */}
+        {showUndo && deletedAnimals.length > 0 && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
+              <div className="flex items-start space-x-3">
+                <div className="p-1 bg-green-100 rounded-full">
+                  <span className="text-lg">{deletedAnimals[deletedAnimals.length - 1]?.type === 'dog' ? '🐕' : '🐱'}</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">Animal deleted</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {deletedAnimals[deletedAnimals.length - 1]?.name} has been removed from the system.
+                  </p>
+                </div>
+                <div className="flex flex-col space-y-1">
+                  <button
+                    onClick={handleUndoDelete}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Undo
+                  </button>
+                  <button
+                    onClick={() => setShowUndo(false)}
+                    className="text-sm text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
                   </button>
                 </div>
               </div>

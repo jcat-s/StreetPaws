@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { 
   Search, 
@@ -34,6 +34,10 @@ const Volunteers = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [editStatus, setEditStatus] = useState<'pending' | 'approved' | 'rejected'>('pending')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [volunteerToDelete, setVolunteerToDelete] = useState<{id: string, name: string, email: string} | null>(null)
+  const [deletedVolunteers, setDeletedVolunteers] = useState<Volunteer[]>([])
+  const [showUndo, setShowUndo] = useState(false)
 
   useEffect(() => {
     if (!db) return
@@ -97,14 +101,60 @@ const Volunteers = () => {
     setShowVolunteerModal(false)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!db) return
-    setDeletingId(id)
+  const handleDeleteClick = (volunteer: Volunteer) => {
+    setVolunteerToDelete({
+      id: volunteer.id,
+      name: volunteer.name,
+      email: volunteer.email
+    })
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDelete = async () => {
+    if (!db || !volunteerToDelete) return
+    
+    // Store the volunteer for potential undo
+    const volunteerToUndo = items.find(v => v.id === volunteerToDelete.id)
+    if (volunteerToUndo) {
+      setDeletedVolunteers(prev => [...prev, volunteerToUndo])
+      setShowUndo(true)
+      // Auto-hide undo after 10 seconds
+      setTimeout(() => setShowUndo(false), 10000)
+    }
+    
+    setDeletingId(volunteerToDelete.id)
+    setShowDeleteConfirm(false)
+    
     try {
-      const ref = doc(db, 'volunteers', id)
+      const ref = doc(db, 'volunteers', volunteerToDelete.id)
       await deleteDoc(ref)
     } finally {
       setDeletingId(null)
+      setVolunteerToDelete(null)
+    }
+  }
+
+  const handleUndoDelete = async () => {
+    if (!db || deletedVolunteers.length === 0) return
+    
+    const lastDeleted = deletedVolunteers[deletedVolunteers.length - 1]
+    
+    try {
+      // Restore the volunteer by adding it back to the database
+      const volunteerData = {
+        ...lastDeleted,
+        createdAt: new Date(),
+        id: undefined // Let Firestore generate new ID
+      }
+      delete volunteerData.id
+      
+      await addDoc(collection(db, 'volunteers'), volunteerData)
+      
+      // Remove from deleted volunteers
+      setDeletedVolunteers(prev => prev.slice(0, -1))
+      setShowUndo(false)
+    } catch (error) {
+      console.error('Failed to undo delete:', error)
     }
   }
 
@@ -247,7 +297,7 @@ const Volunteers = () => {
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
                         </button>
-                        <button disabled={deletingId === volunteer.id} onClick={() => handleDelete(volunteer.id)} className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1">
+                        <button disabled={deletingId === volunteer.id} onClick={() => handleDeleteClick(volunteer)} className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1">
                           <Trash2 className="h-4 w-4" />
                           <span>{deletingId === volunteer.id ? 'Deleting...' : 'Delete'}</span>
                         </button>
@@ -394,6 +444,84 @@ const Volunteers = () => {
                       Edit Status
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && volunteerToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <Trash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Volunteer</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700">
+                  Are you sure you want to delete the volunteer application from <span className="font-medium">{volunteerToDelete.name}</span>?
+                </p>
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deletingId === volunteerToDelete.id}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>{deletingId === volunteerToDelete.id ? 'Deleting...' : 'Delete Volunteer'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Undo Notification */}
+        {showUndo && deletedVolunteers.length > 0 && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
+              <div className="flex items-start space-x-3">
+                <div className="p-1 bg-green-100 rounded-full">
+                  <User className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">Volunteer deleted</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {deletedVolunteers[deletedVolunteers.length - 1]?.name}'s application has been deleted.
+                  </p>
+                </div>
+                <div className="flex flex-col space-y-1">
+                  <button
+                    onClick={handleUndoDelete}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Undo
+                  </button>
+                  <button
+                    onClick={() => setShowUndo(false)}
+                    className="text-sm text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
             </div>

@@ -5,10 +5,11 @@ import {
   CheckCircle, 
   XCircle, 
   Heart,
-  Download
+  Download,
+  Trash2
 } from 'lucide-react'
 
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 
 type Adoption = any
@@ -33,6 +34,11 @@ const AdoptionsManagement = () => {
   const [showDecisionModal, setShowDecisionModal] = useState(false)
   const [decisionType, setDecisionType] = useState<'approve' | 'reject'>('approve')
   const [decisionReason, setDecisionReason] = useState('')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [adoptionToDelete, setAdoptionToDelete] = useState<{id: string, applicantName: string, animalName: string} | null>(null)
+  const [deletedAdoptions, setDeletedAdoptions] = useState<Adoption[]>([])
+  const [showUndo, setShowUndo] = useState(false)
 
   const filteredAdoptions = items.filter((adoption: any) => {
     const matchesSearch = searchTerm === '' || 
@@ -68,12 +74,80 @@ const AdoptionsManagement = () => {
     setShowDecisionModal(true)
   }
 
-  const handleSubmitDecision = () => {
-    // In production, this would update the database
-    console.log(`Decision: ${decisionType} for adoption ${selectedAdoption.id}`)
-    console.log(`Reason: ${decisionReason}`)
+  const handleSubmitDecision = async () => {
+    if (!db || !selectedAdoption) return
+    
+    try {
+      const ref = doc(db, 'adoptions', selectedAdoption.id)
+      await updateDoc(ref, {
+        status: decisionType === 'approve' ? 'approved' : 'rejected',
+        decisionReason,
+        reviewedBy: 'Admin', // In production, use actual admin name
+        reviewedAt: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('Failed to update adoption status:', error)
+    }
+    
     setShowDecisionModal(false)
     setShowAdoptionModal(false)
+  }
+
+  const handleDeleteClick = (adoption: Adoption) => {
+    setAdoptionToDelete({
+      id: adoption.id,
+      applicantName: adoption.applicantName,
+      animalName: adoption.animalName
+    })
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDelete = async () => {
+    if (!db || !adoptionToDelete) return
+    
+    // Store the adoption for potential undo
+    const adoptionToUndo = items.find(a => a.id === adoptionToDelete.id)
+    if (adoptionToUndo) {
+      setDeletedAdoptions(prev => [...prev, adoptionToUndo])
+      setShowUndo(true)
+      // Auto-hide undo after 10 seconds
+      setTimeout(() => setShowUndo(false), 10000)
+    }
+    
+    setDeletingId(adoptionToDelete.id)
+    setShowDeleteConfirm(false)
+    
+    try {
+      const ref = doc(db, 'adoptions', adoptionToDelete.id)
+      await deleteDoc(ref)
+    } finally {
+      setDeletingId(null)
+      setAdoptionToDelete(null)
+    }
+  }
+
+  const handleUndoDelete = async () => {
+    if (!db || deletedAdoptions.length === 0) return
+    
+    const lastDeleted = deletedAdoptions[deletedAdoptions.length - 1]
+    
+    try {
+      // Restore the adoption by adding it back to the database
+      const adoptionData = {
+        ...lastDeleted,
+        submittedAt: new Date().toISOString(),
+        id: undefined // Let Firestore generate new ID
+      }
+      delete adoptionData.id
+      
+      await addDoc(collection(db, 'adoptions'), adoptionData)
+      
+      // Remove from deleted adoptions
+      setDeletedAdoptions(prev => prev.slice(0, -1))
+      setShowUndo(false)
+    } catch (error) {
+      console.error('Failed to undo delete:', error)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -227,6 +301,14 @@ const AdoptionsManagement = () => {
                             </button>
                           </>
                         )}
+                        <button 
+                          disabled={deletingId === adoption.id} 
+                          onClick={() => handleDeleteClick(adoption)} 
+                          className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span>{deletingId === adoption.id ? 'Deleting...' : 'Delete'}</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -534,6 +616,84 @@ const AdoptionsManagement = () => {
                       <XCircle className="h-4 w-4" />
                     )}
                     <span>{decisionType === 'approve' ? 'Approve' : 'Reject'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && adoptionToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <Trash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Delete Adoption</h3>
+                  <p className="text-sm text-gray-600">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <div className="mb-6">
+                <p className="text-gray-700">
+                  Are you sure you want to delete the adoption application from <span className="font-medium">{adoptionToDelete.applicantName}</span> for <span className="font-medium">{adoptionToDelete.animalName}</span>?
+                </p>
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deletingId === adoptionToDelete.id}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>{deletingId === adoptionToDelete.id ? 'Deleting...' : 'Delete Adoption'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Undo Notification */}
+        {showUndo && deletedAdoptions.length > 0 && (
+          <div className="fixed bottom-4 right-4 z-50">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
+              <div className="flex items-start space-x-3">
+                <div className="p-1 bg-green-100 rounded-full">
+                  <Heart className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">Adoption deleted</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {deletedAdoptions[deletedAdoptions.length - 1]?.applicantName}'s adoption application has been deleted.
+                  </p>
+                </div>
+                <div className="flex flex-col space-y-1">
+                  <button
+                    onClick={handleUndoDelete}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Undo
+                  </button>
+                  <button
+                    onClick={() => setShowUndo(false)}
+                    className="text-sm text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
                   </button>
                 </div>
               </div>

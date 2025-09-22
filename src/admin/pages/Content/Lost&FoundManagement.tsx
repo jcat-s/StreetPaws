@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Search, Edit, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, EyeOff } from 'lucide-react'
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, addDoc } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
 
@@ -54,6 +54,10 @@ const ContentHome = () => {
   })
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState<{id: string, type: string, animalName: string} | null>(null)
+  const [deletedItems, setDeletedItems] = useState<LostFoundItem[]>([])
+  const [showUndo, setShowUndo] = useState(false)
 
   useEffect(() => {
     if (!db) return
@@ -154,24 +158,6 @@ const ContentHome = () => {
     return matchesSearch && matchesType && matchesPublished
   })
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'investigating': return 'bg-blue-100 text-blue-800'
-      case 'resolved': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800'
-      case 'high': return 'bg-orange-100 text-orange-800'
-      case 'medium': return 'bg-yellow-100 text-yellow-800'
-      case 'normal': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -189,13 +175,61 @@ const ContentHome = () => {
     }
   }
 
-  const handleDelete = async (id: string, type: string) => {
-    if (!db) return
-    setDeletingId(id)
+  const handleDeleteClick = (item: LostFoundItem) => {
+    setItemToDelete({
+      id: item.id,
+      type: item.type,
+      animalName: item.animalName
+    })
+    setShowDeleteConfirm(true)
+  }
+
+  const handleDelete = async () => {
+    if (!db || !itemToDelete) return
+    
+    // Store the item for potential undo
+    const itemToUndo = items.find(i => i.id === itemToDelete.id)
+    if (itemToUndo) {
+      setDeletedItems(prev => [...prev, itemToUndo])
+      setShowUndo(true)
+      // Auto-hide undo after 10 seconds
+      setTimeout(() => setShowUndo(false), 10000)
+    }
+    
+    setDeletingId(itemToDelete.id)
+    setShowDeleteConfirm(false)
+    
     try {
-      await deleteDoc(doc(db, type, id))
+      await deleteDoc(doc(db, itemToDelete.type, itemToDelete.id))
     } finally {
       setDeletingId(null)
+      setItemToDelete(null)
+    }
+  }
+
+  const handleUndoDelete = async () => {
+    if (!db || deletedItems.length === 0) return
+    
+    const lastDeleted = deletedItems[deletedItems.length - 1]
+    
+    try {
+      // Restore the item by adding it back to the appropriate collection
+      const itemData = {
+        ...lastDeleted,
+        createdAt: new Date(),
+        id: undefined // Let Firestore generate new ID
+      }
+      delete itemData.id
+      
+      // Determine the correct collection based on item type
+      const collectionName = lastDeleted.type === 'lost' ? 'lost' : 'found'
+      await addDoc(collection(db, collectionName), itemData)
+      
+      // Remove from deleted items
+      setDeletedItems(prev => prev.slice(0, -1))
+      setShowUndo(false)
+    } catch (error) {
+      console.error('Failed to undo delete:', error)
     }
   }
 
@@ -361,7 +395,7 @@ const ContentHome = () => {
                         <Edit className="h-4 w-4" />
                         <span>Edit</span>
                       </button>
-                      <button disabled={deletingId === item.id} onClick={() => handleDelete(item.id, item.type)} className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1">
+                      <button disabled={deletingId === item.id} onClick={() => handleDeleteClick(item)} className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1">
                         <Trash2 className="h-4 w-4" />
                         <span>{deletingId === item.id ? 'Deleting...' : 'Delete'}</span>
                       </button>
@@ -613,6 +647,88 @@ const ContentHome = () => {
                 await submitReport(data as any, newImageFile, null)
                 setShowAddModal(false)
               }} className="px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && itemToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDeleteConfirm(false)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-md mx-auto p-6 shadow-2xl z-10">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="p-2 bg-red-100 rounded-full">
+                <Trash2 className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete {itemToDelete.type === 'lost' ? 'Lost' : 'Found'} Report</h3>
+                <p className="text-sm text-gray-600">This action cannot be undone</p>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700">
+                Are you sure you want to delete the {itemToDelete.type} report for <span className="font-medium">{itemToDelete.animalName}</span>?
+              </p>
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deletingId === itemToDelete.id}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>{deletingId === itemToDelete.id ? 'Deleting...' : 'Delete Report'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Undo Notification */}
+      {showUndo && deletedItems.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
+            <div className="flex items-start space-x-3">
+              <div className="p-1 bg-green-100 rounded-full">
+                {deletedItems[deletedItems.length - 1]?.type === 'lost' ? 
+                  <AlertTriangle className="h-5 w-5 text-green-600" /> : 
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                }
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-900">{deletedItems[deletedItems.length - 1]?.type === 'lost' ? 'Lost' : 'Found'} report deleted</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {deletedItems[deletedItems.length - 1]?.animalName}'s report has been deleted.
+                </p>
+              </div>
+              <div className="flex flex-col space-y-1">
+                <button
+                  onClick={handleUndoDelete}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Undo
+                </button>
+                <button
+                  onClick={() => setShowUndo(false)}
+                  className="text-sm text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           </div>
         </div>

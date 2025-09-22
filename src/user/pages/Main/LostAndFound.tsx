@@ -220,9 +220,9 @@ const LostAndFound = () => {
                   <img
                     src={item.image}
                     alt={item.name || `${item.breed} ${item.type}`}
-                    className="w-full h-48 object-cover"
-                    onError={(e) => { 
-                      (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}` 
+                    className="w-full h-48 object-contain bg-gray-100"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`
                     }}
                   />
                   <div className="absolute top-2 left-2">
@@ -264,12 +264,12 @@ const LostAndFound = () => {
                       <span className="ml-2">{item.age}</span>
                     </div>
                     <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-1" />
+                      <MapPin className="h-4 w-4 mr-1 text-gray-500" />
                       <span>{item.location}</span>
                     </div>
                     <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      <span>{formatDate(item.date)} at {formatTime(item.time)}</span>
+                      <Calendar className="h-4 w-4 mr-1 text-gray-500" />
+                      <span>{formatDate(item.date)}{item.time && ` at ${formatTime(item.time)}`}</span>
                     </div>
                   </div>
 
@@ -313,69 +313,17 @@ const LostAndFound = () => {
                   ✕
                 </button>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+                <div className="flex flex-col items-center">
                   <img
                     src={selectedItem.image}
                     alt={selectedItem.name || `${selectedItem.breed} ${selectedItem.type}`}
-                    className="w-full h-64 object-cover rounded-lg"
-                    onError={(e) => { 
-                      (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}` 
+                    className="w-full h-64 object-contain bg-gray-100 rounded-lg"
+                    onError={e => {
+                      (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
                     }}
                   />
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                      selectedItem.type === 'lost' 
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {selectedItem.type === 'lost' ? '🔍 LOST' : '🏠 FOUND'}
-                    </span>
-                    <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                      selectedItem.animalType === 'dog' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-purple-100 text-purple-800'
-                    }`}>
-                      {selectedItem.animalType === 'dog' ? '🐕 Dog' : '🐱 Cat'}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div><span className="font-medium">Breed:</span> {selectedItem.breed}</div>
-                    <div><span className="font-medium">Colors:</span> {selectedItem.colors}</div>
-                    <div><span className="font-medium">Age:</span> {selectedItem.age}</div>
-                    <div><span className="font-medium">Gender:</span> {selectedItem.gender}</div>
-                    <div><span className="font-medium">Size:</span> {selectedItem.size}</div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2 text-gray-500" />
-                      <span>{selectedItem.location}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                      <span>{formatDate(selectedItem.date)} at {formatTime(selectedItem.time)}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-2">Description:</h4>
-                    <p className="text-gray-700">{selectedItem.description}</p>
-                  </div>
-
-                  {selectedItem.additionalDetails && (
-                    <div>
-                      <h4 className="font-medium mb-2">Additional Details:</h4>
-                      <p className="text-gray-700">{selectedItem.additionalDetails}</p>
-                    </div>
-                  )}
-
-                  <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="w-full mt-4 bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Contact Information:</h4>
                     <div className="space-y-1">
                       <div className="flex items-center">
@@ -383,19 +331,51 @@ const LostAndFound = () => {
                         <span className="ml-2">{selectedItem.contactName}</span>
                       </div>
                       <div className="flex items-center">
-                        <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                        <a href={`tel:${selectedItem.contactPhone}`} className="text-orange-600 hover:text-orange-700">
+                        <span className="font-medium">Phone:</span>
+                        <a href={`tel:${selectedItem.contactPhone}`} className="ml-2 text-orange-600 hover:text-orange-700">
                           {selectedItem.contactPhone}
                         </a>
                       </div>
                       <div className="flex items-center">
-                        <Mail className="h-4 w-4 mr-2 text-gray-500" />
-                        <a href={`mailto:${selectedItem.contactEmail}`} className="text-orange-600 hover:text-orange-700">
+                        <span className="font-medium">Email:</span>
+                        <a href={`mailto:${selectedItem.contactEmail}`} className="ml-2 text-orange-600 hover:text-orange-700">
                           {selectedItem.contactEmail}
                         </a>
                       </div>
                     </div>
                   </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <span className={`px-3 py-1 text-sm font-medium rounded-full ${selectedItem.type === 'lost' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                      {selectedItem.type === 'lost' ? '🔍 LOST' : '🏠 FOUND'}
+                    </span>
+                    <span className={`px-3 py-1 text-sm font-medium rounded-full ${selectedItem.animalType === 'dog' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                      {selectedItem.animalType === 'dog' ? '🐕 Dog' : '🐱 Cat'}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <div><span className="font-medium">Breed:</span> {selectedItem.breed}</div>
+                    <div><span className="font-medium">Colors:</span> {selectedItem.colors}</div>
+                    <div><span className="font-medium">Age:</span> {selectedItem.age}</div>
+                    <div><span className="font-medium">Gender:</span> {selectedItem.gender}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <span className="font-medium mr-2">Location:</span>
+                      <span>{selectedItem.location}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="font-medium mr-2">Date:</span>
+                      <span>{formatDate(selectedItem.date)} at {formatTime(selectedItem.time)}</span>
+                    </div>
+                  </div>
+                  {selectedItem.additionalDetails && (
+                    <div>
+                      <h4 className="font-medium mb-2">Additional Details:</h4>
+                      <p className="text-gray-700">{selectedItem.additionalDetails}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

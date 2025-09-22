@@ -24,7 +24,9 @@ type LostFoundItem = {
   priority: string
   published: boolean
   imageUrl?: string
-}
+  description?: string;
+  additionalDetails?: string;
+};
 
 const ContentHome = () => {
   const [items, setItems] = useState<LostFoundItem[]>([])
@@ -34,6 +36,9 @@ const ContentHome = () => {
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'urgent' | 'high' | 'medium' | 'normal'>('all')
   const [publishedFilter, setPublishedFilter] = useState<'all' | 'published' | 'unpublished'>('all')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [selectedItem, setSelectedItem] = useState<LostFoundItem | null>(null)
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState<LostFoundItem | null>(null);
 
   useEffect(() => {
     if (!db) return
@@ -64,7 +69,10 @@ const ContentHome = () => {
           createdAt: createdAtIso,
           status: d?.status === 'open' ? 'pending' : (d?.status || 'pending'),
           priority: d?.priority || 'normal',
-          published: d?.published === true
+          published: d?.published === true,
+          description: d?.description || '',
+          additionalDetails: d?.additionalDetails || '',
+          imageUrl: undefined // will be set later
         }
       })
     }
@@ -372,6 +380,10 @@ const ContentHome = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
+                      <button onClick={() => setSelectedItem(item)} className="text-orange-600 hover:text-orange-900 flex items-center space-x-1">
+                        <Eye className="h-4 w-4" />
+                        <span>View</span>
+                      </button>
                       <button onClick={() => handleTogglePublish(item)} className={`${item.published ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'} flex items-center space-x-1`}>
                         {item.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         <span>{item.published ? 'Unpublish' : 'Publish'}</span>
@@ -392,6 +404,128 @@ const ContentHome = () => {
           </table>
         </div>
       </div>
+      {selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => { setSelectedItem(null); setEditMode(false); setEditData(null); }} />
+          <div className="relative bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 shadow-2xl z-10 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {editMode ? (
+                  <input
+                    className="border-b border-gray-300 focus:outline-none focus:border-orange-500 text-2xl font-bold w-full"
+                    value={editData?.animalName || ''}
+                    onChange={e => setEditData(editData ? { ...editData, animalName: e.target.value } : null)}
+                  />
+                ) : (
+                  selectedItem.animalName || `Unknown ${selectedItem.breed}`
+                )}
+              </h2>
+              <div className="flex gap-2">
+                {!editMode && (
+                  <button onClick={() => { setEditMode(true); setEditData({ ...selectedItem }); }} className="text-blue-600 hover:text-blue-900">Edit</button>
+                )}
+                {editMode && (
+                  <button onClick={async () => {
+                    if (!editData || !db) return;
+                    await updateDoc(doc(db, editData.type, editData.id), {
+                      animalName: editData.animalName,
+                      breed: editData.breed,
+                      colors: editData.colors,
+                      age: editData.age,
+                      gender: editData.gender,
+                      date: editData.date,
+                      additionalDetails: editData.additionalDetails,
+                      reporterName: editData.reporterName,
+                      reporterPhone: editData.reporterPhone,
+                      reporterEmail: editData.reporterEmail
+                    });
+                    setSelectedItem({ ...selectedItem, ...editData });
+                    setEditMode(false);
+                    setEditData(null);
+                  }} className="text-green-600 hover:text-green-900">Save</button>
+                )}
+                <button onClick={() => { setSelectedItem(null); setEditMode(false); setEditData(null); }} className="text-gray-400 hover:text-gray-600">✕</button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex flex-col items-center">
+                <img
+                  src={selectedItem.imageUrl}
+                  alt={selectedItem.animalName || `${selectedItem.breed} ${selectedItem.type}`}
+                  className="w-full h-64 object-contain bg-gray-100 rounded-lg"
+                  onError={e => {
+                    (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
+                  }}
+                />
+                <div className="w-full mt-4 bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Contact Information:</h4>
+                  <div className="space-y-1">
+                    <div className="flex items-center">
+                      <span className="font-medium">Name:</span>
+                      {editMode ? (
+                        <input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.reporterName || ''} onChange={e => setEditData(editData ? { ...editData, reporterName: e.target.value } : null)} />
+                      ) : (
+                        <span className="ml-2">{selectedItem.reporterName}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center">
+                      <span className="font-medium">Phone:</span>
+                      {editMode ? (
+                        <input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.reporterPhone || ''} onChange={e => setEditData(editData ? { ...editData, reporterPhone: e.target.value } : null)} />
+                      ) : (
+                        <a href={`tel:${selectedItem.reporterPhone}`} className="ml-2 text-orange-600 hover:text-orange-700">{selectedItem.reporterPhone}</a>
+                      )}
+                    </div>
+                    <div className="flex items-center">
+                      <span className="font-medium">Email:</span>
+                      {editMode ? (
+                        <input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.reporterEmail || ''} onChange={e => setEditData(editData ? { ...editData, reporterEmail: e.target.value } : null)} />
+                      ) : (
+                        <a href={`mailto:${selectedItem.reporterEmail}`} className="ml-2 text-orange-600 hover:text-orange-700">{selectedItem.reporterEmail}</a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${selectedItem.type === 'lost' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}>
+                    {selectedItem.type === 'lost' ? '🔍 LOST' : '🏠 FOUND'}
+                  </span>
+                  <span className={`px-3 py-1 text-sm font-medium rounded-full ${selectedItem.animalType === 'dog' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                    {selectedItem.animalType === 'dog' ? '🐕 Dog' : '🐱 Cat'}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  <div><span className="font-medium">Breed:</span> {editMode ? (<input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.breed || ''} onChange={e => setEditData(editData ? { ...editData, breed: e.target.value } : null)} />) : selectedItem.breed}</div>
+                  <div><span className="font-medium">Colors:</span> {editMode ? (<input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.colors || ''} onChange={e => setEditData(editData ? { ...editData, colors: e.target.value } : null)} />) : selectedItem.colors}</div>
+                  <div><span className="font-medium">Age:</span> {editMode ? (<input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.age || ''} onChange={e => setEditData(editData ? { ...editData, age: e.target.value } : null)} />) : selectedItem.age}</div>
+                  <div><span className="font-medium">Gender:</span> {editMode ? (<input className="ml-2 border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.gender || ''} onChange={e => setEditData(editData ? { ...editData, gender: e.target.value } : null)} />) : selectedItem.gender}</div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <span className="font-medium mr-2">Date:</span>
+                    {editMode ? (<input className="border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.date || ''} onChange={e => setEditData(editData ? { ...editData, date: e.target.value } : null)} />) : <span>{selectedItem.date}</span>}
+                  </div>
+                </div>
+                {editMode ? (
+                  <div>
+                    <h4 className="font-medium mb-2">Additional Details:</h4>
+                    <input className="w-full border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.additionalDetails || ''} onChange={e => setEditData(editData ? { ...editData, additionalDetails: e.target.value } : null)} />
+                  </div>
+                ) : (
+                  selectedItem.additionalDetails && (
+                    <div>
+                      <h4 className="font-medium mb-2">Additional Details:</h4>
+                      <p className="text-gray-700">{selectedItem.additionalDetails}</p>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

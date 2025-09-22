@@ -1,9 +1,10 @@
 import { useForm } from 'react-hook-form'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
+import { getAnimalById, type AnimalRecord } from '../../../shared/utils/animalsService'
 
 interface AdoptionFormData {
   // Personal Information
@@ -51,8 +52,24 @@ const AdoptionForm = () => {
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isBarangayOpen, setIsBarangayOpen] = useState(false)
+  const [selectedAnimal, setSelectedAnimal] = useState<AnimalRecord | null>(null)
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<AdoptionFormData>()
+  useEffect(() => {
+    let mounted = true
+    async function loadAnimal() {
+      try {
+        if (!animalId) return
+        const a = await getAnimalById(animalId)
+        if (mounted) setSelectedAnimal(a)
+      } catch (_) {
+        // ignore; form can still be submitted without prefilled animal data
+      }
+    }
+    loadAnimal()
+    return () => { mounted = false }
+  }, [animalId])
+
   const selectedBarangay = watch('barangay')
   const hasYard = watch('hasYard') === 'true'
   const hasOtherPets = watch('hasOtherPets') === 'true'
@@ -75,7 +92,7 @@ const AdoptionForm = () => {
       
       const adoptionData = {
         animalId: animalId || null,
-        // Map form fields to admin expected fields
+        // Applicant info
         applicantName: data.fullName,
         applicantEmail: data.email,
         applicantPhone: data.phone,
@@ -83,11 +100,12 @@ const AdoptionForm = () => {
         applicantOccupation: data.occupation,
         applicantBarangay: data.barangay,
         applicantAddress: data.address,
-        // Animal information (will be populated from animal data if animalId is provided)
-        animalName: 'Selected Animal', // This should be populated from animal data
-        animalType: 'Unknown', // This should be populated from animal data
-        animalBreed: 'Unknown', // This should be populated from animal data
-        // Keep other fields as they are
+        // Animal info for admin views
+        animalName: selectedAnimal?.name || 'Selected Animal',
+        animalType: selectedAnimal?.type || 'unknown',
+        animalBreed: selectedAnimal?.breed || '—',
+        animalAdoptionFee: selectedAnimal?.adoptionFee ?? null,
+        animalImage: (selectedAnimal?.images && selectedAnimal?.images[0]) || null,
         homeType: data.homeType,
         hasYard: data.hasYard,
         yardSize: data.yardSize,
@@ -111,10 +129,15 @@ const AdoptionForm = () => {
         createdAt: serverTimestamp()
       }
       
-      console.log('Submitting adoption data to Firestore:', adoptionData)
+      // Remove undefined fields (Firestore does not accept undefined)
+      const payload: any = Object.fromEntries(
+        Object.entries(adoptionData).filter(([, v]) => v !== undefined)
+      )
+
+      console.log('Submitting adoption data to Firestore:', payload)
       console.log('Collection reference:', collection(db, 'adoptions'))
       
-      const docRef = await addDoc(collection(db, 'adoptions'), adoptionData)
+      const docRef = await addDoc(collection(db, 'adoptions'), payload)
       console.log('Adoption application submitted successfully with ID:', docRef.id)
       
       toast.success('Adoption application submitted successfully! We will contact you within 3-5 business days.')

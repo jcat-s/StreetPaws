@@ -9,8 +9,9 @@ import {
   Trash2
 } from 'lucide-react'
 
-import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
+import { getAnimalById } from '../../../shared/utils/animalsService'
 
 type Adoption = any
 
@@ -30,6 +31,27 @@ const AdoptionsManagement = () => {
     })
     return () => unsub()
   }, [])
+
+  // Enrich items with animal image if missing
+  useEffect(() => {
+    let cancelled = false
+    async function enrich() {
+      const toFetch = items.filter((it: any) => !it.animalImage && it.animalId)
+      for (const it of toFetch) {
+        try {
+          const animal = await getAnimalById(it.animalId)
+          if (cancelled || !animal) continue
+          const image = (animal.images && animal.images[0]) || null
+          if (!image) continue
+          setItems((prev: any[]) => prev.map(p => p.id === it.id ? { ...p, animalImage: image } : p))
+        } catch (_) {
+          // ignore
+        }
+      }
+    }
+    if (items.length > 0) enrich()
+    return () => { cancelled = true }
+  }, [items])
   const [showAdoptionModal, setShowAdoptionModal] = useState(false)
   const [showDecisionModal, setShowDecisionModal] = useState(false)
   const [decisionType, setDecisionType] = useState<'approve' | 'reject'>('approve')
@@ -61,6 +83,18 @@ const AdoptionsManagement = () => {
     }
   }
 
+  const toDateSafe = (value: any): Date | null => {
+    if (!value) return null
+    if (value && typeof value.toDate === 'function') {
+      try { return value.toDate() } catch {}
+    }
+    if (value && typeof value.seconds === 'number') {
+      return new Date(value.seconds * 1000)
+    }
+    const d = new Date(value)
+    return isNaN(d.getTime()) ? null : d
+  }
+
 
   const handleViewAdoption = (adoption: any) => {
     setSelectedAdoption(adoption)
@@ -85,6 +119,17 @@ const AdoptionsManagement = () => {
         reviewedBy: 'Admin', // In production, use actual admin name
         reviewedAt: new Date().toISOString()
       })
+      try {
+        await addDoc(collection(db, 'notifications'), {
+          adoptionId: selectedAdoption.id,
+          recipientEmail: selectedAdoption.applicantEmail || null,
+          status: decisionType === 'approve' ? 'approved' : 'rejected',
+          reason: decisionReason,
+          animalName: selectedAdoption.animalName,
+          createdAt: serverTimestamp(),
+          read: false
+        })
+      } catch {}
     } catch (error) {
       console.error('Failed to update adoption status:', error)
     }
@@ -233,10 +278,10 @@ const AdoptionsManagement = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Adoption</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -245,17 +290,25 @@ const AdoptionsManagement = () => {
                   <tr key={adoption.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="bg-orange-100 p-2 rounded-full">
-                          <Heart className="h-4 w-4 text-orange-600" />
+                        <div className="w-12 h-12 rounded bg-gray-100 overflow-hidden flex items-center justify-center">
+                          {adoption.animalImage ? (
+                            <img src={adoption.animalImage} alt={adoption.animalName} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-xl">{adoption.animalType === 'dog' ? '🐕' : '🐱'}</span>
+                          )}
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900">{adoption.animalName}</div>
-                          <div className="text-sm text-gray-500">{adoption.applicantName}</div>
+                          <div className="text-sm text-gray-500 capitalize">{adoption.animalType} • {adoption.animalBreed || '—'}</div>
+                          {adoption.animalAdoptionFee != null && (
+                            <div className="text-xs text-gray-600">Fee: ₱{Number(adoption.animalAdoptionFee).toLocaleString('en-PH')}</div>
+                          )}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{adoption.applicantEmail}</div>
+                      <div className="text-sm font-medium text-gray-900">{adoption.applicantName}</div>
+                      <div className="text-sm text-gray-500">{adoption.applicantEmail}</div>
                       <div className="text-sm text-gray-500">{adoption.applicantPhone}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -264,12 +317,12 @@ const AdoptionsManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>{new Date(adoption.submittedAt).toLocaleDateString('en-US', {
+                      <div>{(toDateSafe(adoption.submittedAt) || new Date(NaN)).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
                       })}</div>
-                      <div className="text-gray-500">{new Date(adoption.submittedAt).toLocaleTimeString('en-US', {
+                      <div className="text-gray-500">{(toDateSafe(adoption.submittedAt) || new Date(NaN)).toLocaleTimeString('en-US', {
                         hour: '2-digit',
                         minute: '2-digit'
                       })}</div>
@@ -465,12 +518,7 @@ const AdoptionsManagement = () => {
                       <p className="text-sm text-gray-900"><strong>Phone:</strong> {selectedAdoption.reference1Phone}</p>
                       <p className="text-sm text-gray-900"><strong>Relation:</strong> {selectedAdoption.reference1Relation}</p>
                     </div>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">Reference 2</h4>
-                      <p className="text-sm text-gray-900"><strong>Name:</strong> {selectedAdoption.reference2Name}</p>
-                      <p className="text-sm text-gray-900"><strong>Phone:</strong> {selectedAdoption.reference2Phone}</p>
-                      <p className="text-sm text-gray-900"><strong>Relation:</strong> {selectedAdoption.reference2Relation}</p>
-                    </div>
+                    {/* Only one reference is collected in the form; removed Reference 2 */}
                   </div>
                 </div>
 

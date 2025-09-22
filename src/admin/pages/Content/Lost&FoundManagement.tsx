@@ -2,28 +2,26 @@ import { useEffect, useState } from 'react'
 import { Search, Edit, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, EyeOff } from 'lucide-react'
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
-import { createSignedEvidenceUrl } from '../../../user/utils/reportService'
+import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
 
 type LostFoundItem = {
-  id: string
-  type: 'lost' | 'found'
-  animalName: string
-  animalType: string
-  breed: string
-  age: string
-  gender: string
-  colors: string
-  size: string
-  location: string
-  date: string
-  reporterName: string
-  reporterPhone: string
-  reporterEmail: string
-  createdAt: string
-  status: string
-  priority: string
-  published: boolean
-  imageUrl?: string
+  id: string;
+  type: 'lost' | 'found';
+  animalName: string;
+  animalType: string;
+  breed: string;
+  age: string;
+  gender: string;
+  colors: string;
+  size: string;
+  location: string;
+  date: string;
+  reporterName: string;
+  reporterPhone: string;
+  reporterEmail: string;
+  createdAt: string;
+  published: boolean;
+  imageUrl?: string;
   description?: string;
   additionalDetails?: string;
 };
@@ -31,14 +29,31 @@ type LostFoundItem = {
 const ContentHome = () => {
   const [items, setItems] = useState<LostFoundItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'investigating' | 'resolved'>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'lost' | 'found'>('all')
-  const [priorityFilter, setPriorityFilter] = useState<'all' | 'urgent' | 'high' | 'medium' | 'normal'>('all')
   const [publishedFilter, setPublishedFilter] = useState<'all' | 'published' | 'unpublished'>('all')
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [selectedItem, setSelectedItem] = useState<LostFoundItem | null>(null)
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<LostFoundItem | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newItemType, setNewItemType] = useState<'lost' | 'found'>('found')
+  const [newForm, setNewForm] = useState({
+    animalType: 'dog',
+    animalName: '',
+    breed: '',
+    colors: '',
+    age: '',
+    gender: '',
+    location: '',
+    date: '',
+    time: '',
+    contactName: '',
+    contactPhone: '',
+    contactEmail: '',
+    additionalDetails: ''
+  })
+  const [newImageFile, setNewImageFile] = useState<File | null>(null)
+  const [newImagePreview, setNewImagePreview] = useState<string | null>(null)
 
   useEffect(() => {
     if (!db) return
@@ -67,12 +82,10 @@ const ContentHome = () => {
           reporterPhone: d?.contactPhone || '',
           reporterEmail: d?.contactEmail || '',
           createdAt: createdAtIso,
-          status: d?.status === 'open' ? 'pending' : (d?.status || 'pending'),
-          priority: d?.priority || 'normal',
           published: d?.published === true,
           description: d?.description || '',
           additionalDetails: d?.additionalDetails || '',
-          imageUrl: undefined // will be set later
+          imageUrl: undefined
         }
       })
     }
@@ -133,14 +146,12 @@ const ContentHome = () => {
       item.reporterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.location.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesStatus = statusFilter === 'all' || item.status === statusFilter
     const matchesType = typeFilter === 'all' || item.type === typeFilter
-    const matchesPriority = priorityFilter === 'all' || item.priority === priorityFilter
     const matchesPublished = publishedFilter === 'all' || 
       (publishedFilter === 'published' && item.published) ||
       (publishedFilter === 'unpublished' && !item.published)
     
-    return matchesSearch && matchesStatus && matchesType && matchesPriority && matchesPublished
+    return matchesSearch && matchesType && matchesPublished
   })
 
   const getStatusColor = (status: string) => {
@@ -189,8 +200,7 @@ const ContentHome = () => {
   }
 
   const handleAddNew = () => {
-    // TODO: Implement add new item functionality
-    console.log('Add new item clicked')
+    setShowAddModal(true)
   }
 
   const handleEdit = (item: LostFoundItem) => {
@@ -235,20 +245,6 @@ const ContentHome = () => {
             </div>
           </div>
 
-          {/* Status Filter */}
-          <div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="investigating">Investigating</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          </div>
-
           {/* Type Filter */}
           <div>
             <select
@@ -259,21 +255,6 @@ const ContentHome = () => {
               <option value="all">All Types</option>
               <option value="lost">Lost</option>
               <option value="found">Found</option>
-            </select>
-          </div>
-
-          {/* Priority Filter */}
-          <div>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            >
-              <option value="all">All Priority</option>
-              <option value="urgent">Urgent</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="normal">Normal</option>
             </select>
           </div>
 
@@ -320,8 +301,6 @@ const ContentHome = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal Info</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporter</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -351,16 +330,6 @@ const ContentHome = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{item.reporterName}</div>
                     <div className="text-sm text-gray-500">{item.reporterPhone}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(item.status)}`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(item.priority)}`}>
-                      {item.priority}
-                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${item.published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
@@ -433,7 +402,7 @@ const ContentHome = () => {
                       colors: editData.colors,
                       age: editData.age,
                       gender: editData.gender,
-                      date: editData.date,
+                      ...(editData.type === 'lost' ? { lastSeenDate: editData.date, lastSeenLocation: editData.location } : { foundDate: editData.date, foundLocation: editData.location }),
                       additionalDetails: editData.additionalDetails,
                       reporterName: editData.reporterName,
                       reporterPhone: editData.reporterPhone,
@@ -507,6 +476,10 @@ const ContentHome = () => {
                     <span className="font-medium mr-2">Date:</span>
                     {editMode ? (<input className="border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.date || ''} onChange={e => setEditData(editData ? { ...editData, date: e.target.value } : null)} />) : <span>{selectedItem.date}</span>}
                   </div>
+                  <div className="flex items-center">
+                    <span className="font-medium mr-2">Location:</span>
+                    {editMode ? (<input className="border-b border-gray-300 focus:outline-none focus:border-orange-500" value={editData?.location || ''} onChange={e => setEditData(editData ? { ...editData, location: e.target.value } : null)} />) : <span>{selectedItem.location}</span>}
+                  </div>
                 </div>
                 {editMode ? (
                   <div>
@@ -522,6 +495,124 @@ const ContentHome = () => {
                   )
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowAddModal(false)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-2xl mx-auto p-6 shadow-2xl z-10 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Add New Report</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Report Type</label>
+                <select value={newItemType} onChange={(e) => setNewItemType(e.target.value as 'lost' | 'found')} className="w-full border rounded px-3 py-2">
+                  <option value="found">Found</option>
+                  <option value="lost">Lost</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Animal Type</label>
+                <select value={newForm.animalType} onChange={(e) => setNewForm({ ...newForm, animalType: e.target.value })} className="w-full border rounded px-3 py-2">
+                  <option value="dog">Dog</option>
+                  <option value="cat">Cat</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name (optional)</label>
+                <input value={newForm.animalName} onChange={(e) => setNewForm({ ...newForm, animalName: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Breed</label>
+                <input value={newForm.breed} onChange={(e) => setNewForm({ ...newForm, breed: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Colors</label>
+                <input value={newForm.colors} onChange={(e) => setNewForm({ ...newForm, colors: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                <input value={newForm.age} onChange={(e) => setNewForm({ ...newForm, age: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                <input value={newForm.gender} onChange={(e) => setNewForm({ ...newForm, gender: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <input value={newForm.location} onChange={(e) => setNewForm({ ...newForm, location: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input type="date" value={newForm.date} onChange={(e) => setNewForm({ ...newForm, date: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
+                <input type="time" value={newForm.time} onChange={(e) => setNewForm({ ...newForm, time: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Additional Details</label>
+                <textarea value={newForm.additionalDetails} onChange={(e) => setNewForm({ ...newForm, additionalDetails: e.target.value })} className="w-full border rounded px-3 py-2" rows={3} />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                <input value={newForm.contactName} onChange={(e) => setNewForm({ ...newForm, contactName: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                <input value={newForm.contactPhone} onChange={(e) => setNewForm({ ...newForm, contactPhone: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+                <input value={newForm.contactEmail} onChange={(e) => setNewForm({ ...newForm, contactEmail: e.target.value })} className="w-full border rounded px-3 py-2" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0] || null; setNewImageFile(f); if (f) { const r = new FileReader(); r.onload = () => setNewImagePreview(r.result as string); r.readAsDataURL(f) } }} />
+                {newImagePreview && <img src={newImagePreview} alt="Preview" className="mt-2 h-40 object-contain bg-gray-100 rounded" />}
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded bg-gray-100 text-gray-700">Cancel</button>
+              <button onClick={async () => {
+                const data = newItemType === 'lost' ? {
+                  type: 'lost' as const,
+                  animalType: newForm.animalType,
+                  animalName: newForm.animalName,
+                  breed: newForm.breed,
+                  colors: newForm.colors,
+                  age: newForm.age,
+                  gender: newForm.gender,
+                  lastSeenLocation: newForm.location,
+                  lastSeenDate: newForm.date,
+                  lastSeenTime: newForm.time,
+                  contactName: newForm.contactName,
+                  contactPhone: newForm.contactPhone,
+                  contactEmail: newForm.contactEmail,
+                  additionalDetails: newForm.additionalDetails
+                } : {
+                  type: 'found' as const,
+                  animalType: newForm.animalType,
+                  animalName: newForm.animalName || undefined,
+                  breed: newForm.breed,
+                  colors: newForm.colors,
+                  estimatedAge: newForm.age,
+                  gender: newForm.gender,
+                  foundLocation: newForm.location,
+                  foundDate: newForm.date,
+                  foundTime: newForm.time,
+                  contactName: newForm.contactName,
+                  contactPhone: newForm.contactPhone,
+                  contactEmail: newForm.contactEmail,
+                  additionalDetails: newForm.additionalDetails
+                }
+                await submitReport(data as any, newImageFile, null)
+                setShowAddModal(false)
+              }} className="px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700">Save</button>
             </div>
           </div>
         </div>

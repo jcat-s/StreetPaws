@@ -104,7 +104,7 @@ const AdoptionsManagement = () => {
   const handleMakeDecision = (adoption: any, type: 'approve' | 'reject') => {
     setSelectedAdoption(adoption)
     setDecisionType(type)
-    setDecisionReason('')
+    setDecisionReason(adoption?.decisionReason || '')
     setShowDecisionModal(true)
   }
 
@@ -122,6 +122,7 @@ const AdoptionsManagement = () => {
       try {
         await addDoc(collection(db, 'notifications'), {
           adoptionId: selectedAdoption.id,
+          recipientUid: selectedAdoption.userId || null,
           recipientEmail: selectedAdoption.applicantEmail || null,
           status: decisionType === 'approve' ? 'approved' : 'rejected',
           reason: decisionReason,
@@ -336,24 +337,22 @@ const AdoptionsManagement = () => {
                           <Eye className="h-4 w-4" />
                           <span>View</span>
                         </button>
-                        {adoption.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleMakeDecision(adoption, 'approve')}
-                              className="text-green-600 hover:text-green-900 flex items-center space-x-1"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              <span>Approve</span>
-                            </button>
-                            <button
-                              onClick={() => handleMakeDecision(adoption, 'reject')}
-                              className="text-red-600 hover:text-red-900 flex items-center space-x-1"
-                            >
-                              <XCircle className="h-4 w-4" />
-                              <span>Reject</span>
-                            </button>
-                          </>
-                        )}
+                        <>
+                          <button
+                            onClick={() => handleMakeDecision(adoption, 'approve')}
+                            className="text-green-600 hover:text-green-900 flex items-center space-x-1"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            <span>{adoption.status === 'approved' ? 'Change to Approve' : 'Approve'}</span>
+                          </button>
+                          <button
+                            onClick={() => handleMakeDecision(adoption, 'reject')}
+                            className="text-red-600 hover:text-red-900 flex items-center space-x-1"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            <span>{adoption.status === 'rejected' ? 'Change to Reject' : 'Reject'}</span>
+                          </button>
+                        </>
                         <button 
                           disabled={deletingId === adoption.id} 
                           onClick={() => handleDeleteClick(adoption)} 

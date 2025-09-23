@@ -88,26 +88,14 @@ const AnimalsManagement = () => {
     }
   }
 
-  const getHealthColor = (health: string) => {
-    switch (health) {
-      case 'Healthy': return 'bg-green-100 text-green-800'
-      case 'Under Treatment': return 'bg-yellow-100 text-yellow-800'
-      case 'Critical': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
+  
 
   const handleViewAnimal = (animal: any) => {
     setSelectedAnimal(animal)
     setShowAnimalModal(true)
   }
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '—'
-    const dt = new Date(dateString)
-    if (isNaN(dt.getTime())) return '—'
-    return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-  }
+  
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {

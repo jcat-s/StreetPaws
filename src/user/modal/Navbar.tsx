@@ -1,14 +1,55 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { Menu, X, User, Bell, LogOut } from 'lucide-react'
 import LogoImage from '../../assets/images/LOGO.png'
+import toast from 'react-hot-toast'
+import { collection, onSnapshot, query, where, updateDoc, doc, orderBy, limit } from 'firebase/firestore'
+import { db } from '../../config/firebase'
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const { currentUser, logout } = useAuth()
   const location = useLocation()
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifications, setNotifications] = useState<any[]>([])
+  // Listen for adoption notifications for the logged-in user (by uid OR email)
+  useEffect(() => {
+    const database = db
+    if (!database || (!currentUser?.uid && !currentUser?.email)) return
+    const emailFilter = currentUser?.email ? where('recipientEmail', '==', currentUser.email) : null
+    const uidFilter = currentUser?.uid ? where('recipientUid', '==', currentUser.uid) : null
+    const constraints = [] as any[]
+    if (uidFilter) constraints.push(uidFilter)
+    else if (emailFilter) constraints.push(emailFilter)
+    const qAll = query(collection(database, 'notifications'), ...constraints, orderBy('createdAt', 'desc'), limit(20))
+    const qUnread = query(collection(database, 'notifications'), ...constraints, where('read', '==', false))
+    const unsubAll = onSnapshot(qAll, async (snap) => {
+      const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }))
+      setNotifications(list)
+    })
+    const unsubUnread = onSnapshot(qUnread, async (snap) => {
+      setUnreadCount(snap.size)
+      for (const d of snap.docs) {
+        const data: any = d.data()
+        const status = String(data?.status || '').toLowerCase()
+        const animal = data?.animalName || 'your selected pet'
+        const reason = data?.reason ? ` Reason: ${data.reason}` : ''
+        if (status === 'approved') {
+          toast.success(`Adoption approved for ${animal}.${reason}`)
+        } else if (status === 'rejected') {
+          toast.error(`Adoption rejected for ${animal}.${reason}`)
+        } else {
+          toast(`Update on adoption for ${animal}.${reason}`)
+        }
+        // mark as read to avoid repeated toasts
+        try { await updateDoc(doc(database, 'notifications', d.id), { read: true, readAt: new Date().toISOString() }) } catch {}
+      }
+    })
+    return () => { unsubAll(); unsubUnread() }
+  }, [currentUser?.email, db])
 
 
   const navigation = [
@@ -99,10 +140,37 @@ const Navbar = () => {
                       </div>
 
                       {/* Menu Items */}
-                      <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <Bell className="h-4 w-4 mr-2" />
-                        Notifications
-                      </button>
+                      <div className="relative">
+                        <button onClick={() => setNotifOpen(!notifOpen)} className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                          <div className="relative mr-2">
+                            <Bell className="h-4 w-4" />
+                            {unreadCount > 0 && (
+                              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full">
+                                {unreadCount}
+                              </span>
+                            )}
+                          </div>
+                          Notifications
+                        </button>
+                        {notifOpen && (
+                          <div className="absolute right-4 mt-1 w-80 max-h-80 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                            <div className="p-2 text-xs text-gray-500 border-b">Recent</div>
+                            {notifications.length === 0 ? (
+                              <div className="p-4 text-sm text-gray-600">No notifications</div>
+                            ) : (
+                              notifications.map((n) => (
+                                <div key={n.id} className="px-4 py-3 hover:bg-gray-50 text-sm text-gray-800 border-b last:border-b-0">
+                                  <div className="font-medium capitalize">{n.status || 'update'}: {n.animalName || ''}</div>
+                                  {n.reason && <div className="text-gray-600 mt-0.5">{n.reason}</div>}
+                                  {n.createdAt?.seconds && (
+                                    <div className="text-xs text-gray-400 mt-1">{new Date(n.createdAt.seconds * 1000).toLocaleString()}</div>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                       <button
                         onClick={handleLogout}

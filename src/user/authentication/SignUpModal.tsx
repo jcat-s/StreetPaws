@@ -67,7 +67,7 @@ const SignUpModal = () => {
     
     setIsLoading(true)
     try {
-      await signup(data.email, data.password)
+      await signup(data.email, data.password, data.firstName, data.lastName)
       // If we get here, it means email verification is required
       setSignupEmail(data.email)
       setShowEmailVerification(true)

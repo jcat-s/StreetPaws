@@ -314,3 +314,6 @@ This document provides a comprehensive status of all features for the Local City
 - **Backend Logic**: Missing server-side processing and business logic
 
 ---
+
+start msedge http://localhost:3000
+start chrome http://localhost:3000

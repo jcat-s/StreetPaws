@@ -1,14 +1,21 @@
 import { X } from 'lucide-react'
 import { useModalStore } from '../../stores/modalStore'
+import { useAuth } from '../../contexts/AuthContext'
 
 const AnimalProfileModal = () => {
-  const { isAnimalProfileOpen, selectedAnimal, closeAnimalProfile } = useModalStore()
+  const { isAnimalProfileOpen, selectedAnimal, closeAnimalProfile, openLoginModal } = useModalStore()
+  const { currentUser } = useAuth()
 
   if (!isAnimalProfileOpen || !selectedAnimal) return null
 
   const handleAdopt = () => {
+    if (!currentUser) {
+      // require login first
+      closeAnimalProfile()
+      openLoginModal()
+      return
+    }
     closeAnimalProfile()
-    // Temporarily navigate directly to adoption form without signup
     window.location.href = `/adoption-form/${selectedAnimal.id}`
   }
 

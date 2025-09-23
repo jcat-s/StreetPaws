@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { getAnimalById, type AnimalRecord } from '../../../shared/utils/animalsService'
+import { useAuth } from '../../../contexts/AuthContext'
 
 interface AdoptionFormData {
   // Personal Information
@@ -55,6 +56,7 @@ const AdoptionForm = () => {
   const [selectedAnimal, setSelectedAnimal] = useState<AnimalRecord | null>(null)
   
   const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<AdoptionFormData>()
+  const { currentUser } = useAuth()
   useEffect(() => {
     let mounted = true
     async function loadAnimal() {
@@ -91,6 +93,7 @@ const AdoptionForm = () => {
       console.log('Animal ID from params:', animalId)
       
       const adoptionData = {
+        userId: currentUser?.uid || null,
         animalId: animalId || null,
         // Applicant info
         applicantName: data.fullName,

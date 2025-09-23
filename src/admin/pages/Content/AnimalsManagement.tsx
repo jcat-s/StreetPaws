@@ -5,10 +5,11 @@ import {
   Edit, 
   Trash2, 
   Eye, 
+  EyeOff,
   XCircle
 } from 'lucide-react'
 
-import { listAllAnimalsForAdmin, deleteAnimal, createAnimal, updateAnimal, setAnimalStatus, type AnimalRecord, type AnimalType, type AnimalStatus } from '../../../shared/utils/animalsService'
+import { listAllAnimalsForAdmin, deleteAnimal, createAnimal, updateAnimal, type AnimalRecord, type AnimalType, type AnimalStatus } from '../../../shared/utils/animalsService'
 import { supabase } from '../../../config/supabase'
 
 const AnimalsManagement = () => {
@@ -230,9 +231,9 @@ const AnimalsManagement = () => {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spay/Neuter</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -257,9 +258,11 @@ const AnimalsManagement = () => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(animal.status)}`}>{animal.status}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">{animal.type}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{animal.gender || '—'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{animal.spayNeuterStatus || '—'}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${animal.isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>{animal.isPublished ? 'Published' : 'Unpublished'}</span>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex items-center space-x-2">
                           <button onClick={() => handleViewAnimal(animal)} className="text-orange-600 hover:text-orange-700 flex items-center space-x-1">
@@ -268,6 +271,10 @@ const AnimalsManagement = () => {
                           <button onClick={() => { setSelectedAnimal(animal); setEditValues(animal); setShowAnimalModal(true); setEditing(true) }} className="text-blue-600 hover:text-blue-700 flex items-center space-x-1">
                             <Edit className="h-4 w-4" /><span>Edit</span>
                     </button>
+                          <button onClick={async () => { await updateAnimal(animal.id, { isPublished: !animal.isPublished }); setAnimals((prev: any[]) => prev.map(a => a.id === animal.id ? { ...a, isPublished: !animal.isPublished } : a)) }} className={`${animal.isPublished ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'} flex items-center space-x-1`}>
+                            {animal.isPublished ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            <span>{animal.isPublished ? 'Unpublish' : 'Publish'}</span>
+                          </button>
                           <button disabled={deletingId === animal.id} onClick={() => handleDeleteClick(animal)} className="text-red-600 hover:text-red-700 disabled:opacity-50 flex items-center space-x-1">
                             <Trash2 className="h-4 w-4" /><span>{deletingId === animal.id ? 'Deleting...' : 'Delete'}</span>
                     </button>
@@ -414,81 +421,9 @@ const AnimalsManagement = () => {
                 </div>
                 {/* Removed extra sections per UX simplification */}
 
-                {/* Publish & Status Controls */}
-                <div className="flex items-center justify-between py-4">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      id="modalPublish"
-                      type="checkbox"
-                      checked={Boolean(editing ? editValues.isPublished : selectedAnimal.isPublished)}
-                      onChange={async (e) => {
-                        const next = e.target.checked
-                        if (editing) {
-                          setEditValues((s) => ({...s, isPublished: next}))
-                        } else {
-                          await updateAnimal(selectedAnimal.id, { isPublished: next })
-                          setSelectedAnimal((prev: any) => ({...prev, isPublished: next}))
-                          setAnimals((prev: any[]) => prev.map(a => a.id === selectedAnimal.id ? {...a, isPublished: next} : a))
-                        }
-                      }}
-                      className="h-4 w-4 text-orange-600 border-gray-300 rounded"
-                    />
-                    <label htmlFor="modalPublish" className="text-sm text-gray-700">Published</label>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-700 mr-2">Status</label>
-                    <select
-                      className="text-sm px-3 py-2 border rounded-lg"
-                      value={(editing ? (editValues.status as any) : selectedAnimal.status) || 'available'}
-                      onChange={async (e) => {
-                        const newStatus = e.target.value as AnimalStatus
-                        if (!editing) {
-                          await setAnimalStatus(selectedAnimal.id, newStatus)
-                          setSelectedAnimal((prev: any) => ({...prev, status: newStatus}))
-                          setAnimals((prev: any[]) => prev.map(a => a.id === selectedAnimal.id ? {...a, status: newStatus} : a))
-                        } else {
-                          setEditValues((s) => ({...s, status: newStatus}))
-                        }
-                      }}
-                    >
-                      <option value="available">Available</option>
-                      <option value="pending">Pending</option>
-                      <option value="adopted">Adopted</option>
-                    </select>
-                  </div>
-                </div>
+                {/* Removed Publish & Status Controls per request */}
 
-                {/* Action Buttons */}
-                <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-                  <button
-                    onClick={() => { setShowAnimalModal(false); setEditing(false) }}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    Close
-                  </button>
-                  {!editing ? (
-                    <button onClick={() => { setEditing(true); setEditValues(selectedAnimal) }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                    Edit Animal
-                  </button>
-                  ) : (
-                    <>
-                      <button onClick={() => { setEditing(false); setEditValues({}) }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                        Cancel
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await updateAnimal(selectedAnimal.id, editValues)
-                          setAnimals((prev: any[]) => prev.map(a => a.id === selectedAnimal.id ? {...a, ...editValues} : a))
-                          setSelectedAnimal((prev: any) => ({...prev, ...editValues}))
-                          setEditing(false)
-                        }}
-                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
-                      >
-                        Save Changes
-                  </button>
-                    </>
-                  )}
-                </div>
+                {/* Removed bottom action bar per request */}
               </div>
             </div>
           </div>

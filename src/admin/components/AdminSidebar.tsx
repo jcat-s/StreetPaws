@@ -46,12 +46,12 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
       <div className="flex flex-col h-full overflow-hidden">
         {/* Scrollable menu items */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
-          <NavItem to="/admin" icon={LayoutGrid} label="Dashboard" onNavigate={onNavigate} />
-          <NavItem to="/admin/reports" icon={FileText} label="Report Management" onNavigate={onNavigate} />
-          <NavItem to="/admin/adoptions" icon={Heart} label="Adoption Management" onNavigate={onNavigate} />
-          <NavItem to="/admin/volunteers" icon={Users} label="Volunteers Management" onNavigate={onNavigate} />
-          <NavItem to="/admin/donors" icon={Heart} label="Donations Management" onNavigate={onNavigate} />
-          <NavItem to="/admin/heatmap" icon={Flame} label="Heatmap" onNavigate={onNavigate} />
+          <NavItem to="/" icon={LayoutGrid} label="Dashboard" onNavigate={onNavigate} />
+          <NavItem to="/reports" icon={FileText} label="Report Management" onNavigate={onNavigate} />
+          <NavItem to="/adoptions" icon={Heart} label="Adoption Management" onNavigate={onNavigate} />
+          <NavItem to="/volunteers" icon={Users} label="Volunteers Management" onNavigate={onNavigate} />
+          <NavItem to="/donors" icon={Heart} label="Donations Management" onNavigate={onNavigate} />
+          <NavItem to="/heatmap" icon={Flame} label="Heatmap" onNavigate={onNavigate} />
           
           {/* Content folder */}
           <button
@@ -66,15 +66,15 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
           </button>
           {contentOpen && (
             <div className="ml-4 space-y-1 mt-1">
-              <NavItem to="/admin/content" icon={Search} label="Lost & Found Management" onNavigate={onNavigate} />
-              <NavItem to="/admin/content/animals" icon={Users} label="Our Animals Management" onNavigate={onNavigate} />
+              <NavItem to="/content" icon={Search} label="Lost & Found Management" onNavigate={onNavigate} />
+              <NavItem to="/content/animals" icon={Users} label="Our Animals Management" onNavigate={onNavigate} />
             </div>
           )}
         </div>
         
         {/* Fixed footer */}
         <div className="flex-shrink-0 p-4 pt-3 space-y-2 border-t border-gray-100 bg-gray-50/50">
-          <NavItem to="/admin/settings" icon={Settings} label="Admin Settings" onNavigate={onNavigate} />
+          <NavItem to="/settings" icon={Settings} label="Admin Settings" onNavigate={onNavigate} />
           <button onClick={logout} className="w-full flex items-center h-11 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all duration-200 hover:shadow-sm border border-red-200">
             <div className="h-full w-11 flex items-center justify-center text-red-600">
               <LogOut className="h-5 w-5" />

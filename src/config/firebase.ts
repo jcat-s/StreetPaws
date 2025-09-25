@@ -13,14 +13,29 @@ const requiredEnv = [
 	'VITE_FIREBASE_APP_ID'
 ]
 
-function ensureEnvVarsPresent() {
+function getConfig() {
 	const missing = requiredEnv.filter((key) => !import.meta.env[key as keyof ImportMetaEnv])
-	if (missing.length > 0) {
+	const hasAll = missing.length === 0
+	if (hasAll) {
+		return {
+			apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+			authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+			projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+			storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+			messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+			appId: import.meta.env.VITE_FIREBASE_APP_ID,
+			measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+			databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL
+		}
+	}
+	// Fall back to a single, consistent config to avoid mixed-project keys
+	if (!hasAll) {
 		console.warn(
-			`Missing Firebase environment variables: ${missing.join(', ')}. ` +
-			'Create a .env file (see .env.example) and restart the dev server.'
+			`Missing Firebase env vars: ${missing.join(', ')}. Using fallback config for project ${fallbackConfig.projectId}. ` +
+			'Add a .env to target a different project.'
 		)
 	}
+	return fallbackConfig
 }
 
 // Fallback config (from your provided values) used only if env vars are missing
@@ -35,16 +50,7 @@ const fallbackConfig = {
 	measurementId: 'G-1QDL9D3LVV'
 }
 
-const firebaseConfig = {
-	apiKey: import.meta.env.VITE_FIREBASE_API_KEY || fallbackConfig.apiKey,
-	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || fallbackConfig.authDomain,
-	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || fallbackConfig.projectId,
-	storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || fallbackConfig.storageBucket,
-	messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || fallbackConfig.messagingSenderId,
-	appId: import.meta.env.VITE_FIREBASE_APP_ID || fallbackConfig.appId,
-	measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || fallbackConfig.measurementId,
-	databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL
-}
+const firebaseConfig = getConfig()
 
 // Initialize Firebase with error handling
 let app: any = null
@@ -53,10 +59,10 @@ let analytics: Analytics | null = null
 let db: ReturnType<typeof getFirestore> | null = null
 
 try {
-	ensureEnvVarsPresent()
 	app = initializeApp(firebaseConfig)
 	auth = getAuth(app)
     db = getFirestore(app)
+	console.info('[Firebase]', 'projectId =', (firebaseConfig as any)?.projectId)
 	if (typeof window !== 'undefined') {
 		isSupported()
 			.then((supported: boolean) => {

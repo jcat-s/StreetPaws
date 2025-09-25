@@ -5,6 +5,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev:user": "vite --config vite.user.config.ts",
+    "dev:admin": "vite --config vite.admin.config.ts",
+    "build:user": "vite build --config vite.user.config.ts",
+    "build:admin": "vite build --config vite.admin.config.ts",
+    "preview:user": "vite preview --config vite.user.config.ts",
+    "preview:admin": "vite preview --config vite.admin.config.ts",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",

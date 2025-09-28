@@ -30,7 +30,7 @@
     "react-hook-form": "^7.48.2",
     "react-hot-toast": "^2.4.1",
     "react-leaflet": "^4.2.1",
-    "react-leaflet-heatmap-layer-v3": "^3.0.3-beta-1",
+    "leaflet.heat": "^0.2.0",
     "react-router-dom": "^6.8.1",
     "zustand": "^4.4.7"
   },

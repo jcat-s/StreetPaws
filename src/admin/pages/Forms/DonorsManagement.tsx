@@ -45,7 +45,7 @@ const Donors = () => {
     const unsub = onSnapshot(q, (snap) => {
       const mapped: Donation[] = snap.docs.map((d) => {
         const data: any = d.data()
-        const createdAt = data?.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString()
+        const createdAt = data?.createdAt?.toDate ? data.createdAt.toDate().toISOString() : (typeof data?.createdAt === 'string' ? data.createdAt : 'Invalid Date')
         return {
           id: d.id,
           name: data?.name || '',

@@ -68,7 +68,7 @@ const AdminDashboard = () => {
       return docs.map((doc) => {
         const d: any = doc.data()
         const type: string = d?.type || collectionType
-        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : new Date().toISOString())
+        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : 'Invalid Date')
         const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
         
         return {

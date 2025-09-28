@@ -40,6 +40,7 @@ type AdminReport = {
   createdAt: string
   assignedTo?: string | null
   attachments?: string[]
+  imageUrl?: string
   // abuse-specific fields
   abuseType?: string
   animalDescription?: string
@@ -82,11 +83,32 @@ const ReportsManagement = () => {
     let allReports: AdminReport[] = []
     
     // Helper function to process documents from any collection
-    const processDocs = (docs: any[], collectionType: string) => {
+    const processDocs = (docs: any[], collectionType: string): (AdminReport | null)[] => {
       return docs.map((doc) => {
         const d: any = doc.data()
         const type: string = d?.type || collectionType
-        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : new Date().toISOString())
+        
+        // Handle serverTimestamp properly - it might be pending when first read
+        let createdAtIso: string
+        if (d?.createdAt?.toDate) {
+          // Timestamp is resolved
+          createdAtIso = d.createdAt.toDate().toISOString()
+        } else if (d?.createdAt && typeof d.createdAt === 'string') {
+          // Already a string
+          createdAtIso = d.createdAt
+        } else if (d?.createdAt && d.createdAt.seconds) {
+          // Firestore timestamp with seconds
+          createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
+        } else if (d?.createdAt && typeof d.createdAt === 'object' && d.createdAt._methodName === 'serverTimestamp') {
+          // Pending serverTimestamp - skip this document for now, it will be updated when resolved
+          console.log('Pending serverTimestamp detected for report:', doc.id, 'skipping until resolved')
+          return null // Skip this document
+        } else {
+          // No valid timestamp found
+          createdAtIso = 'Invalid Date'
+          console.log('Invalid date found for report:', doc.id, 'Raw createdAt:', d?.createdAt, 'Type:', typeof d?.createdAt)
+        }
+        
         const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
         const base = {
           id: doc.id,
@@ -165,22 +187,106 @@ const ReportsManagement = () => {
     const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
     const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
     
-    const unsubscribeReports = onSnapshot(reportsQuery, (snap) => {
-      const reportsData = processDocs(snap.docs, 'abuse')
-      allReports = [...reportsData]
-      setReports([...allReports])
+    const unsubscribeReports = onSnapshot(reportsQuery, async (snap) => {
+      const reportsData = processDocs(snap.docs, 'abuse').filter((report): report is AdminReport => report !== null)
+      
+      // Load images for each report (similar to Lost&FoundManagement)
+      const reportsWithImages = await Promise.all(
+        reportsData.map(async (report) => {
+          const docData = snap.docs.find(d => d.id === report.id)?.data()
+          let imageUrl: string | undefined
+          
+          // Check for direct image URL first (like Lost&FoundManagement does)
+          if (docData?.image) {
+            imageUrl = docData.image
+            console.log('Using direct image URL for abuse report:', report.id, imageUrl)
+          }
+          // Fallback to uploadObjectKey
+          else if (docData?.uploadObjectKey) {
+            try {
+              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
+              console.log('Successfully created signed URL for abuse report:', report.id, imageUrl)
+            } catch (error) {
+              console.error('Failed to create signed URL for abuse report:', report.id, error)
+            }
+          } else {
+            console.log('No image or uploadObjectKey found for abuse report:', report.id)
+          }
+          
+          return { ...report, imageUrl }
+        })
+      )
+      
+      allReports = [...reportsWithImages]
+      setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
     })
     
-    const unsubscribeLost = onSnapshot(lostQuery, (snap) => {
-      const lostData = processDocs(snap.docs, 'lost')
-      allReports = allReports.filter(r => r.type !== 'lost').concat(lostData)
-      setReports([...allReports])
+    const unsubscribeLost = onSnapshot(lostQuery, async (snap) => {
+      const lostData = processDocs(snap.docs, 'lost').filter((report): report is AdminReport => report !== null)
+      
+      // Load images for each lost report (similar to Lost&FoundManagement)
+      const lostWithImages = await Promise.all(
+        lostData.map(async (report) => {
+          const docData = snap.docs.find(d => d.id === report.id)?.data()
+          let imageUrl: string | undefined
+          
+          // Check for direct image URL first
+          if (docData?.image) {
+            imageUrl = docData.image
+            console.log('Using direct image URL for lost report:', report.id, imageUrl)
+          }
+          // Fallback to uploadObjectKey
+          else if (docData?.uploadObjectKey) {
+            try {
+              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
+              console.log('Successfully created signed URL for lost report:', report.id, imageUrl)
+            } catch (error) {
+              console.error('Failed to create signed URL for lost report:', report.id, error)
+            }
+          } else {
+            console.log('No image or uploadObjectKey found for lost report:', report.id)
+          }
+          
+          return { ...report, imageUrl }
+        })
+      )
+      
+      allReports = allReports.filter(r => r.type !== 'lost').concat(lostWithImages)
+      setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
     })
     
-    const unsubscribeFound = onSnapshot(foundQuery, (snap) => {
-      const foundData = processDocs(snap.docs, 'found')
-      allReports = allReports.filter(r => r.type !== 'found').concat(foundData)
-      setReports([...allReports])
+    const unsubscribeFound = onSnapshot(foundQuery, async (snap) => {
+      const foundData = processDocs(snap.docs, 'found').filter((report): report is AdminReport => report !== null)
+      
+      // Load images for each found report (similar to Lost&FoundManagement)
+      const foundWithImages = await Promise.all(
+        foundData.map(async (report) => {
+          const docData = snap.docs.find(d => d.id === report.id)?.data()
+          let imageUrl: string | undefined
+          
+          // Check for direct image URL first
+          if (docData?.image) {
+            imageUrl = docData.image
+            console.log('Using direct image URL for found report:', report.id, imageUrl)
+          }
+          // Fallback to uploadObjectKey
+          else if (docData?.uploadObjectKey) {
+            try {
+              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
+              console.log('Successfully created signed URL for found report:', report.id, imageUrl)
+            } catch (error) {
+              console.error('Failed to create signed URL for found report:', report.id, error)
+            }
+          } else {
+            console.log('No image or uploadObjectKey found for found report:', report.id)
+          }
+          
+          return { ...report, imageUrl }
+        })
+      )
+      
+      allReports = allReports.filter(r => r.type !== 'found').concat(foundWithImages)
+      setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
     })
     
     return () => {
@@ -258,6 +364,7 @@ const ReportsManagement = () => {
     }
     return urls
   }
+
 
   const handleViewReport = async (report: AdminReport, edit = false) => {
     setSelectedReport(report)
@@ -475,11 +582,12 @@ const ReportsManagement = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Report</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal Info</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporter</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -495,6 +603,22 @@ const ReportsManagement = () => {
                           <div className="text-sm font-medium text-gray-900 capitalize">{report.type}</div>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {report.imageUrl ? (
+                        <img 
+                          src={report.imageUrl} 
+                          alt="Report attachment" 
+                          className="w-12 h-12 object-cover rounded-lg border border-gray-200"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                          <span className="text-gray-400 text-xs">No image</span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{report.animalName}</div>

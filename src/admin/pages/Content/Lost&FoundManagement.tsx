@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Search, Edit, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, EyeOff } from 'lucide-react'
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, addDoc } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
 import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
@@ -84,10 +84,30 @@ const ContentHome = () => {
     let allItems: LostFoundItem[] = []
     
     // Helper function to process documents
-    const processDocs = (docs: any[], collectionType: 'lost' | 'found') => {
+    const processDocs = (docs: any[], collectionType: 'lost' | 'found'): (LostFoundItem | null)[] => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : new Date().toISOString())
+        
+        // Handle serverTimestamp properly - it might be pending when first read
+        let createdAtIso: string
+        if (d?.createdAt?.toDate) {
+          // Timestamp is resolved
+          createdAtIso = d.createdAt.toDate().toISOString()
+        } else if (d?.createdAt && typeof d.createdAt === 'string') {
+          // Already a string
+          createdAtIso = d.createdAt
+        } else if (d?.createdAt && d.createdAt.seconds) {
+          // Firestore timestamp with seconds
+          createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
+        } else if (d?.createdAt && typeof d.createdAt === 'object' && d.createdAt._methodName === 'serverTimestamp') {
+          // Pending serverTimestamp - skip this document for now, it will be updated when resolved
+          console.log('Pending serverTimestamp detected for lost/found item:', doc.id, 'skipping until resolved')
+          return null // Skip this document
+        } else {
+          // No valid timestamp found
+          createdAtIso = 'Invalid Date'
+          console.log('Invalid date found for lost/found item:', doc.id, 'Raw createdAt:', d?.createdAt, 'Type:', typeof d?.createdAt)
+        }
         
         return {
           id: doc.id,
@@ -118,7 +138,7 @@ const ContentHome = () => {
     const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
     
     const unsubscribeLost = onSnapshot(lostQuery, async (snap) => {
-      const lostItems = processDocs(snap.docs, 'lost')
+      const lostItems = processDocs(snap.docs, 'lost').filter((item): item is LostFoundItem => item !== null)
       const lostWithImages = await Promise.all(
         lostItems.map(async (item) => {
           // Get image URL if available
@@ -150,7 +170,7 @@ const ContentHome = () => {
     })
     
     const unsubscribeFound = onSnapshot(foundQuery, async (snap) => {
-      const foundItems = processDocs(snap.docs, 'found')
+      const foundItems = processDocs(snap.docs, 'found').filter((item): item is LostFoundItem => item !== null)
       const foundWithImages = await Promise.all(
         foundItems.map(async (item) => {
           // Get image URL if available
@@ -259,7 +279,7 @@ const ContentHome = () => {
       // Restore the item by adding it back to the appropriate collection
       const itemData = {
         ...lastDeleted,
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
         id: undefined // Let Firestore generate new ID
       }
       delete itemData.id
@@ -379,7 +399,7 @@ const ContentHome = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporter</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>

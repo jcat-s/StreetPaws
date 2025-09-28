@@ -89,12 +89,13 @@ const AdoptionsManagement = () => {
       try { return value.toDate() } catch {}
     }
     if (value && typeof value.seconds === 'number') {
-      return new Date(value.seconds * 1000)
+      try { return new Date(value.seconds * 1000) } catch {}
     }
-    const d = new Date(value)
-    return isNaN(d.getTime()) ? null : d
+    if (typeof value === 'string') {
+      try { return new Date(value) } catch {}
+    }
+    return null
   }
-
 
   const handleViewAdoption = (adoption: any) => {
     setSelectedAdoption(adoption)
@@ -181,7 +182,7 @@ const AdoptionsManagement = () => {
       // Restore the adoption by adding it back to the database
       const adoptionData = {
         ...lastDeleted,
-        submittedAt: new Date().toISOString(),
+        submittedAt: serverTimestamp(),
         id: undefined // Let Firestore generate new ID
       }
       delete adoptionData.id
@@ -196,15 +197,6 @@ const AdoptionsManagement = () => {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -548,7 +540,13 @@ const AdoptionsManagement = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Submitted At</label>
-                      <p className="text-sm text-gray-900">{formatDate(selectedAdoption.submittedAt)}</p>
+                      <p className="text-sm text-gray-900">{(toDateSafe(selectedAdoption.submittedAt) || new Date(NaN)).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</p>
                     </div>
                     {selectedAdoption.reviewedBy && (
                       <div>
@@ -559,7 +557,13 @@ const AdoptionsManagement = () => {
                     {selectedAdoption.reviewedAt && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Reviewed At</label>
-                        <p className="text-sm text-gray-900">{formatDate(selectedAdoption.reviewedAt)}</p>
+                        <p className="text-sm text-gray-900">{(toDateSafe(selectedAdoption.reviewedAt) || new Date(NaN)).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}</p>
                       </div>
                     )}
                   </div>

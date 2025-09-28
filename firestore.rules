@@ -1,0 +1,124 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.email in [
+          'admin@streetpaws.gov.ph',
+          'superadmin@streetpaws.gov.ph',
+          'vet@streetpaws.gov.ph'
+        ];
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.email == 'superadmin@streetpaws.gov.ph';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Admin users collection - only superadmin can manage
+    match /admin_users/{userId} {
+      allow read, write: if isSuperAdmin();
+    }
+    
+    // Reports collection - admins can read/write, users can create/read their own
+    match /reports/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if true;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    // Lost reports collection - anyone can create, admins can read/write
+    match /lost/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow create: if true;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow delete: if isAdmin();
+    }
+    
+    // Found reports collection - anyone can create, admins can read/write
+    match /found/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow create: if true;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow delete: if isAdmin();
+    }
+    
+    // Reports subcollections for lost, found, abuse
+    match /reports/{mainDocId}/lost/{reportId} {
+      allow read, write: if true;
+    }
+    match /reports/{mainDocId}/found/{reportId} {
+      allow read, write: if true;
+    }
+    match /reports/{mainDocId}/abuse/{reportId} {
+      allow read, write: if true;
+    }
+    
+    // Animals collection - public can read published, admins can manage
+    match /animals/{animalId} {
+      allow read: if resource.data.isPublished == true || isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // Adoptions collection - admins can manage, anyone can create (for adoption forms)
+    match /adoptions/{adoptionId} {
+      allow read: if isAuthenticated();
+      allow create: if true; // Allow anonymous users to submit adoption applications
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    // Donations collection - admins can manage, anyone can create (for donation forms)
+    match /donations/{donationId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if true; // Allow anonymous users to submit donations
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Volunteers collection - admins can manage, anyone can create (for volunteer forms)
+    match /volunteers/{volunteerId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if true; // Allow anonymous users to submit volunteer applications
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    // User profiles - users can manage their own, admins can read
+    match /users/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+    
+    // Analytics and logs - only admins
+    match /analytics/{document} {
+      allow read, write: if isAdmin();
+    }
+    
+    match /audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // System settings - only superadmin
+    match /system_settings/{settingId} {
+      allow read, write: if isSuperAdmin();
+    }
+    
+    // Default deny rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

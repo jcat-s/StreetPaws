@@ -8,5 +8,13 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true
+  },
+  build: {
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        assetFileNames: 'assets/[name]-[hash][extname]'
+      }
+    }
   }
 }) 

@@ -100,9 +100,9 @@ const ReportsManagement = () => {
           // Firestore timestamp with seconds
           createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
         } else if (d?.createdAt && typeof d.createdAt === 'object' && d.createdAt._methodName === 'serverTimestamp') {
-          // Pending serverTimestamp - skip this document for now, it will be updated when resolved
-          console.log('Pending serverTimestamp detected for report:', doc.id, 'skipping until resolved')
-          return null // Skip this document
+          // Pending serverTimestamp - use current time as fallback
+          console.log('Pending serverTimestamp detected for report:', doc.id, 'using current time as fallback')
+          createdAtIso = new Date().toISOString()
         } else {
           // No valid timestamp found
           createdAtIso = 'Invalid Date'

@@ -100,9 +100,9 @@ const ContentHome = () => {
           // Firestore timestamp with seconds
           createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
         } else if (d?.createdAt && typeof d.createdAt === 'object' && d.createdAt._methodName === 'serverTimestamp') {
-          // Pending serverTimestamp - skip this document for now, it will be updated when resolved
-          console.log('Pending serverTimestamp detected for lost/found item:', doc.id, 'skipping until resolved')
-          return null // Skip this document
+          // Pending serverTimestamp - use current time as fallback
+          console.log('Pending serverTimestamp detected for lost/found item:', doc.id, 'using current time as fallback')
+          createdAtIso = new Date().toISOString()
         } else {
           // No valid timestamp found
           createdAtIso = 'Invalid Date'
@@ -395,6 +395,7 @@ const ContentHome = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal Info</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporter</th>
@@ -415,6 +416,22 @@ const ContentHome = () => {
                         <div className="text-sm font-medium text-gray-900 capitalize">{item.type}</div>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {item.imageUrl ? (
+                      <img 
+                        src={item.imageUrl} 
+                        alt="Animal photo" 
+                        className="w-12 h-12 object-cover rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                        <span className="text-gray-400 text-xs">No image</span>
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{item.animalName}</div>

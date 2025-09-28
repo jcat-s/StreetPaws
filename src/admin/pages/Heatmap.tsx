@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../../config/firebase'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
-// @ts-ignore - No type definitions available for this package
-import { HeatmapLayer } from 'react-leaflet-heatmap-layer-v3'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.heat'
 import { LIPA_BARANGAY_COORDINATES } from '../../shared/constants/barangays'
 
 // Fix for default markers in react-leaflet
@@ -15,6 +14,65 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
+
+// Custom HeatmapLayer component using native leaflet.heat
+interface HeatmapLayerProps {
+  points: Array<{ lat: number; lng: number; intensity: number }>
+  radius?: number
+  max?: number
+  minOpacity?: number
+  gradient?: Record<number, string>
+}
+
+const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ 
+  points, 
+  radius = 30, 
+  max = 1, 
+  minOpacity = 0.3,
+  gradient 
+}) => {
+  const map = useMap()
+  const heatmapRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (!map || points.length === 0) return
+
+    // Convert points to the format expected by leaflet.heat
+    const heatPoints = points.map(point => [point.lat, point.lng, point.intensity] as [number, number, number])
+
+    // Create heatmap layer
+    const heatmap = (L as any).heatLayer(heatPoints, {
+      radius,
+      max,
+      minOpacity,
+      gradient
+    })
+
+    // Add to map
+    heatmap.addTo(map)
+    heatmapRef.current = heatmap
+
+    // Cleanup function
+    return () => {
+      if (heatmapRef.current) {
+        map.removeLayer(heatmapRef.current)
+        heatmapRef.current = null
+      }
+    }
+  }, [map, points, radius, max, minOpacity, gradient])
+
+  // Update heatmap when points change
+  useEffect(() => {
+    if (heatmapRef.current && points.length > 0) {
+      const heatPoints = points.map(point => [point.lat, point.lng, point.intensity] as [number, number, number])
+      if (heatmapRef.current.setLatLngs) {
+        heatmapRef.current.setLatLngs(heatPoints)
+      }
+    }
+  }, [points])
+
+  return null
+}
 
 type ReportDoc = {
   type?: 'lost' | 'found' | 'abuse'
@@ -256,9 +314,6 @@ const Heatmap = () => {
               {heatmapData.length > 0 && (
                 <HeatmapLayer
                   points={heatmapData}
-                  longitudeExtractor={(point: Coordinate) => point.lng}
-                  latitudeExtractor={(point: Coordinate) => point.lat}
-                  intensityExtractor={(point: Coordinate) => point.intensity}
                   radius={30}
                   max={maxCount}
                   minOpacity={0.3}

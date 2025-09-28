@@ -4,6 +4,7 @@ import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, addD
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
 import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
+import { supabase } from '../../../config/supabase'
 
 type LostFoundItem = {
   id: string;
@@ -63,6 +64,23 @@ const ContentHome = () => {
   useEffect(() => {
     if (!db) return
     
+    // Test Supabase connection
+    if (supabase) {
+      console.log('Supabase client available:', !!supabase)
+      // Test bucket access
+      supabase.storage.from('report-uploads').list('lostandfound', { limit: 1 })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Supabase storage bucket access error:', error)
+          } else {
+            console.log('Supabase storage bucket accessible:', data?.length || 0, 'items found')
+          }
+        })
+        .catch(err => console.error('Supabase storage test failed:', err))
+    } else {
+      console.warn('Supabase client not available')
+    }
+    
     let allItems: LostFoundItem[] = []
     
     // Helper function to process documents
@@ -106,10 +124,22 @@ const ContentHome = () => {
           // Get image URL if available
           const docData = snap.docs.find(d => d.id === item.id)?.data()
           let imageUrl: string | undefined
-          if (docData?.uploadObjectKey) {
+          
+          // Check for direct image URL first (for lost/found reports)
+          if (docData?.image) {
+            imageUrl = docData.image
+            console.log('Using direct image URL for lost item:', item.id, imageUrl)
+          }
+          // Fallback to uploadObjectKey (for abuse reports)
+          else if (docData?.uploadObjectKey) {
             try {
               imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-            } catch {}
+              console.log('Successfully created signed URL for lost item:', item.id, imageUrl)
+            } catch (error) {
+              console.error('Failed to create signed URL for lost item:', item.id, error)
+            }
+          } else {
+            console.log('No image or uploadObjectKey found for lost item:', item.id)
           }
           return { ...item, imageUrl }
         })
@@ -126,10 +156,22 @@ const ContentHome = () => {
           // Get image URL if available
           const docData = snap.docs.find(d => d.id === item.id)?.data()
           let imageUrl: string | undefined
-          if (docData?.uploadObjectKey) {
+          
+          // Check for direct image URL first (for lost/found reports)
+          if (docData?.image) {
+            imageUrl = docData.image
+            console.log('Using direct image URL for found item:', item.id, imageUrl)
+          }
+          // Fallback to uploadObjectKey (for abuse reports)
+          else if (docData?.uploadObjectKey) {
             try {
               imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-            } catch {}
+              console.log('Successfully created signed URL for found item:', item.id, imageUrl)
+            } catch (error) {
+              console.error('Failed to create signed URL for found item:', item.id, error)
+            }
+          } else {
+            console.log('No image or uploadObjectKey found for found item:', item.id)
           }
           return { ...item, imageUrl }
         })
@@ -454,11 +496,13 @@ const ContentHome = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col items-center">
                 <img
-                  src={selectedItem.imageUrl}
+                  src={selectedItem.imageUrl || `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`}
                   alt={selectedItem.animalName || `${selectedItem.breed} ${selectedItem.type}`}
                   className="w-full h-64 object-contain bg-gray-100 rounded-lg"
+                  onLoad={() => console.log('Modal image loaded successfully:', selectedItem.imageUrl)}
                   onError={e => {
-                    (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
+                    console.log('Modal image failed to load:', selectedItem.imageUrl)
+                    ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
                   }}
                 />
                 <div className="w-full mt-4 bg-gray-50 p-4 rounded-lg">

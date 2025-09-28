@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom'
 import { Search, Filter, MapPin, Calendar, } from 'lucide-react'
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
-import { createSignedEvidenceUrl } from '../../utils/reportService'
 
 interface LostFoundAnimal {
   id: string
@@ -44,14 +43,12 @@ const LostAndFound = () => {
       const lostMapped: LostFoundAnimal[] = []
       for (const d of lostSnap.docs) {
         const data: any = d.data()
-        // Only show published items to users
-        if (data?.published !== true) continue
+        // Only show published items to users (if published field exists and is false, hide it)
+        if (data?.published === false || data?.isPublished === false) continue
         
-        let imageUrl = ''
-        const key = data?.uploadObjectKey as string | undefined
-        if (key) {
-          try { imageUrl = await createSignedEvidenceUrl(key, 3600) } catch {}
-        }
+        // Debug: log the data to see what we have
+        console.log('Lost report data:', data)
+        console.log('Lost report image field:', data?.image)
         lostMapped.push({
           id: d.id,
           type: 'lost',
@@ -69,7 +66,7 @@ const LostAndFound = () => {
           contactPhone: data?.contactPhone || '',
           contactEmail: data?.contactEmail || '',
           description: data?.additionalDetails || '',
-          image: imageUrl || '', // Changed from JepoyImage to ''
+          image: data?.image || '',
           additionalDetails: data?.additionalDetails || ''
         })
       }
@@ -83,14 +80,8 @@ const LostAndFound = () => {
       const foundMapped: LostFoundAnimal[] = []
       for (const d of foundSnap.docs) {
         const data: any = d.data()
-        // Only show published items to users
-        if (data?.published !== true) continue
-        
-        let imageUrl = ''
-        const key = data?.uploadObjectKey as string | undefined
-        if (key) {
-          try { imageUrl = await createSignedEvidenceUrl(key, 3600) } catch {}
-        }
+        // Only show published items to users (if published field exists and is false, hide it)
+        if (data?.published === false || data?.isPublished === false) continue
         foundMapped.push({
           id: d.id,
           type: 'found',
@@ -108,7 +99,7 @@ const LostAndFound = () => {
           contactPhone: data?.contactPhone || '',
           contactEmail: data?.contactEmail || '',
           description: data?.additionalDetails || '',
-          image: imageUrl || '', // Changed from JepoyImage to ''
+          image: data?.image || '',
           additionalDetails: data?.additionalDetails || ''
         })
       }
@@ -217,14 +208,16 @@ const LostAndFound = () => {
                 onClick={() => setSelectedItem(item)}
               >
                 <div className="relative">
-                  <img
-                    src={item.image}
-                    alt={item.name || `${item.breed} ${item.type}`}
-                    className="w-full h-48 object-contain bg-gray-100"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`
-                    }}
-                  />
+                   <img
+                     src={item.image || `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`}
+                     alt={item.name || `${item.breed} ${item.type}`}
+                     className="w-full h-48 object-cover bg-gray-100"
+                     onError={(e) => {
+                       console.log('Image failed to load:', item.image)
+                       ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`
+                     }}
+                     onLoad={() => console.log('Image loaded successfully:', item.image)}
+                   />
                   <div className="absolute top-2 left-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       item.type === 'lost' 
@@ -315,14 +308,16 @@ const LostAndFound = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col items-center">
-                  <img
-                    src={selectedItem.image}
-                    alt={selectedItem.name || `${selectedItem.breed} ${selectedItem.type}`}
-                    className="w-full h-64 object-contain bg-gray-100 rounded-lg"
-                    onError={e => {
-                      (e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
-                    }}
-                  />
+                   <img
+                     src={selectedItem.image || `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`}
+                     alt={selectedItem.name || `${selectedItem.breed} ${selectedItem.type}`}
+                     className="w-full h-64 object-cover bg-gray-100 rounded-lg"
+                     onError={e => {
+                       console.log('Modal image failed to load:', selectedItem.image)
+                       ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
+                     }}
+                     onLoad={() => console.log('Modal image loaded successfully:', selectedItem.image)}
+                   />
                   <div className="w-full mt-4 bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Contact Information:</h4>
                     <div className="space-y-1">

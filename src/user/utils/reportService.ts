@@ -52,14 +52,20 @@ export interface AbuseReportData extends BaseContactInfo {
 
 export type SubmitReportData = LostReportData | FoundReportData | AbuseReportData
 
-async function uploadImage(file: File, userId: string | null): Promise<string> {
+async function uploadImage(file: File, userId: string | null, type?: 'lost' | 'found'): Promise<{ key: string, signedUrl: string }> {
 	if (!supabase) {
 		throw new Error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
 	}
 	const bucket = 'report-uploads'
 	const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')
 	const ext = safeName.includes('.') ? safeName.split('.').pop() : 'bin'
-	const key = `${userId || 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+	// Use animals/ for animals, lostandfound/lost/ or lostandfound/found/ for lost/found
+	let key = ''
+	if (type === 'lost' || type === 'found') {
+		key = `lostandfound/${type}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+	} else {
+		key = `${userId || 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+	}
 	const { error: uploadError } = await supabase.storage.from(bucket).upload(key, file, {
 		cacheControl: '3600',
 		contentType: file.type,
@@ -68,7 +74,9 @@ async function uploadImage(file: File, userId: string | null): Promise<string> {
 	if (uploadError) {
 		throw new Error(`Upload failed: ${uploadError.message}`)
 	}
-	return key
+	const { data, error: urlError } = await supabase.storage.from(bucket).createSignedUrl(key, 60 * 60 * 24 * 365)
+	if (urlError || !data?.signedUrl) throw new Error(urlError?.message || 'No signed URL')
+	return { key, signedUrl: data.signedUrl }
 }
 
 async function uploadMultipleFiles(files: File[], userId: string | null): Promise<string[]> {
@@ -78,7 +86,7 @@ async function uploadMultipleFiles(files: File[], userId: string | null): Promis
 	const uploadedKeys: string[] = []
 	
 	for (const file of files) {
-		const key = await uploadImage(file, userId)
+		const { key } = await uploadImage(file, userId)
 		uploadedKeys.push(key)
 	}
 	
@@ -121,8 +129,9 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 		submissionId // Add unique identifier
 	}
 
-	let payload: Record<string, unknown>
+	let payload: Record<string, unknown> = {}
 	let collectionName = 'reports'
+	let reportType: 'lost' | 'found' | undefined = undefined
 	if (data.type === 'lost') {
 		payload = {
 			type: 'lost',
@@ -138,6 +147,7 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 			...basePayload
 		}
 		collectionName = 'lost'
+		reportType = 'lost'
 	} else if (data.type === 'found') {
 		payload = {
 			type: 'found',
@@ -153,6 +163,7 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 			...basePayload
 		}
 		collectionName = 'found'
+		reportType = 'found'
 	} else if (data.type === 'abuse') {
 		payload = {
 			type: 'abuse',
@@ -166,8 +177,6 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 			...basePayload
 		}
 		collectionName = 'reports'
-	} else {
-		throw new Error('Unknown report type');
 	}
 
 	const cleaned = omitUndefinedDeep(payload)
@@ -175,12 +184,20 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 	try {
 		const docRef = await addDoc(collection(db, collectionName), cleaned)
 
-		if (file) {
+		if (file && (reportType === 'lost' || reportType === 'found')) {
 			try {
-				const uploadObjectKey = await uploadImage(file, userId)
-				await updateDoc(doc(db, collectionName, docRef.id), { uploadObjectKey })
+				const { signedUrl } = await uploadImage(file, userId, reportType)
+				await updateDoc(doc(db, collectionName, docRef.id), { image: signedUrl })
 			} catch (err) {
-				// If image upload fails, clean up the document
+				await deleteDoc(doc(db, collectionName, docRef.id))
+				throw new Error('Image upload failed, report not saved.')
+			}
+		} else if (file) {
+			// fallback for other types (abuse)
+			try {
+				const { key } = await uploadImage(file, userId)
+				await updateDoc(doc(db, collectionName, docRef.id), { uploadObjectKey: key })
+			} catch (err) {
 				await deleteDoc(doc(db, collectionName, docRef.id))
 				throw new Error('Image upload failed, report not saved.')
 			}
@@ -188,7 +205,6 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 
 		return docRef.id
 	} catch (error) {
-		// Log the error for debugging
 		console.error('Report submission failed:', error)
 		throw error
 	}

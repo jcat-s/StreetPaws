@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { 
   Search, 
   Plus, 
-  Edit, 
   Trash2, 
   Eye, 
   EyeOff,
@@ -268,9 +267,7 @@ const AnimalsManagement = () => {
                           <button onClick={() => handleViewAnimal(animal)} className="text-orange-600 hover:text-orange-700 flex items-center space-x-1">
                             <Eye className="h-4 w-4" /><span>View</span>
                     </button>
-                          <button onClick={() => { setSelectedAnimal(animal); setEditValues(animal); setShowAnimalModal(true); setEditing(true) }} className="text-blue-600 hover:text-blue-700 flex items-center space-x-1">
-                            <Edit className="h-4 w-4" /><span>Edit</span>
-                    </button>
+                   
                           <button onClick={async () => { await updateAnimal(animal.id, { isPublished: !animal.isPublished }); setAnimals((prev: any[]) => prev.map(a => a.id === animal.id ? { ...a, isPublished: !animal.isPublished } : a)) }} className={`${animal.isPublished ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'} flex items-center space-x-1`}>
                             {animal.isPublished ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             <span>{animal.isPublished ? 'Unpublish' : 'Publish'}</span>

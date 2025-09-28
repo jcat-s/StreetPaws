@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Search, Edit, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, EyeOff } from 'lucide-react'
+import { Search, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, EyeOff } from 'lucide-react'
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
@@ -300,10 +300,7 @@ const ContentHome = () => {
     setShowAddModal(true)
   }
 
-  const handleEdit = (item: LostFoundItem) => {
-    // TODO: Implement edit functionality
-    console.log('Edit item clicked:', item)
-  }
+ 
 
   const handleTogglePublish = async (item: LostFoundItem) => {
     if (!db) return
@@ -471,10 +468,7 @@ const ContentHome = () => {
                         {item.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         <span>{item.published ? 'Unpublish' : 'Publish'}</span>
                       </button>
-                      <button onClick={() => handleEdit(item)} className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
-                        <Edit className="h-4 w-4" />
-                        <span>Edit</span>
-                      </button>
+                 
                       <button disabled={deletingId === item.id} onClick={() => handleDeleteClick(item)} className="text-red-600 hover:text-red-900 disabled:opacity-50 flex items-center space-x-1">
                         <Trash2 className="h-4 w-4" />
                         <span>{deletingId === item.id ? 'Deleting...' : 'Delete'}</span>

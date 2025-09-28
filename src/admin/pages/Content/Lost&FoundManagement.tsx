@@ -81,7 +81,34 @@ const ContentHome = () => {
       console.warn('Supabase client not available')
     }
     
-    let allItems: LostFoundItem[] = []
+    let isInitialLoad = true
+    
+    // Helper function to maintain stable sort order
+    const updateItemsWithStableSort = (newAllItems: LostFoundItem[]) => {
+      if (isInitialLoad) {
+        // On initial load, sort by creation date with newest first
+        setItems(newAllItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+        isInitialLoad = false
+      } else {
+        // On subsequent updates, maintain existing order but add new items at the top
+        setItems(prevItems => {
+          const existingIds = new Set(prevItems.map(item => item.id))
+          const newItems = newAllItems.filter(item => !existingIds.has(item.id))
+          const existingItems = newAllItems.filter(item => existingIds.has(item.id))
+          
+          // Keep existing items in their current order, update their data
+          const updatedExistingItems = existingItems.map(existingItem => {
+            const currentItem = prevItems.find(prev => prev.id === existingItem.id)
+            return currentItem ? { ...currentItem, ...existingItem } : existingItem
+          })
+          
+          // Sort new items by creation date (newest first) and put them at the top
+          const sortedNewItems = newItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          
+          return [...sortedNewItems, ...updatedExistingItems]
+        })
+      }
+    }
     
     // Helper function to process documents
     const processDocs = (docs: any[], collectionType: 'lost' | 'found'): (LostFoundItem | null)[] => {
@@ -137,10 +164,18 @@ const ContentHome = () => {
     const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
     const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
     
+    let lostItems: LostFoundItem[] = []
+    let foundItems: LostFoundItem[] = []
+    
+    const updateCombinedItems = async () => {
+      const combinedItems = [...lostItems, ...foundItems]
+      updateItemsWithStableSort(combinedItems)
+    }
+    
     const unsubscribeLost = onSnapshot(lostQuery, async (snap) => {
-      const lostItems = processDocs(snap.docs, 'lost').filter((item): item is LostFoundItem => item !== null)
-      const lostWithImages = await Promise.all(
-        lostItems.map(async (item) => {
+      const processedLostItems = processDocs(snap.docs, 'lost').filter((item): item is LostFoundItem => item !== null)
+      lostItems = await Promise.all(
+        processedLostItems.map(async (item) => {
           // Get image URL if available
           const docData = snap.docs.find(d => d.id === item.id)?.data()
           let imageUrl: string | undefined
@@ -165,14 +200,13 @@ const ContentHome = () => {
         })
       )
       
-      allItems = [...allItems.filter(item => item.type === 'found'), ...lostWithImages]
-      setItems(allItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+      await updateCombinedItems()
     })
     
     const unsubscribeFound = onSnapshot(foundQuery, async (snap) => {
-      const foundItems = processDocs(snap.docs, 'found').filter((item): item is LostFoundItem => item !== null)
-      const foundWithImages = await Promise.all(
-        foundItems.map(async (item) => {
+      const processedFoundItems = processDocs(snap.docs, 'found').filter((item): item is LostFoundItem => item !== null)
+      foundItems = await Promise.all(
+        processedFoundItems.map(async (item) => {
           // Get image URL if available
           const docData = snap.docs.find(d => d.id === item.id)?.data()
           let imageUrl: string | undefined
@@ -197,8 +231,7 @@ const ContentHome = () => {
         })
       )
       
-      allItems = [...allItems.filter(item => item.type === 'lost'), ...foundWithImages]
-      setItems(allItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+      await updateCombinedItems()
     })
     
     return () => {
@@ -397,7 +430,6 @@ const ContentHome = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporter</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -446,17 +478,6 @@ const ContentHome = () => {
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${item.published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                       {item.published ? 'Published' : 'Unpublished'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>{new Date(item.createdAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}</div>
-                    <div className="text-gray-500">{new Date(item.createdAt).toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">

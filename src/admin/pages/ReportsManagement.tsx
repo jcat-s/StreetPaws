@@ -88,26 +88,9 @@ const ReportsManagement = () => {
         const d: any = doc.data()
         const type: string = d?.type || collectionType
         
-        // Handle serverTimestamp properly - it might be pending when first read
-        let createdAtIso: string
-        if (d?.createdAt?.toDate) {
-          // Timestamp is resolved
-          createdAtIso = d.createdAt.toDate().toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'string') {
-          // Already a string
-          createdAtIso = d.createdAt
-        } else if (d?.createdAt && d.createdAt.seconds) {
-          // Firestore timestamp with seconds
-          createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'object' && d.createdAt._methodName === 'serverTimestamp') {
-          // Pending serverTimestamp - use current time as fallback
-          console.log('Pending serverTimestamp detected for report:', doc.id, 'using current time as fallback')
-          createdAtIso = new Date().toISOString()
-        } else {
-          // No valid timestamp found
-          createdAtIso = 'Invalid Date'
-          console.log('Invalid date found for report:', doc.id, 'Raw createdAt:', d?.createdAt, 'Type:', typeof d?.createdAt)
-        }
+         // Handle serverTimestamp properly - match DonorsManagement logic
+         const createdAt = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : 'Invalid Date')
+         let createdAtIso: string = createdAt
         
         const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
         const base = {
@@ -196,22 +179,31 @@ const ReportsManagement = () => {
           const docData = snap.docs.find(d => d.id === report.id)?.data()
           let imageUrl: string | undefined
           
-          // Check for direct image URL first (like Lost&FoundManagement does)
-          if (docData?.image) {
-            imageUrl = docData.image
-            console.log('Using direct image URL for abuse report:', report.id, imageUrl)
-          }
-          // Fallback to uploadObjectKey
-          else if (docData?.uploadObjectKey) {
-            try {
-              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-              console.log('Successfully created signed URL for abuse report:', report.id, imageUrl)
-            } catch (error) {
-              console.error('Failed to create signed URL for abuse report:', report.id, error)
-            }
-          } else {
-            console.log('No image or uploadObjectKey found for abuse report:', report.id)
-          }
+           // Check for direct image URL first (like Lost&FoundManagement does)
+           if (docData?.image) {
+             imageUrl = docData.image
+             console.log('Using direct image URL for abuse report:', report.id, imageUrl)
+           }
+           // Check for evidenceObjects array (abuse reports)
+           else if (Array.isArray(docData?.evidenceObjects) && docData.evidenceObjects.length > 0) {
+             try {
+               imageUrl = await createSignedEvidenceUrl(docData.evidenceObjects[0], 3600)
+               console.log('Successfully created signed URL for abuse report from evidenceObjects:', report.id, imageUrl)
+             } catch (error) {
+               console.error('Failed to create signed URL for abuse report from evidenceObjects:', report.id, error)
+             }
+           }
+           // Fallback to uploadObjectKey
+           else if (docData?.uploadObjectKey) {
+             try {
+               imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
+               console.log('Successfully created signed URL for abuse report:', report.id, imageUrl)
+             } catch (error) {
+               console.error('Failed to create signed URL for abuse report:', report.id, error)
+             }
+           } else {
+             console.log('No image, evidenceObjects, or uploadObjectKey found for abuse report:', report.id)
+           }
           
           return { ...report, imageUrl }
         })
@@ -639,15 +631,21 @@ const ReportsManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>{new Date(report.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}</div>
-                      <div className="text-gray-500">{new Date(report.createdAt).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}</div>
+                      <div>{(() => {
+                        const date = new Date(report.createdAt)
+                        return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })
+                      })()}</div>
+                      <div className="text-gray-500">{(() => {
+                        const date = new Date(report.createdAt)
+                        return isNaN(date.getTime()) ? 'Invalid Time' : date.toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      })()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">

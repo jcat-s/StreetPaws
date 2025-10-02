@@ -46,9 +46,6 @@ const LostAndFound = () => {
         // Only show published items to users (if published field exists and is false, hide it)
         if (data?.published === false || data?.isPublished === false) continue
         
-        // Debug: log the data to see what we have
-        console.log('Lost report data:', data)
-        console.log('Lost report image field:', data?.image)
         lostMapped.push({
           id: d.id,
           type: 'lost',
@@ -213,10 +210,8 @@ const LostAndFound = () => {
                      alt={item.name || `${item.breed} ${item.type}`}
                      className="w-full h-48 object-cover bg-gray-100"
                      onError={(e) => {
-                       console.log('Image failed to load:', item.image)
                        ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`
                      }}
-                     onLoad={() => console.log('Image loaded successfully:', item.image)}
                    />
                   <div className="absolute top-2 left-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -313,10 +308,8 @@ const LostAndFound = () => {
                      alt={selectedItem.name || `${selectedItem.breed} ${selectedItem.type}`}
                      className="w-full h-64 object-cover bg-gray-100 rounded-lg"
                      onError={e => {
-                       console.log('Modal image failed to load:', selectedItem.image)
                        ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
                      }}
-                     onLoad={() => console.log('Modal image loaded successfully:', selectedItem.image)}
                    />
                   <div className="w-full mt-4 bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Contact Information:</h4>

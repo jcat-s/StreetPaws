@@ -254,7 +254,7 @@ For testing purposes, use these credentials:
 - **Routing**: React Router with protected routes
 
 ### Data Management
-- **Mock Data**: Currently uses mock data for demonstration
+- **Real Data**: Connected to Firebase Firestore for live data
 - **Database Integration**: Ready for Firebase/Firestore integration
 - **Real-time Updates**: Prepared for live data synchronization
 - **Backup Systems**: Automated backup and recovery

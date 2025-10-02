@@ -15,7 +15,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "cleanup-animals": "node cleanup-and-restore-animals.js"
+    "cleanup-animals": "node cleanup-and-restore-animals.js",
+    "migrate-reports": "node scripts/migrate-reports.js",
+    "migrate-reports:cleanup": "node scripts/migrate-reports.js --cleanup"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",

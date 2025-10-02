@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { collection, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc, collectionGroup } from 'firebase/firestore'
+import { collection, collectionGroup, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { createSignedEvidenceUrl } from '../../user/utils/reportService'
 import { 
@@ -11,11 +11,13 @@ import {
   FileText,
   Download,
   Edit,
-  Trash2
+  Trash2,
+  Eye
 } from 'lucide-react'
 
 type AdminReport = {
   id: string
+  parentId: string // Parent document ID for subcollection structure
   type: 'lost' | 'found' | 'abuse' | string
   // animal info (varies by type)
   animalName?: string
@@ -78,40 +80,44 @@ const ReportsManagement = () => {
   }, [location.pathname])
 
   useEffect(() => {
-    if (!db) return
+    if (!db) {
+      console.error('Firebase not initialized')
+      return
+    }
+    
+    
+    // Use collectionGroup to query all subcollections under reports
+    const lostGroup = collectionGroup(db, 'lost')
+    const foundGroup = collectionGroup(db, 'found')
+    const abuseGroup = collectionGroup(db, 'abuse')
     
     let allReports: AdminReport[] = []
     
-    // Helper function to process documents from any collection
-    const processDocs = (docs: any[], collectionType: string): (AdminReport | null)[] => {
+    // Helper function to process documents
+    const processDocs = (docs: any[], collectionType: string): AdminReport[] => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        const type: string = d?.type || collectionType
         
-         // Normalize createdAt: support serverTimestamp, Timestamp-like {seconds}, string, number; pending serverTimestamp -> mark invalid
-         let createdAtIso: string
-         if (d?.createdAt?.toDate) {
-           createdAtIso = d.createdAt.toDate().toISOString()
-         } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
-           createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
-         } else if (typeof d?.createdAt === 'string') {
-           const parsed = new Date(d.createdAt)
-           createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
-         } else if (typeof d?.createdAt === 'number') {
-           const parsed = new Date(d.createdAt)
-           createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
-         } else if (d?.createdAt && typeof d.createdAt === 'object' && (d.createdAt._methodName === 'serverTimestamp' || d.createdAt.__type__ === 'serverTimestamp')) {
-           // Pending serverTimestamp - will resolve on next snapshot
-           createdAtIso = 'Invalid Date'
-         } else {
-           createdAtIso = 'Invalid Date'
-         }
+        // Normalize createdAt
+        let createdAtIso: string
+        if (d?.createdAt?.toDate) {
+          createdAtIso = d.createdAt.toDate().toISOString()
+        } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
+          createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
+        } else if (typeof d?.createdAt === 'string') {
+          const parsed = new Date(d.createdAt)
+          createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
+        } else {
+          createdAtIso = 'Invalid Date'
+        }
         
         const rawStatus: string = (d?.status || 'pending').toString().toLowerCase()
         const status: string = rawStatus === 'open' ? 'pending' : rawStatus
+        
         const base = {
           id: doc.id,
-          type,
+          parentId: doc.ref.parent.parent?.id || 'unknown', // Get parent document ID
+          type: collectionType,
           reporterName: d?.contactName || 'Unknown',
           reporterPhone: d?.contactPhone || '',
           reporterEmail: d?.contactEmail || '',
@@ -123,7 +129,7 @@ const ReportsManagement = () => {
           attachments: [] as string[]
         }
 
-        if (type === 'lost') {
+        if (collectionType === 'lost') {
           return {
             ...base,
             animalName: d?.animalName || 'Unknown',
@@ -136,10 +142,10 @@ const ReportsManagement = () => {
             lastSeenLocation: d?.lastSeenLocation || '',
             lastSeenDate: d?.lastSeenDate || '',
             lastSeenTime: d?.lastSeenTime || '',
-            attachments: d?.uploadObjectKey ? [d.uploadObjectKey] : []
+            attachments: d?.image ? [d.image] : (d?.uploadObjectKey ? [d.uploadObjectKey] : [])
           }
         }
-        if (type === 'found') {
+        if (collectionType === 'found') {
           return {
             ...base,
             animalName: d?.animalName || 'Unknown',
@@ -152,13 +158,12 @@ const ReportsManagement = () => {
             lastSeenLocation: d?.foundLocation || '',
             lastSeenDate: d?.foundDate || '',
             lastSeenTime: d?.foundTime || '',
-            attachments: d?.uploadObjectKey ? [d.uploadObjectKey] : []
+            attachments: d?.image ? [d.image] : (d?.uploadObjectKey ? [d.uploadObjectKey] : [])
           }
         }
-        if (type === 'abuse') {
+        if (collectionType === 'abuse') {
           return {
             ...base,
-            // Abuse reports don't have animal info, use incident info instead
             animalName: 'N/A',
             animalType: 'N/A',
             breed: 'N/A',
@@ -170,7 +175,6 @@ const ReportsManagement = () => {
             lastSeenDate: d?.incidentDate || '',
             lastSeenTime: d?.incidentTime || '',
             attachments: Array.isArray(d?.evidenceObjects) ? d.evidenceObjects : [],
-            // Add abuse-specific fields
             abuseType: d?.abuseType || '',
             animalDescription: d?.animalDescription || '',
             perpetratorDescription: d?.perpetratorDescription || '',
@@ -181,126 +185,37 @@ const ReportsManagement = () => {
       })
     }
     
-    // Use collectionGroup queries to read nested subcollections under reports/*
-    const lostGroup = collectionGroup(db, 'lost')
-    const foundGroup = collectionGroup(db, 'found')
-    const abuseGroup = collectionGroup(db, 'abuse')
-    
-    const unsubscribeReports = onSnapshot(query(abuseGroup), async (snap) => {
-      const reportsData = processDocs(snap.docs, 'abuse').filter((report): report is AdminReport => report !== null)
-      
-      // Load images for each report (similar to Lost&FoundManagement)
-      const reportsWithImages = await Promise.all(
-        reportsData.map(async (report) => {
-          const docData = snap.docs.find(d => d.id === report.id)?.data()
-          let imageUrl: string | undefined
-          
-           // Check for direct image URL first (like Lost&FoundManagement does)
-           if (docData?.image) {
-             imageUrl = docData.image
-             console.log('Using direct image URL for abuse report:', report.id, imageUrl)
-           }
-           // Check for evidenceObjects array (abuse reports)
-           else if (Array.isArray(docData?.evidenceObjects) && docData.evidenceObjects.length > 0) {
-             try {
-               imageUrl = await createSignedEvidenceUrl(docData.evidenceObjects[0], 3600)
-               console.log('Successfully created signed URL for abuse report from evidenceObjects:', report.id, imageUrl)
-             } catch (error) {
-               console.error('Failed to create signed URL for abuse report from evidenceObjects:', report.id, error)
-             }
-           }
-           // Fallback to uploadObjectKey
-           else if (docData?.uploadObjectKey) {
-             try {
-               imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-               console.log('Successfully created signed URL for abuse report:', report.id, imageUrl)
-             } catch (error) {
-               console.error('Failed to create signed URL for abuse report:', report.id, error)
-             }
-           } else {
-             console.log('No image, evidenceObjects, or uploadObjectKey found for abuse report:', report.id)
-           }
-          
-          return { ...report, imageUrl }
-        })
-      )
-      
-      allReports = [...reportsWithImages]
+    // Listen to lost reports
+    const unsubscribeLost = onSnapshot(query(lostGroup), (snap) => {
+      const lostData = processDocs(snap.docs, 'lost')
+      allReports = allReports.filter(r => r.type !== 'lost').concat(lostData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+    }, (error) => {
+      console.error('❌ Error listening to lost reports:', error)
     })
     
-    const unsubscribeLost = onSnapshot(query(lostGroup), async (snap) => {
-      const lostData = processDocs(snap.docs, 'lost').filter((report): report is AdminReport => report !== null)
-      
-      // Load images for each lost report (similar to Lost&FoundManagement)
-      const lostWithImages = await Promise.all(
-        lostData.map(async (report) => {
-          const docData = snap.docs.find(d => d.id === report.id)?.data()
-          let imageUrl: string | undefined
-          
-          // Check for direct image URL first
-          if (docData?.image) {
-            imageUrl = docData.image
-            console.log('Using direct image URL for lost report:', report.id, imageUrl)
-          }
-          // Fallback to uploadObjectKey
-          else if (docData?.uploadObjectKey) {
-            try {
-              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-              console.log('Successfully created signed URL for lost report:', report.id, imageUrl)
-            } catch (error) {
-              console.error('Failed to create signed URL for lost report:', report.id, error)
-            }
-          } else {
-            console.log('No image or uploadObjectKey found for lost report:', report.id)
-          }
-          
-          return { ...report, imageUrl }
-        })
-      )
-      
-      allReports = allReports.filter(r => r.type !== 'lost').concat(lostWithImages)
+    // Listen to found reports
+    const unsubscribeFound = onSnapshot(query(foundGroup), (snap) => {
+      const foundData = processDocs(snap.docs, 'found')
+      allReports = allReports.filter(r => r.type !== 'found').concat(foundData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+    }, (error) => {
+      console.error('❌ Error listening to found reports:', error)
     })
     
-    const unsubscribeFound = onSnapshot(query(foundGroup), async (snap) => {
-      const foundData = processDocs(snap.docs, 'found').filter((report): report is AdminReport => report !== null)
-      
-      // Load images for each found report (similar to Lost&FoundManagement)
-      const foundWithImages = await Promise.all(
-        foundData.map(async (report) => {
-          const docData = snap.docs.find(d => d.id === report.id)?.data()
-          let imageUrl: string | undefined
-          
-          // Check for direct image URL first
-          if (docData?.image) {
-            imageUrl = docData.image
-            console.log('Using direct image URL for found report:', report.id, imageUrl)
-          }
-          // Fallback to uploadObjectKey
-          else if (docData?.uploadObjectKey) {
-            try {
-              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-              console.log('Successfully created signed URL for found report:', report.id, imageUrl)
-            } catch (error) {
-              console.error('Failed to create signed URL for found report:', report.id, error)
-            }
-          } else {
-            console.log('No image or uploadObjectKey found for found report:', report.id)
-          }
-          
-          return { ...report, imageUrl }
-        })
-      )
-      
-      allReports = allReports.filter(r => r.type !== 'found').concat(foundWithImages)
+    // Listen to abuse reports
+    const unsubscribeAbuse = onSnapshot(query(abuseGroup), (snap) => {
+      const abuseData = processDocs(snap.docs, 'abuse')
+      allReports = allReports.filter(r => r.type !== 'abuse').concat(abuseData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+    }, (error) => {
+      console.error('❌ Error listening to abuse reports:', error)
     })
     
     return () => {
-      unsubscribeReports()
       unsubscribeLost()
       unsubscribeFound()
+      unsubscribeAbuse()
     }
   }, [])
 
@@ -388,16 +303,21 @@ const ReportsManagement = () => {
 
   const handleSave = async () => {
     if (!db || !selectedReport) return
-    // Determine the correct collection based on report type
-    const collectionName = selectedReport.type === 'abuse' ? 'reports' : selectedReport.type
-    const ref = doc(db, collectionName, selectedReport.id)
-    await updateDoc(ref, {
-      status: editStatus === 'pending' ? 'pending' : editStatus,
-      priority: editPriority,
-      assignedTo: editAssignedTo || null,
-      published: editPublished
-    })
-    setShowReportModal(false)
+    
+    try {
+      // For the new unified structure, update the subcollection document
+      const ref = doc(db, 'reports', selectedReport.parentId, selectedReport.type, selectedReport.id)
+      await updateDoc(ref, {
+        status: editStatus === 'pending' ? 'open' : editStatus,
+        priority: editPriority,
+        assignedTo: editAssignedTo || null,
+        published: editPublished
+      })
+      setShowReportModal(false)
+    } catch (error) {
+      console.error('Error updating report:', error)
+      // You might want to show a toast error here
+    }
   }
 
   const handleDeleteClick = (report: AdminReport) => {
@@ -425,10 +345,12 @@ const ReportsManagement = () => {
     setShowDeleteConfirm(false)
     
     try {
-      // Determine the correct collection based on report type
-      const collectionName = reportToDelete.type === 'abuse' ? 'reports' : reportToDelete.type
-      const ref = doc(db, collectionName, reportToDelete.id)
-      await deleteDoc(ref)
+      // For the new unified structure, delete from subcollection
+      const report = reports.find(r => r.id === reportToDelete.id)
+      if (report) {
+        const ref = doc(db, 'reports', report.parentId, report.type, reportToDelete.id)
+        await deleteDoc(ref)
+      }
     } finally {
       setDeletingId(null)
       setReportToDelete(null)
@@ -507,6 +429,16 @@ const ReportsManagement = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Reports Management</h1>
           <p className="text-gray-600 mt-2">Review and manage all animal reports from the public.</p>
+          <div className="mt-4 flex items-center space-x-4">
+            <span className="text-sm text-gray-500">Total Reports: {reports.length}</span>
+            <span className="text-sm text-gray-500">Filtered: {filteredReports.length}</span>
+            <button
+              onClick={() => {}}
+              className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded"
+            >
+              View Reports
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -609,19 +541,15 @@ const ReportsManagement = () => {
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900 capitalize">{report.type}</div>
+                          <div className="text-xs text-gray-500">ID: {report.id.slice(0, 8)}...</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {report.imageUrl ? (
-                        <img 
-                          src={report.imageUrl} 
-                          alt="Report attachment" 
-                          className="w-12 h-12 object-cover rounded-lg border border-gray-200"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
+                      {report.attachments && report.attachments.length > 0 ? (
+                        <div className="w-12 h-12 bg-green-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                          <span className="text-green-600 text-xs font-medium">{report.attachments.length}</span>
+                        </div>
                       ) : (
                         <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
                           <span className="text-gray-400 text-xs">No image</span>
@@ -665,7 +593,11 @@ const ReportsManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        <button onClick={() => handleViewReport(report, true)} className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
+                        <button onClick={() => handleViewReport(report)} className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
+                          <Eye className="h-4 w-4" />
+                          <span>View</span>
+                        </button>
+                        <button onClick={() => handleViewReport(report, true)} className="text-orange-600 hover:text-orange-900 flex items-center space-x-1">
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
                         </button>
@@ -677,6 +609,13 @@ const ReportsManagement = () => {
                     </td>
                   </tr>
                 ))}
+                {filteredReports.length === 0 && (
+                  <tr>
+                    <td className="px-6 py-12 text-center text-gray-500" colSpan={8}>
+                      {reports.length === 0 ? 'No reports yet.' : 'No reports match your filters.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -694,7 +633,7 @@ const ReportsManagement = () => {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 capitalize">{selectedReport.type} Report</h2>
-                    <p className="text-sm text-gray-600">#{selectedReport.id}</p>
+                    <p className="text-sm text-gray-600">ID: {selectedReport.id.slice(0, 12)}...</p>
                   </div>
                 </div>
                 <button

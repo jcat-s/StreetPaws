@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   BarChart3, 
   TrendingUp, 
@@ -9,59 +9,88 @@ import {
   DollarSign,
   CheckCircle
 } from 'lucide-react'
+import { db } from '../../config/firebase'
+import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
 
-// Mock data - In production, this would come from your database
-const MOCK_ANALYTICS = {
-  overview: {
-    totalReports: 156,
-    totalAdoptions: 47,
-    totalAnimals: 89,
-    totalDonations: 125000,
-    monthlyGrowth: 12.5,
-    adoptionRate: 68.2,
-    resolutionRate: 85.3
-  },
-  reportsByType: [
-    { type: 'Lost', count: 67, percentage: 43 },
-    { type: 'Found', count: 45, percentage: 29 },
-    { type: 'Abuse', count: 44, percentage: 28 }
-  ],
-  reportsByStatus: [
-    { status: 'Resolved', count: 133, percentage: 85.3 },
-    { status: 'Investigating', count: 15, percentage: 9.6 },
-    { status: 'Pending', count: 8, percentage: 5.1 }
-  ],
-  adoptionsByMonth: [
-    { month: 'Jan', adoptions: 12, applications: 18 },
-    { month: 'Feb', adoptions: 15, applications: 22 },
-    { month: 'Mar', adoptions: 8, applications: 14 },
-    { month: 'Apr', adoptions: 20, applications: 28 },
-    { month: 'May', adoptions: 18, applications: 25 },
-    { month: 'Jun', adoptions: 22, applications: 32 }
-  ],
-  topBarangays: [
-    { barangay: 'Barangay 1', reports: 23, adoptions: 8 },
-    { barangay: 'Barangay 3', reports: 19, adoptions: 6 },
-    { barangay: 'Barangay 5', reports: 17, adoptions: 5 },
-    { barangay: 'Barangay 2', reports: 15, adoptions: 4 },
-    { barangay: 'Barangay 4', reports: 12, adoptions: 3 }
-  ],
-  animalTypes: [
-    { type: 'Dogs', count: 67, percentage: 75.3 },
-    { type: 'Cats', count: 22, percentage: 24.7 }
-  ],
-  monthlyTrends: [
-    { month: 'Jan', reports: 18, adoptions: 12, donations: 15000 },
-    { month: 'Feb', reports: 22, adoptions: 15, donations: 18000 },
-    { month: 'Mar', reports: 15, adoptions: 8, donations: 12000 },
-    { month: 'Apr', reports: 28, adoptions: 20, donations: 22000 },
-    { month: 'May', reports: 25, adoptions: 18, donations: 20000 },
-    { month: 'Jun', reports: 32, adoptions: 22, donations: 25000 }
-  ]
-}
+// Real data from database
 
 const AnalyticsDashboard = () => {
   const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'adoptions' | 'geographic'>('overview')
+  const [reports, setReports] = useState<any[]>([])
+  const [adoptions, setAdoptions] = useState<any[]>([])
+  const [donations, setDonations] = useState<any[]>([])
+  const [animals, setAnimals] = useState<any[]>([])
+
+  // Fetch data from database
+  useEffect(() => {
+    if (!db) return
+
+    const unsubscribeFunctions: (() => void)[] = []
+
+    // Fetch reports
+    const reportsQuery = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+    const unsubscribeReports = onSnapshot(reportsQuery, (snapshot) => {
+      const reportsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setReports(reportsData)
+    })
+    unsubscribeFunctions.push(unsubscribeReports)
+
+    // Fetch adoptions
+    const adoptionsQuery = query(collection(db, 'adoptions'), orderBy('createdAt', 'desc'))
+    const unsubscribeAdoptions = onSnapshot(adoptionsQuery, (snapshot) => {
+      const adoptionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setAdoptions(adoptionsData)
+    })
+    unsubscribeFunctions.push(unsubscribeAdoptions)
+
+    // Fetch donations
+    const donationsQuery = query(collection(db, 'donations'), orderBy('createdAt', 'desc'))
+    const unsubscribeDonations = onSnapshot(donationsQuery, (snapshot) => {
+      const donationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setDonations(donationsData)
+    })
+    unsubscribeFunctions.push(unsubscribeDonations)
+
+    // Fetch animals
+    const animalsQuery = query(collection(db, 'animals'), orderBy('createdAt', 'desc'))
+    const unsubscribeAnimals = onSnapshot(animalsQuery, (snapshot) => {
+      const animalsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      setAnimals(animalsData)
+    })
+    unsubscribeFunctions.push(unsubscribeAnimals)
+
+
+    return () => {
+      unsubscribeFunctions.forEach(unsubscribe => unsubscribe())
+    }
+  }, [])
+
+  // Calculate analytics from real data
+  const analytics = {
+    overview: {
+      totalReports: reports.length,
+      totalAdoptions: adoptions.filter(a => a.status === 'approved').length,
+      totalAnimals: animals.length,
+      totalDonations: donations.filter(d => d.status === 'verified').reduce((sum, d) => sum + (d.amount || 0), 0),
+      monthlyGrowth: 0, // Would need historical data to calculate
+      adoptionRate: adoptions.length > 0 ? (adoptions.filter(a => a.status === 'approved').length / adoptions.length) * 100 : 0,
+      resolutionRate: reports.length > 0 ? (reports.filter(r => r.status === 'resolved').length / reports.length) * 100 : 0
+    },
+    reportsByType: [
+      { type: 'Lost', count: reports.filter(r => r.type === 'lost').length, percentage: reports.length > 0 ? (reports.filter(r => r.type === 'lost').length / reports.length) * 100 : 0 },
+      { type: 'Found', count: reports.filter(r => r.type === 'found').length, percentage: reports.length > 0 ? (reports.filter(r => r.type === 'found').length / reports.length) * 100 : 0 },
+      { type: 'Abuse', count: reports.filter(r => r.type === 'abuse').length, percentage: reports.length > 0 ? (reports.filter(r => r.type === 'abuse').length / reports.length) * 100 : 0 }
+    ],
+    reportsByStatus: [
+      { status: 'Resolved', count: reports.filter(r => r.status === 'resolved').length, percentage: reports.length > 0 ? (reports.filter(r => r.status === 'resolved').length / reports.length) * 100 : 0 },
+      { status: 'Investigating', count: reports.filter(r => r.status === 'investigating').length, percentage: reports.length > 0 ? (reports.filter(r => r.status === 'investigating').length / reports.length) * 100 : 0 },
+      { status: 'Pending', count: reports.filter(r => r.status === 'pending').length, percentage: reports.length > 0 ? (reports.filter(r => r.status === 'pending').length / reports.length) * 100 : 0 }
+    ],
+    animalTypes: [
+      { type: 'Dogs', count: animals.filter(a => a.animalType === 'dog').length, percentage: animals.length > 0 ? (animals.filter(a => a.animalType === 'dog').length / animals.length) * 100 : 0 },
+      { type: 'Cats', count: animals.filter(a => a.animalType === 'cat').length, percentage: animals.length > 0 ? (animals.filter(a => a.animalType === 'cat').length / animals.length) * 100 : 0 }
+    ]
+  }
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
@@ -92,8 +121,8 @@ const AnalyticsDashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Reports</p>
-                <p className="text-2xl font-bold text-gray-900">{MOCK_ANALYTICS.overview.totalReports}</p>
-                <p className="text-xs text-green-600">+{MOCK_ANALYTICS.overview.monthlyGrowth}% this month</p>
+                <p className="text-2xl font-bold text-gray-900">{analytics.overview.totalReports}</p>
+                <p className="text-xs text-gray-500">Total reports received</p>
               </div>
             </div>
           </div>
@@ -105,8 +134,8 @@ const AnalyticsDashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Adoptions</p>
-                <p className="text-2xl font-bold text-gray-900">{MOCK_ANALYTICS.overview.totalAdoptions}</p>
-                <p className="text-xs text-green-600">{formatPercentage(MOCK_ANALYTICS.overview.adoptionRate)} success rate</p>
+                <p className="text-2xl font-bold text-gray-900">{analytics.overview.totalAdoptions}</p>
+                <p className="text-xs text-green-600">{formatPercentage(analytics.overview.adoptionRate)} success rate</p>
               </div>
             </div>
           </div>
@@ -118,7 +147,7 @@ const AnalyticsDashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Animals in Care</p>
-                <p className="text-2xl font-bold text-gray-900">{MOCK_ANALYTICS.overview.totalAnimals}</p>
+                <p className="text-2xl font-bold text-gray-900">{analytics.overview.totalAnimals}</p>
                 <p className="text-xs text-gray-500">Currently in shelter</p>
               </div>
             </div>
@@ -131,8 +160,8 @@ const AnalyticsDashboard = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Donations</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(MOCK_ANALYTICS.overview.totalDonations)}</p>
-                <p className="text-xs text-green-600">+15% this month</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(analytics.overview.totalDonations)}</p>
+                <p className="text-xs text-gray-500">Verified donations</p>
               </div>
             </div>
           </div>
@@ -178,7 +207,7 @@ const AnalyticsDashboard = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-blue-600">Resolution Rate</p>
-                          <p className="text-3xl font-bold text-blue-900">{formatPercentage(MOCK_ANALYTICS.overview.resolutionRate)}</p>
+                          <p className="text-3xl font-bold text-blue-900">{formatPercentage(analytics.overview.resolutionRate)}</p>
                         </div>
                         <CheckCircle className="h-8 w-8 text-blue-600" />
                       </div>
@@ -187,7 +216,7 @@ const AnalyticsDashboard = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-green-600">Adoption Success Rate</p>
-                          <p className="text-3xl font-bold text-green-900">{formatPercentage(MOCK_ANALYTICS.overview.adoptionRate)}</p>
+                          <p className="text-3xl font-bold text-green-900">{formatPercentage(analytics.overview.adoptionRate)}</p>
                         </div>
                         <Heart className="h-8 w-8 text-green-600" />
                       </div>
@@ -196,7 +225,7 @@ const AnalyticsDashboard = () => {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-orange-600">Monthly Growth</p>
-                          <p className="text-3xl font-bold text-orange-900">+{formatPercentage(MOCK_ANALYTICS.overview.monthlyGrowth)}</p>
+                          <p className="text-3xl font-bold text-orange-900">N/A</p>
                         </div>
                         <TrendingUp className="h-8 w-8 text-orange-600" />
                       </div>
@@ -204,32 +233,26 @@ const AnalyticsDashboard = () => {
                   </div>
                 </div>
 
-                {/* Monthly Trends Chart */}
+                {/* Current Data Summary */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Trends</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Data Summary</h3>
                   <div className="bg-gray-50 p-6 rounded-lg">
-                    <div className="grid grid-cols-6 gap-4">
-                      {MOCK_ANALYTICS.monthlyTrends.map((trend) => (
-                        <div key={trend.month} className="text-center">
-                          <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <p className="text-sm font-medium text-gray-900">{trend.month}</p>
-                            <div className="mt-2 space-y-1">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-blue-600">Reports</span>
-                                <span className="font-medium">{trend.reports}</span>
-                              </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-green-600">Adoptions</span>
-                                <span className="font-medium">{trend.adoptions}</span>
-                              </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-orange-600">Donations</span>
-                                <span className="font-medium">{formatCurrency(trend.donations)}</span>
-                              </div>
-                            </div>
-                          </div>
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">Historical trends will be available as more data is collected.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Total Reports</p>
+                          <p className="text-2xl font-bold text-blue-600">{analytics.overview.totalReports}</p>
                         </div>
-                      ))}
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Total Adoptions</p>
+                          <p className="text-2xl font-bold text-green-600">{analytics.overview.totalAdoptions}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Total Donations</p>
+                          <p className="text-2xl font-bold text-orange-600">{formatCurrency(analytics.overview.totalDonations)}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -238,7 +261,7 @@ const AnalyticsDashboard = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Types Distribution</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {MOCK_ANALYTICS.animalTypes.map((animal) => (
+                    {analytics.animalTypes.map((animal) => (
                       <div key={animal.type} className="bg-gray-50 p-6 rounded-lg">
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="font-medium text-gray-900">{animal.type}</h4>
@@ -264,7 +287,7 @@ const AnalyticsDashboard = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Reports by Type</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {MOCK_ANALYTICS.reportsByType.map((report) => (
+                    {analytics.reportsByType.map((report) => (
                       <div key={report.type} className="bg-gray-50 p-6 rounded-lg">
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="font-medium text-gray-900">{report.type}</h4>
@@ -289,7 +312,7 @@ const AnalyticsDashboard = () => {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Reports by Status</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {MOCK_ANALYTICS.reportsByStatus.map((status) => (
+                    {analytics.reportsByStatus.map((status) => (
                       <div key={status.status} className="bg-gray-50 p-6 rounded-lg">
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="font-medium text-gray-900">{status.status}</h4>
@@ -314,31 +337,26 @@ const AnalyticsDashboard = () => {
 
             {activeTab === 'adoptions' && (
               <div className="space-y-8">
-                {/* Adoption Trends */}
+                {/* Adoption Summary */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Adoption Trends</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Adoption Summary</h3>
                   <div className="bg-gray-50 p-6 rounded-lg">
-                    <div className="grid grid-cols-6 gap-4">
-                      {MOCK_ANALYTICS.adoptionsByMonth.map((month) => (
-                        <div key={month.month} className="text-center">
-                          <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <p className="text-sm font-medium text-gray-900">{month.month}</p>
-                            <div className="mt-2 space-y-1">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-green-600">Adoptions</span>
-                                <span className="font-medium">{month.adoptions}</span>
-                              </div>
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-blue-600">Applications</span>
-                                <span className="font-medium">{month.applications}</span>
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {formatPercentage((month.adoptions / month.applications) * 100)} success
-                              </div>
-                            </div>
-                          </div>
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">Historical adoption trends will be available as more data is collected.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Total Applications</p>
+                          <p className="text-2xl font-bold text-blue-600">{adoptions.length}</p>
                         </div>
-                      ))}
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Approved Adoptions</p>
+                          <p className="text-2xl font-bold text-green-600">{adoptions.filter(a => a.status === 'approved').length}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Success Rate</p>
+                          <p className="text-2xl font-bold text-orange-600">{formatPercentage(analytics.overview.adoptionRate)}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -347,28 +365,22 @@ const AnalyticsDashboard = () => {
 
             {activeTab === 'geographic' && (
               <div className="space-y-8">
-                {/* Top Barangays */}
+                {/* Geographic Summary */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Barangays by Activity</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Distribution</h3>
                   <div className="bg-gray-50 p-6 rounded-lg">
-                    <div className="space-y-4">
-                      {MOCK_ANALYTICS.topBarangays.map((barangay, index) => (
-                        <div key={barangay.barangay} className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
-                          <div className="flex items-center space-x-4">
-                            <div className="bg-orange-100 p-2 rounded-full">
-                              <span className="text-orange-600 font-bold">{index + 1}</span>
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900">{barangay.barangay}</h4>
-                              <p className="text-sm text-gray-600">{barangay.reports} reports • {barangay.adoptions} adoptions</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-900">{barangay.reports + barangay.adoptions} total</p>
-                            <p className="text-xs text-gray-500">activities</p>
-                          </div>
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">Geographic analytics will be available when location data is properly tracked in reports.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Reports with Location</p>
+                          <p className="text-2xl font-bold text-blue-600">{reports.filter(r => r.barangay || r.location).length}</p>
                         </div>
-                      ))}
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Total Reports</p>
+                          <p className="text-2xl font-bold text-green-600">{reports.length}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

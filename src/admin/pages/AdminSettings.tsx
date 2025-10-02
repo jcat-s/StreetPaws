@@ -8,9 +8,6 @@ import {
   Save,
   Eye,
   EyeOff,
-  Plus,
-  Trash2,
-  Edit
 } from 'lucide-react'
 
 const AdminSettings = () => {
@@ -19,54 +16,8 @@ const AdminSettings = () => {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  // Mock admin users
-  const [adminUsers] = useState([
-    {
-      id: '1',
-      name: 'Dr. Maria Santos',
-      email: 'admin@streetpaws.gov.ph',
-      role: 'admin',
-      department: 'Veterinary Services',
-      lastLogin: '2024-01-15T10:30:00Z',
-      status: 'active'
-    },
-    {
-      id: '2',
-      name: 'Dr. Juan Dela Cruz',
-      email: 'superadmin@streetpaws.gov.ph',
-      role: 'super_admin',
-      department: 'Administration',
-      lastLogin: '2024-01-15T09:15:00Z',
-      status: 'active'
-    },
-    {
-      id: '3',
-      name: 'Dr. Ana Rodriguez',
-      email: 'vet@streetpaws.gov.ph',
-      role: 'admin',
-      department: 'Animal Care',
-      lastLogin: '2024-01-14T16:45:00Z',
-      status: 'active'
-    }
-  ])
+  // Admin users are managed through the authentication system
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800'
-      case 'admin': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -222,60 +173,12 @@ const AdminSettings = () => {
 
                 {/* Admin Users Management */}
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-md font-medium text-gray-900">Admin Users</h4>
-                    <button className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
-                      <Plus className="h-4 w-4" />
-                      <span>Add Admin</span>
-                    </button>
-                  </div>
-                  
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {adminUsers.map((user) => (
-                          <tr key={user.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{user.email}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(user.role)}`}>
-                                {user.role.replace('_', ' ').toUpperCase()}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{user.department}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{formatDate(user.lastLogin)}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div className="flex items-center space-x-2">
-                                <button className="text-blue-600 hover:text-blue-900">
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button className="text-red-600 hover:text-red-900">
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Admin Users</h4>
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">Admin user management is handled through the authentication system.</p>
+                      <p className="text-sm text-gray-500">To add or manage admin users, please use the Firebase Authentication console or contact the system administrator.</p>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   </div>
                 </div>
               </div>

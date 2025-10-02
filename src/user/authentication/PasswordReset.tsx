@@ -31,13 +31,6 @@ const PasswordReset = ({ resetCode: propResetCode, email: propEmail, onClose, is
   const resetCode = propResetCode || searchParams.get('oobCode')
   const email = propEmail || searchParams.get('email')
   
-  // Debug logging
-  useEffect(() => {
-    console.log('PasswordReset component mounted')
-    console.log('Props:', { propResetCode, propEmail, onClose, isModal })
-    console.log('URL params:', { resetCode, email })
-    console.log('All search params:', Object.fromEntries(searchParams.entries()))
-  }, [propResetCode, propEmail, onClose, isModal, resetCode, email, searchParams])
   
   const {
     register,

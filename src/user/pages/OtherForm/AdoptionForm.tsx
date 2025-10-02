@@ -78,9 +78,6 @@ const AdoptionForm = () => {
   const hasChildren = watch('hasChildren') === 'true'
 
   const onSubmit = async (data: AdoptionFormData) => {
-    console.log('Form submission started with data:', data)
-    console.log('Form errors:', errors)
-    console.log('Is form valid?', Object.keys(errors).length === 0)
     
     setIsSubmitting(true)
     try {
@@ -89,8 +86,6 @@ const AdoptionForm = () => {
         throw new Error('Firestore not initialized')
       }
       
-      console.log('Firebase db instance:', db)
-      console.log('Animal ID from params:', animalId)
       
       const adoptionData = {
         userId: currentUser?.uid || null,
@@ -137,11 +132,8 @@ const AdoptionForm = () => {
         Object.entries(adoptionData).filter(([, v]) => v !== undefined)
       )
 
-      console.log('Submitting adoption data to Firestore:', payload)
-      console.log('Collection reference:', collection(db, 'adoptions'))
       
       const docRef = await addDoc(collection(db, 'adoptions'), payload)
-      console.log('Adoption application submitted successfully with ID:', docRef.id)
       
       toast.success('Adoption application submitted successfully! We will contact you within 3-5 business days.')
       reset()
@@ -171,8 +163,6 @@ const AdoptionForm = () => {
         </p>
 
         <form onSubmit={handleSubmit(onSubmit, (errors) => {
-          console.log('Form validation failed:', errors)
-          console.log('Number of validation errors:', Object.keys(errors).length)
         })} className="space-y-8">
           {/* Personal Information */}
           <div className="bg-white rounded-lg p-6">

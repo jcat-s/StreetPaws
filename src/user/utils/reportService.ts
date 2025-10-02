@@ -1,4 +1,4 @@
-import { collection, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, collectionGroup } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { supabase } from '../../config/supabase'
 
@@ -182,7 +182,8 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
     const parentRef = await addDoc(collection(db, 'reports'), {
       createdAt: serverTimestamp(),
       createdBy: userId || null,
-      status: 'open'
+      status: 'open',
+      type: cleaned.type // Add type to parent for easier querying
     })
 
     // Determine subcollection by type
@@ -264,7 +265,8 @@ export async function submitAbuseReport(data: AbuseReportData, files: File[], us
     const parentRef = await addDoc(collection(db, 'reports'), {
       createdAt: serverTimestamp(),
       createdBy: userId || null,
-      status: 'open'
+      status: 'open',
+      type: 'abuse' // Add type to parent for easier querying
     })
 
     const docRef = await addDoc(collection(db, 'reports', parentRef.id, 'abuse'), {

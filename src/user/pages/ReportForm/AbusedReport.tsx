@@ -57,10 +57,6 @@ const AbusedReport = () => {
     const barangays = LIPA_BARANGAYS
 
     const onSubmit = async (data: AbusedAnimalFormData) => {
-        console.log('Abuse report submission started with data:', data)
-        console.log('Uploaded files:', uploadedFiles)
-        console.log('Form errors:', errors)
-        console.log('User ID:', currentUser?.uid)
         
         setIsSubmitting(true)
         try {
@@ -80,7 +76,6 @@ const AbusedReport = () => {
             }
             
             const result = await submitAbuseReport(reportData, uploadedFiles, currentUser?.uid || null)
-            console.log('Abuse report submitted successfully with ID:', result)
             toast.success('Abuse report submitted')
             reset(); setUploadedFiles([]); setFilePreviews([])
             navigate(-1)

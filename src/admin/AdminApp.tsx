@@ -52,9 +52,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
             </button>
           </div>
         </div>
-        <AdminLoginModal 
-          isOpen={showLoginModal} 
-          onClose={() => setShowLoginModal(false)} 
+        <AdminLoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
         />
       </>
     )
@@ -118,20 +118,20 @@ const AdminAppContent = () => {
     <AdminLayout>
       <Routes>
         <Route path="/" element={<AdminDashboard />} />
-        <Route path="/reports" element={<ReportsManagement />} />
-        <Route path="/adoptions" element={<AdoptionsManagement />} />
-        <Route path="/animals" element={<AnimalsManagement />} />
-        <Route path="/lost" element={<ReportsManagement />} />
-        <Route path="/found" element={<ReportsManagement />} />
-        <Route path="/abuse" element={<ReportsManagement />} />
-        <Route path="/volunteers" element={<Volunteers />} />
-        <Route path="/donors" element={<Donors />} />
-        <Route path="/analytics" element={<AnalyticsDashboard />} />
-        <Route path="/heatmap" element={<Heatmap />} />
-        <Route path="/content" element={<ContentHome />} />
-        <Route path="/content/animals" element={<AnimalsManagement />} />
-        <Route path="/settings" element={<AdminSettings />} />
-        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="reports" element={<ReportsManagement />} />
+        <Route path="adoptions" element={<AdoptionsManagement />} />
+        <Route path="animals" element={<AnimalsManagement />} />
+        <Route path="lost" element={<ReportsManagement />} />
+        <Route path="found" element={<ReportsManagement />} />
+        <Route path="abuse" element={<ReportsManagement />} />
+        <Route path="volunteers" element={<Volunteers />} />
+        <Route path="donors" element={<Donors />} />
+        <Route path="analytics" element={<AnalyticsDashboard />} />
+        <Route path="heatmap" element={<Heatmap />} />
+        <Route path="content" element={<ContentHome />} />
+        <Route path="content/animals" element={<AnimalsManagement />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AdminLayout>
   )

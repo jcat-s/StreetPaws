@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { collection, doc, onSnapshot, orderBy, query, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc, collectionGroup } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { createSignedEvidenceUrl } from '../../user/utils/reportService'
 import { 
@@ -88,11 +88,27 @@ const ReportsManagement = () => {
         const d: any = doc.data()
         const type: string = d?.type || collectionType
         
-         // Handle serverTimestamp properly - match DonorsManagement logic
-         const createdAt = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : 'Invalid Date')
-         let createdAtIso: string = createdAt
+         // Normalize createdAt: support serverTimestamp, Timestamp-like {seconds}, string, number; pending serverTimestamp -> mark invalid
+         let createdAtIso: string
+         if (d?.createdAt?.toDate) {
+           createdAtIso = d.createdAt.toDate().toISOString()
+         } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
+           createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
+         } else if (typeof d?.createdAt === 'string') {
+           const parsed = new Date(d.createdAt)
+           createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
+         } else if (typeof d?.createdAt === 'number') {
+           const parsed = new Date(d.createdAt)
+           createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
+         } else if (d?.createdAt && typeof d.createdAt === 'object' && (d.createdAt._methodName === 'serverTimestamp' || d.createdAt.__type__ === 'serverTimestamp')) {
+           // Pending serverTimestamp - will resolve on next snapshot
+           createdAtIso = 'Invalid Date'
+         } else {
+           createdAtIso = 'Invalid Date'
+         }
         
-        const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
+        const rawStatus: string = (d?.status || 'pending').toString().toLowerCase()
+        const status: string = rawStatus === 'open' ? 'pending' : rawStatus
         const base = {
           id: doc.id,
           type,
@@ -165,12 +181,12 @@ const ReportsManagement = () => {
       })
     }
     
-    // Query all report collections
-    const reportsQuery = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
-    const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
-    const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
+    // Use collectionGroup queries to read nested subcollections under reports/*
+    const lostGroup = collectionGroup(db, 'lost')
+    const foundGroup = collectionGroup(db, 'found')
+    const abuseGroup = collectionGroup(db, 'abuse')
     
-    const unsubscribeReports = onSnapshot(reportsQuery, async (snap) => {
+    const unsubscribeReports = onSnapshot(query(abuseGroup), async (snap) => {
       const reportsData = processDocs(snap.docs, 'abuse').filter((report): report is AdminReport => report !== null)
       
       // Load images for each report (similar to Lost&FoundManagement)
@@ -213,7 +229,7 @@ const ReportsManagement = () => {
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
     })
     
-    const unsubscribeLost = onSnapshot(lostQuery, async (snap) => {
+    const unsubscribeLost = onSnapshot(query(lostGroup), async (snap) => {
       const lostData = processDocs(snap.docs, 'lost').filter((report): report is AdminReport => report !== null)
       
       // Load images for each lost report (similar to Lost&FoundManagement)
@@ -247,7 +263,7 @@ const ReportsManagement = () => {
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
     })
     
-    const unsubscribeFound = onSnapshot(foundQuery, async (snap) => {
+    const unsubscribeFound = onSnapshot(query(foundGroup), async (snap) => {
       const foundData = processDocs(snap.docs, 'found').filter((report): report is AdminReport => report !== null)
       
       // Load images for each found report (similar to Lost&FoundManagement)

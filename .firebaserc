@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "streetpaws2"
-  }
+  },
+  "targets": {
+    "streetpaws2": {
+      "hosting": {
+        "user": [
+          "streetpaws2"
+        ],
+        "admin": [
+          "streetpaws2-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

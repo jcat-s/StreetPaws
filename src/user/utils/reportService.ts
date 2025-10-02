@@ -125,6 +125,7 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 		additionalDetails: data.additionalDetails || undefined,
 		status: 'open' as const,
 		createdAt: serverTimestamp(),
+		createdAtMs: Date.now(),
 		createdBy: userId || null,
 		submissionId // Add unique identifier
 	}
@@ -178,42 +179,30 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 	const cleaned = omitUndefinedDeep(payload)
 	
 	try {
-    // Create a parent container document under reports to group subcollections
-    const parentRef = await addDoc(collection(db, 'reports'), {
-      createdAt: serverTimestamp(),
-      createdBy: userId || null,
-      status: 'open',
-      type: cleaned.type // Add type to parent for easier querying
-    })
-
-    // Determine subcollection by type
-    const subcollectionName = (cleaned.type === 'lost' || cleaned.type === 'found' || cleaned.type === 'abuse') ? cleaned.type as string : 'abuse'
-
-    // Write the report in nested subcollection with its own createdAt
-    const childRef = await addDoc(collection(db, 'reports', parentRef.id, subcollectionName), cleaned)
+    // Use simple collection names: reports-lost, reports-found, reports-abuse
+    const collectionName = `reports-${cleaned.type}`
+    const docRef = await addDoc(collection(db, collectionName), cleaned)
 
     if (file && (reportType === 'lost' || reportType === 'found')) {
 			try {
         const { signedUrl } = await uploadImage(file, userId, reportType)
-        await updateDoc(doc(db, 'reports', parentRef.id, subcollectionName, childRef.id), { image: signedUrl })
+        await updateDoc(doc(db, collectionName, docRef.id), { image: signedUrl })
 			} catch (err) {
-        await deleteDoc(doc(db, 'reports', parentRef.id, subcollectionName, childRef.id))
-        await deleteDoc(doc(db, 'reports', parentRef.id))
+        await deleteDoc(doc(db, collectionName, docRef.id))
         throw new Error('Image upload failed, report not saved.')
 			}
 		} else if (file) {
 			// fallback for other types (abuse)
 			try {
 				const { key } = await uploadImage(file, userId)
-        await updateDoc(doc(db, 'reports', parentRef.id, subcollectionName, childRef.id), { uploadObjectKey: key })
+        await updateDoc(doc(db, collectionName, docRef.id), { uploadObjectKey: key })
 			} catch (err) {
-        await deleteDoc(doc(db, 'reports', parentRef.id, subcollectionName, childRef.id))
-        await deleteDoc(doc(db, 'reports', parentRef.id))
+        await deleteDoc(doc(db, collectionName, docRef.id))
         throw new Error('Image upload failed, report not saved.')
 			}
 		}
 
-    return childRef.id
+    return docRef.id
 	} catch (error) {
 		console.error('Report submission failed:', error)
 		throw error
@@ -239,6 +228,7 @@ export async function submitAbuseReport(data: AbuseReportData, files: File[], us
 		additionalDetails: data.additionalDetails || undefined,
 		status: 'open' as const,
 		createdAt: serverTimestamp(),
+		createdAtMs: Date.now(),
 		createdBy: userId || null,
 		submissionId
 	}
@@ -261,15 +251,8 @@ export async function submitAbuseReport(data: AbuseReportData, files: File[], us
 		// First upload all files
 		const uploadedKeys = await uploadMultipleFiles(files, userId)
 		
-		// Then create the document with all file keys
-    const parentRef = await addDoc(collection(db, 'reports'), {
-      createdAt: serverTimestamp(),
-      createdBy: userId || null,
-      status: 'open',
-      type: 'abuse' // Add type to parent for easier querying
-    })
-
-    const docRef = await addDoc(collection(db, 'reports', parentRef.id, 'abuse'), {
+		// Use simple collection name: reports-abuse
+    const docRef = await addDoc(collection(db, 'reports-abuse'), {
       ...cleaned,
       evidenceObjects: uploadedKeys
     })

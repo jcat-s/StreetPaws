@@ -30,38 +30,10 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
     
-    // Reports collection parent docs - container for subcollections
-    match /reports/{reportId} {
-      allow read: if isAdmin();
-      allow create: if true; // allow creation of parent container
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-      
-      // Lost subcollection
-      match /lost/{subId} {
-        allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
-        allow create: if true;
-        allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
-        allow delete: if isAdmin();
-      }
-      // Found subcollection
-      match /found/{subId} {
-        allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
-        allow create: if true;
-        allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
-        allow delete: if isAdmin();
-      }
-      // Abuse subcollection
-      match /abuse/{subId} {
-        allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid);
-        allow create: if true;
-        allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid);
-        allow delete: if isAdmin();
-      }
-    }
+    // Reports collections - new simplified structure
     
     // Lost reports collection - anyone can create, admins can read/write
-    match /lost/{reportId} {
+    match /reports-lost/{reportId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
       allow create: if true;
       allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
@@ -69,22 +41,19 @@ service cloud.firestore {
     }
     
     // Found reports collection - anyone can create, admins can read/write
-    match /found/{reportId} {
+    match /reports-found/{reportId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
       allow create: if true;
       allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
       allow delete: if isAdmin();
     }
     
-    // Allow collectionGroup queries on nested subcollections
-    match /{path=**}/lost/{doc} {
-      allow read: if true;
-    }
-    match /{path=**}/found/{doc} {
-      allow read: if true;
-    }
-    match /{path=**}/abuse/{doc} {
-      allow read: if true;
+    // Abuse reports collection - anyone can create, admins can read/write
+    match /reports-abuse/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow create: if true;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow delete: if isAdmin();
     }
     
     // Animals collection - public can read published, admins can manage

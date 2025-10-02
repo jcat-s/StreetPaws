@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { collection, collectionGroup, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { createSignedEvidenceUrl } from '../../user/utils/reportService'
 import { 
@@ -85,11 +85,10 @@ const ReportsManagement = () => {
       return
     }
     
-    
-    // Use collectionGroup to query all subcollections under reports
-    const lostGroup = collectionGroup(db, 'lost')
-    const foundGroup = collectionGroup(db, 'found')
-    const abuseGroup = collectionGroup(db, 'abuse')
+    // Query the new simplified collections: reports-lost, reports-found, reports-abuse
+    const lostCollection = collection(db, 'reports-lost')
+    const foundCollection = collection(db, 'reports-found')
+    const abuseCollection = collection(db, 'reports-abuse')
     
     let allReports: AdminReport[] = []
     
@@ -98,12 +97,17 @@ const ReportsManagement = () => {
       return docs.map((doc) => {
         const d: any = doc.data()
         
-        // Normalize createdAt
+        // Normalize createdAt - prefer Firestore timestamp, fall back to createdAtMs, then submissionId prefix
         let createdAtIso: string
         if (d?.createdAt?.toDate) {
           createdAtIso = d.createdAt.toDate().toISOString()
         } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
           createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
+        } else if (typeof d?.createdAtMs === 'number') {
+          createdAtIso = new Date(d.createdAtMs).toISOString()
+        } else if (typeof d?.submissionId === 'string' && /^\d+\-/.test(d.submissionId)) {
+          const ms = Number(d.submissionId.split('-')[0])
+          createdAtIso = isNaN(ms) ? 'Invalid Date' : new Date(ms).toISOString()
         } else if (typeof d?.createdAt === 'string') {
           const parsed = new Date(d.createdAt)
           createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
@@ -116,7 +120,7 @@ const ReportsManagement = () => {
         
         const base = {
           id: doc.id,
-          parentId: doc.ref.parent.parent?.id || 'unknown', // Get parent document ID
+          parentId: doc.id, // For the new structure, parentId is the same as id
           type: collectionType,
           reporterName: d?.contactName || 'Unknown',
           reporterPhone: d?.contactPhone || '',
@@ -186,7 +190,7 @@ const ReportsManagement = () => {
     }
     
     // Listen to lost reports
-    const unsubscribeLost = onSnapshot(query(lostGroup), (snap) => {
+    const unsubscribeLost = onSnapshot(query(lostCollection), (snap) => {
       const lostData = processDocs(snap.docs, 'lost')
       allReports = allReports.filter(r => r.type !== 'lost').concat(lostData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
@@ -195,7 +199,7 @@ const ReportsManagement = () => {
     })
     
     // Listen to found reports
-    const unsubscribeFound = onSnapshot(query(foundGroup), (snap) => {
+    const unsubscribeFound = onSnapshot(query(foundCollection), (snap) => {
       const foundData = processDocs(snap.docs, 'found')
       allReports = allReports.filter(r => r.type !== 'found').concat(foundData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
@@ -204,7 +208,7 @@ const ReportsManagement = () => {
     })
     
     // Listen to abuse reports
-    const unsubscribeAbuse = onSnapshot(query(abuseGroup), (snap) => {
+    const unsubscribeAbuse = onSnapshot(query(abuseCollection), (snap) => {
       const abuseData = processDocs(snap.docs, 'abuse')
       allReports = allReports.filter(r => r.type !== 'abuse').concat(abuseData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
@@ -305,8 +309,9 @@ const ReportsManagement = () => {
     if (!db || !selectedReport) return
     
     try {
-      // For the new unified structure, update the subcollection document
-      const ref = doc(db, 'reports', selectedReport.parentId, selectedReport.type, selectedReport.id)
+      // For the new simplified structure, update the document directly
+      const collectionName = `reports-${selectedReport.type}`
+      const ref = doc(db, collectionName, selectedReport.id)
       await updateDoc(ref, {
         status: editStatus === 'pending' ? 'open' : editStatus,
         priority: editPriority,
@@ -345,12 +350,10 @@ const ReportsManagement = () => {
     setShowDeleteConfirm(false)
     
     try {
-      // For the new unified structure, delete from subcollection
-      const report = reports.find(r => r.id === reportToDelete.id)
-      if (report) {
-        const ref = doc(db, 'reports', report.parentId, report.type, reportToDelete.id)
-        await deleteDoc(ref)
-      }
+      // For the new simplified structure, delete from the collection directly
+      const collectionName = `reports-${reportToDelete.type}`
+      const ref = doc(db, collectionName, reportToDelete.id)
+      await deleteDoc(ref)
     } finally {
       setDeletingId(null)
       setReportToDelete(null)
@@ -364,18 +367,18 @@ const ReportsManagement = () => {
     
     try {
       // Restore the report by adding it back to the appropriate collection
-      const collectionName = lastDeleted.type === 'abuse' ? 'reports' : lastDeleted.type
+      const collectionName = `reports-${lastDeleted.type}`
       
       // Create the document with the same data
       const reportData = {
         ...lastDeleted,
-        createdAt: new Date(),
-        id: undefined // Let Firestore generate new ID
+        createdAt: new Date()
       }
-      delete reportData.id
+      // Remove id and parentId since they're not needed in the new structure
+      const { id, parentId, ...cleanReportData } = reportData
       
       // We need to use addDoc since we can't restore with the same ID
-      await addDoc(collection(db, collectionName), reportData)
+      await addDoc(collection(db, collectionName), cleanReportData)
       
       // Remove from deleted reports
       setDeletedReports(prev => prev.slice(0, -1))
@@ -429,16 +432,6 @@ const ReportsManagement = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Reports Management</h1>
           <p className="text-gray-600 mt-2">Review and manage all animal reports from the public.</p>
-          <div className="mt-4 flex items-center space-x-4">
-            <span className="text-sm text-gray-500">Total Reports: {reports.length}</span>
-            <span className="text-sm text-gray-500">Filtered: {filteredReports.length}</span>
-            <button
-              onClick={() => {}}
-              className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded"
-            >
-              View Reports
-            </button>
-          </div>
         </div>
 
         {/* Filters */}
@@ -547,8 +540,24 @@ const ReportsManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {report.attachments && report.attachments.length > 0 ? (
-                        <div className="w-12 h-12 bg-green-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                          <span className="text-green-600 text-xs font-medium">{report.attachments.length}</span>
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
+                          {report.attachments[0] && report.attachments[0].startsWith('http') ? (
+                            <img 
+                              src={report.attachments[0]} 
+                              alt="Report attachment" 
+                              className="w-full h-full object-cover rounded-lg"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                                const nextElement = e.currentTarget.nextElementSibling as HTMLElement
+                                if (nextElement) {
+                                  nextElement.style.display = 'flex'
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div className="w-full h-full bg-green-100 rounded-lg flex items-center justify-center" style={{display: report.attachments[0] && report.attachments[0].startsWith('http') ? 'none' : 'flex'}}>
+                            <span className="text-green-600 text-xs font-medium">{report.attachments.length}</span>
+                          </div>
                         </div>
                       ) : (
                         <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
@@ -577,7 +586,11 @@ const ReportsManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <div>{(() => {
                         const date = new Date(report.createdAt)
-                        return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString('en-US', {
+                        if (isNaN(date.getTime())) {
+                          console.log('Invalid date for report:', report.id, 'createdAt:', report.createdAt)
+                          return 'Invalid Date'
+                        }
+                        return date.toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric'
@@ -585,7 +598,10 @@ const ReportsManagement = () => {
                       })()}</div>
                       <div className="text-gray-500">{(() => {
                         const date = new Date(report.createdAt)
-                        return isNaN(date.getTime()) ? 'Invalid Time' : date.toLocaleTimeString('en-US', {
+                        if (isNaN(date.getTime())) {
+                          return 'Invalid Time'
+                        }
+                        return date.toLocaleTimeString('en-US', {
                           hour: '2-digit',
                           minute: '2-digit'
                         })

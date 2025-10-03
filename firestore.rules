@@ -101,6 +101,15 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
+    // Notifications - users can read their own; only admins can write
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        (resource.data.recipientUid != null && resource.data.recipientUid == request.auth.uid) ||
+        (resource.data.recipientEmail != null && request.auth.token.email == resource.data.recipientEmail)
+      );
+      allow create, update, delete: if isAdmin();
+    }
+    
     // System settings - only superadmin
     match /system_settings/{settingId} {
       allow read, write: if isSuperAdmin();

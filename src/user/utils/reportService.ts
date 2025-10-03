@@ -52,41 +52,57 @@ export interface AbuseReportData extends BaseContactInfo {
 
 export type SubmitReportData = LostReportData | FoundReportData | AbuseReportData
 
-async function uploadImage(file: File, userId: string | null, type?: 'lost' | 'found'): Promise<{ key: string, signedUrl: string }> {
-	if (!supabase) {
-		throw new Error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
-	}
-	const bucket = 'report-uploads'
-	const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')
-	const ext = safeName.includes('.') ? safeName.split('.').pop() : 'bin'
-	// Use animals/ for animals, lostandfound/lost/ or lostandfound/found/ for lost/found
-	let key = ''
-	if (type === 'lost' || type === 'found') {
-		key = `lostandfound/${type}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+async function uploadImage(file: File, userId: string | null, type?: 'lost' | 'found' | 'abuse'): Promise<{ key: string, signedUrl: string }> {
+	if (type === 'abuse') {
+		// For abuse reports, use Supabase storage (supports videos)
+		if (!supabase) {
+			const errorMsg = 'Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file'
+			console.error('🚨', errorMsg)
+			throw new Error(errorMsg)
+		}
+		const bucket = 'report-uploads'
+		const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')
+		const ext = safeName.includes('.') ? safeName.split('.').pop() : 'bin'
+		const key = `${userId || 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+		
+		const { error: uploadError } = await supabase.storage.from(bucket).upload(key, file, {
+			cacheControl: '3600',
+			contentType: file.type,
+			upsert: false
+		})
+		if (uploadError) {
+			throw new Error(`Upload failed: ${uploadError.message}`)
+		}
+		const { data, error: urlError } = await supabase.storage.from(bucket).createSignedUrl(key, 60 * 60 * 24 * 365)
+		if (urlError || !data?.signedUrl) throw new Error(urlError?.message || 'No signed URL')
+		return { key, signedUrl: data.signedUrl }
 	} else {
-		key = `${userId || 'anon'}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+		// For lost/found reports, use base64 (no Supabase needed)
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader()
+			reader.onload = () => {
+				const dataUrl = reader.result as string
+				const key = `${type}/${Date.now()}-${Math.random().toString(36).slice(2)}`
+				resolve({ key, signedUrl: dataUrl })
+			}
+			reader.onerror = () => {
+				reject(new Error('Failed to read image file'))
+			}
+			reader.readAsDataURL(file)
+		})
 	}
-	const { error: uploadError } = await supabase.storage.from(bucket).upload(key, file, {
-		cacheControl: '3600',
-		contentType: file.type,
-		upsert: false
-	})
-	if (uploadError) {
-		throw new Error(`Upload failed: ${uploadError.message}`)
-	}
-	const { data, error: urlError } = await supabase.storage.from(bucket).createSignedUrl(key, 60 * 60 * 24 * 365)
-	if (urlError || !data?.signedUrl) throw new Error(urlError?.message || 'No signed URL')
-	return { key, signedUrl: data.signedUrl }
 }
 
 async function uploadMultipleFiles(files: File[], userId: string | null): Promise<string[]> {
 	if (!supabase) {
-		throw new Error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
+		const errorMsg = 'Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file'
+		console.error('🚨', errorMsg)
+		throw new Error(errorMsg)
 	}
 	const uploadedKeys: string[] = []
 	
 	for (const file of files) {
-		const { key } = await uploadImage(file, userId)
+		const { key } = await uploadImage(file, userId, 'abuse')
 		uploadedKeys.push(key)
 	}
 	
@@ -131,7 +147,6 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 	}
 
   let payload: Record<string, unknown> = {}
-  let reportType: 'lost' | 'found' | undefined = undefined
 	if (data.type === 'lost') {
     payload = {
 			type: 'lost',
@@ -146,7 +161,6 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 			lastSeenTime: data.lastSeenTime || undefined,
 			...basePayload
 		}
-    reportType = 'lost'
 	} else if (data.type === 'found') {
 		payload = {
 			type: 'found',
@@ -161,7 +175,6 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 			foundTime: data.foundTime || undefined,
 			...basePayload
 		}
-    reportType = 'found'
 	} else if (data.type === 'abuse') {
 		payload = {
 			type: 'abuse',
@@ -183,19 +196,10 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
     const collectionName = `reports-${cleaned.type}`
     const docRef = await addDoc(collection(db, collectionName), cleaned)
 
-    if (file && (reportType === 'lost' || reportType === 'found')) {
+    if (file) {
 			try {
-        const { signedUrl } = await uploadImage(file, userId, reportType)
+        const { signedUrl } = await uploadImage(file, userId, cleaned.type as 'lost' | 'found' | 'abuse')
         await updateDoc(doc(db, collectionName, docRef.id), { image: signedUrl })
-			} catch (err) {
-        await deleteDoc(doc(db, collectionName, docRef.id))
-        throw new Error('Image upload failed, report not saved.')
-			}
-		} else if (file) {
-			// fallback for other types (abuse)
-			try {
-				const { key } = await uploadImage(file, userId)
-        await updateDoc(doc(db, collectionName, docRef.id), { uploadObjectKey: key })
 			} catch (err) {
         await deleteDoc(doc(db, collectionName, docRef.id))
         throw new Error('Image upload failed, report not saved.')
@@ -271,26 +275,48 @@ export async function submitAbuseReport(data: AbuseReportData, files: File[], us
  * @returns Promise<string> - The signed URL
  */
 export async function createSignedEvidenceUrl(objectKey: string, expiresIn: number = 3600): Promise<string> {
+	console.log('🔗 Creating signed URL for:', objectKey)
+	
 	if (!supabase) {
-		throw new Error('Supabase not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
+		const errorMsg = 'Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file'
+		console.error('🚨', errorMsg)
+		throw new Error(errorMsg)
 	}
 
 	try {
+		// Test Supabase connection first
+		console.log('🔍 Testing Supabase connection...')
+		
 		const { data, error } = await supabase.storage
 			.from('report-uploads')
 			.createSignedUrl(objectKey, expiresIn)
 
 		if (error) {
+			console.error('❌ Supabase signed URL error:', error)
+			console.error('Error details:', {
+				message: error.message,
+				name: error.name
+			})
+			
+			// Check if it's a bucket/permission issue
+			if (error.message.includes('Bucket not found')) {
+				throw new Error('Storage bucket "report-uploads" not found. Please create it in your Supabase dashboard.')
+			} else if (error.message.includes('permission') || error.message.includes('auth')) {
+				throw new Error('Permission denied. Check your Supabase storage policies.')
+			}
+			
 			throw new Error(`Failed to create signed URL: ${error.message}`)
 		}
 
 		if (!data?.signedUrl) {
+			console.error('❌ No signed URL returned from Supabase')
 			throw new Error('No signed URL returned from Supabase')
 		}
 
+		console.log('✅ Signed URL created successfully:', data.signedUrl.substring(0, 100) + '...')
 		return data.signedUrl
 	} catch (error) {
-		console.error('Error creating signed evidence URL:', error)
+		console.error('❌ Error creating signed evidence URL:', error)
 		throw error
 	}
 }

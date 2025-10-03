@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { collection, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { createSignedEvidenceUrl } from '../../user/utils/reportService'
+import { supabase } from '../../config/supabase'
 import { 
   Search, 
   CheckCircle, 
@@ -166,6 +167,7 @@ const ReportsManagement = () => {
           }
         }
         if (collectionType === 'abuse') {
+          console.log('🐕 Processing abuse report:', doc.id, 'evidenceObjects:', d?.evidenceObjects)
           return {
             ...base,
             animalName: 'N/A',
@@ -178,7 +180,7 @@ const ReportsManagement = () => {
             lastSeenLocation: d?.incidentLocation || '',
             lastSeenDate: d?.incidentDate || '',
             lastSeenTime: d?.incidentTime || '',
-            attachments: Array.isArray(d?.evidenceObjects) ? d.evidenceObjects : [],
+            attachments: d?.evidenceObjects || (d?.image ? [d.image] : (d?.uploadObjectKey ? [d.uploadObjectKey] : [])),
             abuseType: d?.abuseType || '',
             animalDescription: d?.animalDescription || '',
             perpetratorDescription: d?.perpetratorDescription || '',
@@ -274,33 +276,64 @@ const ReportsManagement = () => {
   }
 
   const resolveAttachments = async (attachments: string[] | undefined): Promise<string[]> => {
-    if (!attachments || attachments.length === 0) return []
+    console.log('🔧 Resolving attachments:', attachments)
+    console.log('🔧 Admin Supabase check:', {
+      supabaseExists: !!supabase,
+      envUrl: import.meta.env.VITE_SUPABASE_URL,
+      envKey: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Present' : 'Missing'
+    })
+    
+    if (!attachments || attachments.length === 0) {
+      console.log('❌ No attachments found')
+      return []
+    }
     const urls: string[] = []
     for (const keyOrUrl of attachments) {
+      console.log('🔍 Processing attachment:', keyOrUrl)
       if (typeof keyOrUrl === 'string' && /^https?:\/\//i.test(keyOrUrl)) {
+        console.log('✅ Found direct URL:', keyOrUrl)
+        urls.push(keyOrUrl)
+      } else if (typeof keyOrUrl === 'string' && keyOrUrl.startsWith('data:')) {
+        console.log('✅ Found base64 data URL:', keyOrUrl.substring(0, 50) + '...')
         urls.push(keyOrUrl)
       } else if (typeof keyOrUrl === 'string' && keyOrUrl.length > 0) {
+        console.log('🔑 Creating signed URL for key:', keyOrUrl)
         try {
           const signed = await createSignedEvidenceUrl(keyOrUrl, 3600)
+          console.log('✅ Successfully created signed URL:', signed.substring(0, 100) + '...')
           urls.push(signed)
         } catch (err) {
-          console.error('Failed to create signed URL for attachment', keyOrUrl, err)
+          console.error('❌ Failed to create signed URL for attachment', keyOrUrl, err)
+          console.error('Error details:', {
+            message: err instanceof Error ? err.message : 'Unknown error',
+            stack: err instanceof Error ? err.stack : undefined
+          })
           // ignore errors; no URL added
         }
       }
     }
+    console.log('🎯 Final resolved URLs:', urls)
     return urls
   }
 
 
   const handleViewReport = async (report: AdminReport, edit = false) => {
+    console.log('🔍 Viewing report:', report.type, report.id)
+    console.log('📎 Report attachments:', report.attachments)
+    console.log('📋 Full report data:', report)
     setSelectedReport(report)
     setIsEditing(!!edit)
     setEditStatus((report.status as 'pending' | 'investigating' | 'resolved') || 'pending')
     setEditPriority((report.priority as 'urgent' | 'high' | 'medium' | 'normal') || 'normal')
     setEditAssignedTo(report.assignedTo || '')
     setEditPublished((report as any)?.published === true)
+    
+    if (report.type === 'abuse') {
+      console.log('🐕 Processing abuse report attachments:', report.attachments)
+    }
+    
     const urls = await resolveAttachments(report.attachments)
+    console.log('🖼️ Resolved URLs:', urls)
     setAttachmentUrls(urls)
     setShowReportModal(true)
   }
@@ -541,7 +574,7 @@ const ReportsManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {report.attachments && report.attachments.length > 0 ? (
                         <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
-                          {report.attachments[0] && report.attachments[0].startsWith('http') ? (
+                          {(report.attachments[0] && (report.attachments[0].startsWith('http') || report.attachments[0].startsWith('data:'))) ? (
                             <img 
                               src={report.attachments[0]} 
                               alt="Report attachment" 
@@ -555,7 +588,7 @@ const ReportsManagement = () => {
                               }}
                             />
                           ) : null}
-                          <div className="w-full h-full bg-green-100 rounded-lg flex items-center justify-center" style={{display: report.attachments[0] && report.attachments[0].startsWith('http') ? 'none' : 'flex'}}>
+                          <div className="w-full h-full bg-green-100 rounded-lg flex items-center justify-center" style={{display: (report.attachments[0] && (report.attachments[0].startsWith('http') || report.attachments[0].startsWith('data:'))) ? 'none' : 'flex'}}>
                             <span className="text-green-600 text-xs font-medium">{report.attachments.length}</span>
                           </div>
                         </div>
@@ -670,16 +703,37 @@ const ReportsManagement = () => {
                 )}
 
                 {/* Featured Attachment (large preview at top-left) */}
-                {attachmentUrls.length > 0 && (
+                {attachmentUrls.length > 0 ? (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Attachment</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Attachment ({attachmentUrls.length} files)</h3>
                     <a href={attachmentUrls[0]} target="_blank" rel="noreferrer" className="inline-block">
                       <img
                         src={attachmentUrls[0]}
                         alt="featured-attachment"
                         className="max-w-full max-h-80 w-auto h-auto object-contain rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          console.error('❌ Failed to load attachment image:', attachmentUrls[0])
+                          console.error('Image error:', e)
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Successfully loaded attachment image:', attachmentUrls[0])
+                        }}
                       />
                     </a>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Attachments</h3>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-yellow-800">
+                        No attachments found. 
+                        {selectedReport.type === 'abuse' ? ' Check if evidence files were uploaded to Supabase.' : ''}
+                      </p>
+                      <p className="text-sm text-yellow-600 mt-2">
+                        Debug info: attachments={JSON.stringify(selectedReport.attachments)}, 
+                        resolved URLs={JSON.stringify(attachmentUrls)}
+                      </p>
+                    </div>
                   </div>
                 )}
                 {/* Animal Information - Only for Lost/Found reports */}

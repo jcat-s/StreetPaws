@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { submitAbuseReport } from '../../utils/reportService'
 import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
+import { supabase } from '../../../config/supabase'
 
 interface AbusedAnimalFormData {
     incidentLocation: string
@@ -57,9 +58,20 @@ const AbusedReport = () => {
     const barangays = LIPA_BARANGAYS
 
     const onSubmit = async (data: AbusedAnimalFormData) => {
+        if (uploadedFiles.filter(f => f.type.startsWith('image/')).length === 0) {
+            toast.error('Please upload at least one evidence photo')
+            return
+        }
+        
+        // Check if Supabase is configured
+        if (!supabase) {
+            toast.error('Supabase not configured. Please set up VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.')
+            return
+        }
         
         setIsSubmitting(true)
         try {
+            console.log('🚀 Submitting abuse report with files:', uploadedFiles)
             const reportData = {
                 type: 'abuse' as const,
                 incidentLocation: data.incidentLocation,
@@ -75,7 +87,8 @@ const AbusedReport = () => {
                 additionalDetails: data.additionalDetails
             }
             
-            const result = await submitAbuseReport(reportData, uploadedFiles, currentUser?.uid || null)
+            console.log('📋 Report data:', reportData)
+            await submitAbuseReport(reportData, uploadedFiles, currentUser?.uid || null)
             toast.success('Abuse report submitted')
             reset(); setUploadedFiles([]); setFilePreviews([])
             navigate(-1)

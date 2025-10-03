@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Search, Filter, MapPin, Calendar, } from 'lucide-react'
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, onSnapshot, query } from 'firebase/firestore'
+import { createSignedEvidenceUrl } from '../../utils/reportService'
 import { db } from '../../../config/firebase'
 
 interface LostFoundAnimal {
@@ -37,14 +38,23 @@ const LostAndFound = () => {
 
   useEffect(() => {
     if (!db) return
-    const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
-    const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
+    const lostQuery = query(collection(db, 'reports-lost'))
+    const foundQuery = query(collection(db, 'reports-found'))
     const lostUnsub = onSnapshot(lostQuery, async (lostSnap) => {
+      console.info('[LostAndFound] lost snapshot docs =', lostSnap.docs.length)
       const lostMapped: LostFoundAnimal[] = []
       for (const d of lostSnap.docs) {
         const data: any = d.data()
         // Only show published items to users (if published field exists and is false, hide it)
         if (data?.published === false || data?.isPublished === false) continue
+        
+        let imageUrl: string = data?.image || ''
+        if (!imageUrl && data?.uploadObjectKey) {
+          try {
+            const signed = await createSignedEvidenceUrl(data.uploadObjectKey, 3600)
+            if (signed) imageUrl = signed
+          } catch { /* noop */ }
+        }
         
         lostMapped.push({
           id: d.id,
@@ -63,7 +73,7 @@ const LostAndFound = () => {
           contactPhone: data?.contactPhone || '',
           contactEmail: data?.contactEmail || '',
           description: data?.additionalDetails || '',
-          image: data?.image || '',
+          image: imageUrl,
           additionalDetails: data?.additionalDetails || ''
         })
       }
@@ -74,11 +84,21 @@ const LostAndFound = () => {
       })
     })
     const foundUnsub = onSnapshot(foundQuery, async (foundSnap) => {
+      console.info('[LostAndFound] found snapshot docs =', foundSnap.docs.length)
       const foundMapped: LostFoundAnimal[] = []
       for (const d of foundSnap.docs) {
         const data: any = d.data()
         // Only show published items to users (if published field exists and is false, hide it)
         if (data?.published === false || data?.isPublished === false) continue
+
+        let imageUrl: string = data?.image || ''
+        if (!imageUrl && data?.uploadObjectKey) {
+          try {
+            const signed = await createSignedEvidenceUrl(data.uploadObjectKey, 3600)
+            if (signed) imageUrl = signed
+          } catch { /* noop */ }
+        }
+
         foundMapped.push({
           id: d.id,
           type: 'found',
@@ -96,7 +116,7 @@ const LostAndFound = () => {
           contactPhone: data?.contactPhone || '',
           contactEmail: data?.contactEmail || '',
           description: data?.additionalDetails || '',
-          image: data?.image || '',
+          image: imageUrl,
           additionalDetails: data?.additionalDetails || ''
         })
       }

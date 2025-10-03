@@ -85,9 +85,12 @@ const ContentHome = () => {
     
     // Helper function to maintain stable sort order
     const updateItemsWithStableSort = (newAllItems: LostFoundItem[]) => {
+      console.log('📝 updateItemsWithStableSort called with:', newAllItems.length, 'items')
       if (isInitialLoad) {
         // On initial load, sort by creation date with newest first
-        setItems(newAllItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+        const sortedItems = newAllItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        console.log('🔄 Initial load - setting items:', sortedItems.length, 'items')
+        setItems(sortedItems)
         isInitialLoad = false
       } else {
         // On subsequent updates, maintain existing order but add new items at the top
@@ -110,70 +113,84 @@ const ContentHome = () => {
       }
     }
     
-    // Helper function to process documents
-    const processDocs = (docs: any[], collectionType: 'lost' | 'found'): (LostFoundItem | null)[] => {
-      return docs.map((doc) => {
-        const d: any = doc.data()
-        
-        // Handle serverTimestamp properly - it might be pending when first read
-        let createdAtIso: string
-        if (d?.createdAt?.toDate) {
-          // Timestamp is resolved
-          createdAtIso = d.createdAt.toDate().toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'string') {
-          // Already a string
-          createdAtIso = d.createdAt
-        } else if (d?.createdAt && d.createdAt.seconds) {
-          // Firestore timestamp with seconds
-          createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'object' && d.createdAt._methodName === 'serverTimestamp') {
-          // Pending serverTimestamp - use current time as fallback
-          console.log('Pending serverTimestamp detected for lost/found item:', doc.id, 'using current time as fallback')
-          createdAtIso = new Date().toISOString()
-        } else {
-          // No valid timestamp found
-          createdAtIso = 'Invalid Date'
-          console.log('Invalid date found for lost/found item:', doc.id, 'Raw createdAt:', d?.createdAt, 'Type:', typeof d?.createdAt)
-        }
-        
-        return {
-          id: doc.id,
-          type: collectionType,
-          animalName: d?.animalName || 'Unknown',
-          animalType: d?.animalType || 'unknown',
-          breed: d?.breed || '',
-          age: d?.age || d?.estimatedAge || '',
-          gender: d?.gender || '',
-          colors: Array.isArray(d?.colors) ? d.colors.join(', ') : (d?.colors || ''),
-          size: d?.size || '',
-          location: collectionType === 'lost' ? (d?.lastSeenLocation || '') : (d?.foundLocation || ''),
-          date: collectionType === 'lost' ? (d?.lastSeenDate || '') : (d?.foundDate || ''),
-          reporterName: d?.contactName || 'Unknown',
-          reporterPhone: d?.contactPhone || '',
-          reporterEmail: d?.contactEmail || '',
-          createdAt: createdAtIso,
-          published: d?.published === true,
-          description: d?.description || '',
-          additionalDetails: d?.additionalDetails || '',
-          imageUrl: undefined
-        }
-      })
+    // Helper function to process documents (matching ReportsManagement structure)
+    const processDocs = (docs: any[], collectionType: 'lost' | 'found'): LostFoundItem[] => {
+      return docs
+        .filter((doc) => {
+          const d: any = doc.data()
+          // Only process published items for Content Management
+          if (d?.published !== true) {
+            console.log('Skipping unpublished item:', doc.id, 'published:', d?.published)
+            return false
+          }
+          return true
+        })
+        .map((doc) => {
+          const d: any = doc.data()
+          
+          // Handle serverTimestamp properly - matching ReportsManagement logic
+          let createdAtIso: string
+          if (d?.createdAt?.toDate) {
+            createdAtIso = d.createdAt.toDate().toISOString()
+          } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
+            createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
+          } else if (typeof d?.createdAtMs === 'number') {
+            createdAtIso = new Date(d.createdAtMs).toISOString()
+          } else if (typeof d?.submissionId === 'string' && /^\d+\-/.test(d.submissionId)) {
+            const ms = Number(d.submissionId.split('-')[0])
+            createdAtIso = isNaN(ms) ? 'Invalid Date' : new Date(ms).toISOString()
+          } else if (typeof d?.createdAt === 'string') {
+            const parsed = new Date(d.createdAt)
+            createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
+          } else {
+            createdAtIso = 'Invalid Date'
+          }
+          
+          return {
+            id: doc.id,
+            type: collectionType,
+            animalName: d?.animalName || 'Unknown',
+            animalType: d?.animalType || 'unknown',
+            breed: d?.breed || '',
+            age: d?.age || d?.estimatedAge || '',
+            gender: d?.gender || '',
+            colors: Array.isArray(d?.colors) ? d.colors.join(', ') : (d?.colors || ''),
+            size: d?.size || '',
+            location: collectionType === 'lost' ? (d?.lastSeenLocation || '') : (d?.foundLocation || ''),
+            date: collectionType === 'lost' ? (d?.lastSeenDate || '') : (d?.foundDate || ''),
+            reporterName: d?.contactName || 'Unknown',
+            reporterPhone: d?.contactPhone || '',
+            reporterEmail: d?.contactEmail || '',
+            createdAt: createdAtIso,
+            published: true, // Only published items reach here
+            description: d?.description || '',
+            additionalDetails: d?.additionalDetails || '',
+            imageUrl: undefined
+          }
+        })
     }
     
-    // Query both collections
-    const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
-    const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
+    // Query the correct collections that match ReportsManagement
+    const lostQuery = query(collection(db, 'reports-lost'), orderBy('createdAt', 'desc'))
+    const foundQuery = query(collection(db, 'reports-found'), orderBy('createdAt', 'desc'))
     
     let lostItems: LostFoundItem[] = []
     let foundItems: LostFoundItem[] = []
     
     const updateCombinedItems = async () => {
       const combinedItems = [...lostItems, ...foundItems]
+      console.log('🔄 Updating combined items:', combinedItems.length, 'total items')
+      console.log('📊 Lost items:', lostItems.length, 'Found items:', foundItems.length)
       updateItemsWithStableSort(combinedItems)
     }
     
     const unsubscribeLost = onSnapshot(lostQuery, async (snap) => {
-      const processedLostItems = processDocs(snap.docs, 'lost').filter((item): item is LostFoundItem => item !== null)
+      console.log('🔍 Lost reports snapshot:', snap.docs.length, 'documents')
+      if (snap.docs.length > 0) {
+        console.log('📄 First lost document:', snap.docs[0].id, snap.docs[0].data())
+      }
+      const processedLostItems = processDocs(snap.docs, 'lost')
+      console.log('✅ Processed lost items:', processedLostItems.length)
       lostItems = await Promise.all(
         processedLostItems.map(async (item) => {
           // Get image URL if available
@@ -204,7 +221,12 @@ const ContentHome = () => {
     })
     
     const unsubscribeFound = onSnapshot(foundQuery, async (snap) => {
-      const processedFoundItems = processDocs(snap.docs, 'found').filter((item): item is LostFoundItem => item !== null)
+      console.log('🔍 Found reports snapshot:', snap.docs.length, 'documents')
+      if (snap.docs.length > 0) {
+        console.log('📄 First found document:', snap.docs[0].id, snap.docs[0].data())
+      }
+      const processedFoundItems = processDocs(snap.docs, 'found')
+      console.log('✅ Processed found items:', processedFoundItems.length)
       foundItems = await Promise.all(
         processedFoundItems.map(async (item) => {
           // Get image URL if available
@@ -296,7 +318,9 @@ const ContentHome = () => {
     setShowDeleteConfirm(false)
     
     try {
-      await deleteDoc(doc(db, itemToDelete.type, itemToDelete.id))
+      // Delete from the correct collection
+      const collectionName = itemToDelete.type === 'lost' ? 'reports-lost' : 'reports-found'
+      await deleteDoc(doc(db, collectionName, itemToDelete.id))
     } finally {
       setDeletingId(null)
       setItemToDelete(null)
@@ -318,7 +342,7 @@ const ContentHome = () => {
       delete itemData.id
       
       // Determine the correct collection based on item type
-      const collectionName = lastDeleted.type === 'lost' ? 'lost' : 'found'
+      const collectionName = lastDeleted.type === 'lost' ? 'reports-lost' : 'reports-found'
       await addDoc(collection(db, collectionName), itemData)
       
       // Remove from deleted items
@@ -338,7 +362,8 @@ const ContentHome = () => {
   const handleTogglePublish = async (item: LostFoundItem) => {
     if (!db) return
     try {
-      const ref = doc(db, item.type, item.id)
+      const collectionName = item.type === 'lost' ? 'reports-lost' : 'reports-found'
+      const ref = doc(db, collectionName, item.id)
       await updateDoc(ref, {
         published: !item.published
       })
@@ -525,7 +550,8 @@ const ContentHome = () => {
                 {editMode && (
                   <button onClick={async () => {
                     if (!editData || !db) return;
-                    await updateDoc(doc(db, editData.type, editData.id), {
+                    const collectionName = editData.type === 'lost' ? 'reports-lost' : 'reports-found'
+                    await updateDoc(doc(db, collectionName, editData.id), {
                       animalName: editData.animalName,
                       breed: editData.breed,
                       colors: editData.colors,
@@ -533,9 +559,9 @@ const ContentHome = () => {
                       gender: editData.gender,
                       ...(editData.type === 'lost' ? { lastSeenDate: editData.date, lastSeenLocation: editData.location } : { foundDate: editData.date, foundLocation: editData.location }),
                       additionalDetails: editData.additionalDetails,
-                      reporterName: editData.reporterName,
-                      reporterPhone: editData.reporterPhone,
-                      reporterEmail: editData.reporterEmail
+                      contactName: editData.reporterName,
+                      contactPhone: editData.reporterPhone,
+                      contactEmail: editData.reporterEmail
                     });
                     setSelectedItem({ ...selectedItem, ...editData });
                     setEditMode(false);

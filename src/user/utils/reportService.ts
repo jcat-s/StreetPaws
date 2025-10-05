@@ -40,6 +40,8 @@ export interface FoundReportData extends BaseContactInfo {
 
 export interface AbuseReportData extends BaseContactInfo {
 	type: 'abuse'
+  caseTitle: string
+  animalType: string
 	incidentLocation: string
 	incidentDate: string
 	incidentTime: string
@@ -179,6 +181,8 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 	} else if (data.type === 'abuse') {
 		payload = {
 			type: 'abuse',
+      caseTitle: (data as AbuseReportData).caseTitle,
+      animalType: (data as AbuseReportData).animalType,
 			incidentLocation: data.incidentLocation,
 			incidentDate: data.incidentDate,
 			incidentTime: data.incidentTime,
@@ -241,6 +245,8 @@ export async function submitAbuseReport(data: AbuseReportData, files: File[], us
 
 	const payload = {
 		type: 'abuse',
+    caseTitle: data.caseTitle,
+    animalType: data.animalType,
 		incidentLocation: data.incidentLocation,
 		incidentDate: data.incidentDate,
 		incidentTime: data.incidentTime,

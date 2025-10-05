@@ -33,7 +33,13 @@ const FoundReport = () => {
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FoundAnimalFormData>()
     const [isBarangayOpen, setIsBarangayOpen] = useState(false)
+    const [barangayQuery, setBarangayQuery] = useState("")
     const selectedBarangay = watch('foundLocation')
+    const today = new Date()
+    const todayStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+    const nowTimeStr = new Date().toTimeString().slice(0,5)
+    const selectedDate = watch('foundDate')
+    const maxTime = selectedDate === todayStr ? nowTimeStr : '23:59'
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
@@ -60,6 +66,7 @@ const FoundReport = () => {
     const removeImage = () => { setUploadedImage(null); setImagePreview(null) }
 
     const barangays = LIPA_BARANGAYS
+    const filteredBarangays = barangays.filter(b => b.toLowerCase().startsWith(barangayQuery.toLowerCase()))
 
     const validatePhoneNumber = (value: string) => /^\d+$/.test(value) || 'Please enter numbers only'
 
@@ -147,21 +154,29 @@ const FoundReport = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Found Location *</label>
                             <input type="hidden" {...register('foundLocation', { required: 'Found location is required' })} />
                             <div className="relative">
-                                <button type="button" onClick={() => setIsBarangayOpen(!isBarangayOpen)} className="input-field text-left">{selectedBarangay || 'Select barangay'}</button>
+                                <button type="button" onClick={() => { setIsBarangayOpen(!isBarangayOpen); if (!isBarangayOpen) setBarangayQuery('') }} className="input-field text-left">{selectedBarangay || 'Select barangay'}</button>
                                 {isBarangayOpen && (
-                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">{barangays.map(b => (<button key={b} type="button" onClick={() => { setValue('foundLocation', b, { shouldValidate: true }); setIsBarangayOpen(false); }} className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}>{b}</button>))}</div>
+                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-64 overflow-y-auto">
+                                        <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
+                                            <input type="text" value={barangayQuery} onChange={(e) => setBarangayQuery(e.target.value)} placeholder="Type to search barangay..." className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-300" autoFocus />
+                                        </div>
+                                        {(barangayQuery ? filteredBarangays : barangays).map(b => (
+                                            <button key={b} type="button" onClick={() => { setValue('foundLocation', b, { shouldValidate: true }); setIsBarangayOpen(false); }} className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}>{b}</button>
+                                        ))}
+                                        {(barangayQuery && filteredBarangays.length === 0) && (<div className="px-4 py-2 text-sm text-gray-500">No results</div>)}
+                                    </div>
                                 )}
                             </div>
                             {errors.foundLocation && <p className="mt-1 text-sm text-red-600">{errors.foundLocation.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Found Date *</label>
-                            <input {...register('foundDate', { required: 'Found date is required' })} type="date" className="input-field" />
+                            <input {...register('foundDate', { required: 'Found date is required', validate: (v) => v <= todayStr || 'Date cannot be in the future', onChange: (e) => { const v = (e.target as HTMLInputElement).value; if (v > todayStr) { (e.target as HTMLInputElement).value = todayStr; setValue('foundDate', todayStr, { shouldValidate: true }); toast.error('Date cannot be in the future') } } })} type="date" className="input-field" max={todayStr} />
                             {errors.foundDate && <p className="mt-1 text-sm text-red-600">{errors.foundDate.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Found Time *</label>
-                            <input {...register('foundTime', { required: 'Found time is required' })} type="time" className="input-field" />
+                            <input {...register('foundTime', { required: 'Found time is required', validate: (v) => { if (selectedDate === todayStr) { return v <= nowTimeStr || 'Time cannot be in the future' } return true } })} type="time" className="input-field" max={maxTime} />
                             {errors.foundTime && <p className="mt-1 text-sm text-red-600">{errors.foundTime.message}</p>}
                         </div>
                     </div>

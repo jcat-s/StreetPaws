@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Search, Filter, MapPin, Calendar, } from 'lucide-react'
+import { Search, Filter } from 'lucide-react'
 import { collection, onSnapshot, query } from 'firebase/firestore'
 import { createSignedEvidenceUrl } from '../../utils/reportService'
 import { db } from '../../../config/firebase'
@@ -176,64 +176,69 @@ const LostAndFound = () => {
 
         {/* Search and Filter */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
+          <div className="flex gap-4">
+            <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search by name, breed, color, or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
               />
             </div>
 
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <select 
-                value={filterType} 
-                onChange={(e) => setFilterType(e.target.value as any)} 
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              >
-                <option value="all">All Reports</option>
-                <option value="lost">Lost Animals</option>
-                <option value="found">Found Animals</option>
-              </select>
+            <div className="w-44">
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value as any)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="all">All Reports</option>
+                  <option value="lost">Lost Animals</option>
+                  <option value="found">Found Animals</option>
+                </select>
+              </div>
             </div>
 
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <select 
-                value={filterAnimalType} 
-                onChange={(e) => setFilterAnimalType(e.target.value as any)} 
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              >
-                <option value="all">All Animals</option>
-                <option value="dog">Dogs</option>
-                <option value="cat">Cats</option>
-              </select>
+            <div className="w-44">
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <select
+                  value={filterAnimalType}
+                  onChange={(e) => setFilterAnimalType(e.target.value as any)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="all">All Animals</option>
+                  <option value="dog">Dogs</option>
+                  <option value="cat">Cats</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Results */}
         {filtered.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filtered.map((item) => (
-              <div 
+              <button
                 key={item.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => setSelectedItem(item)}
+                className="group relative bg-gradient-to-br from-white to-primary-50 hover:from-primary-50/80 hover:to-white/80 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transform transition hover:-translate-y-1 focus:outline-none"
               >
-                <div className="relative">
-                   <img
-                     src={item.image || `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`}
-                     alt={item.name || `${item.breed} ${item.type}`}
-                     className="w-full h-48 object-cover bg-gray-100"
-                     onError={(e) => {
-                       ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`
-                     }}
-                   />
+                <div className="relative h-52 bg-pink-50">
+                  <img
+                    src={item.image || `https://via.placeholder.com/400x400/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`}
+                    alt={item.name || `${item.breed} ${item.type}`}
+                    className="w-full h-full object-cover rounded-t-2xl"
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/400x400/ffd6e0/8a2be2?text=${item.animalType === 'dog' ? '🐕' : '🐱'}`
+                    }}
+                  />
+
                   <div className="absolute top-2 left-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       item.type === 'lost' 
@@ -243,64 +248,32 @@ const LostAndFound = () => {
                       {item.type === 'lost' ? '🔍 LOST' : '🏠 FOUND'}
                     </span>
                   </div>
+
                   <div className="absolute top-2 right-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       item.animalType === 'dog' 
                         ? 'bg-blue-100 text-blue-800' 
                         : 'bg-purple-100 text-purple-800'
                     }`}>
-                      {item.animalType === 'dog' ? '🐕 Dog' : '🐱 Cat'}
+                      {item.animalType === 'dog' ? '🐕' : '🐱'} {item.animalType.charAt(0).toUpperCase() + item.animalType.slice(1)}
                     </span>
                   </div>
                 </div>
 
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {item.name || `Unknown ${item.breed}`}
-                  </h3>
-                  
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <span className="font-medium">Breed:</span>
-                      <span className="ml-2">{item.breed}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="font-medium">Colors:</span>
-                      <span className="ml-2">{item.colors}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="font-medium">Age:</span>
-                      <span className="ml-2">{item.age}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-1 text-gray-500" />
-                      <span>{item.location}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1 text-gray-500" />
-                      <span>{formatDate(item.date)}{item.time && ` at ${formatTime(item.time)}`}</span>
-                    </div>
+                <div className="p-3 bg-white">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-sm font-medium text-gray-900 truncate">
+                      {item.name || `Unknown ${item.breed}`}
+                    </h4>
                   </div>
-
-                  <p className="text-sm text-gray-700 mt-3 line-clamp-2">
-                    {item.description}
-                  </p>
-
-                  <div className="mt-4 pt-3 border-t border-gray-200">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <span className="font-medium">Contact:</span>
-                      <span className="ml-2">{item.contactName}</span>
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-600 mt-1 truncate">{item.location}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         ) : (
           <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <Search className="h-16 w-16 mx-auto" />
-            </div>
+            <div className="text-gray-400 mb-4"><Search className="h-16 w-16 mx-auto" /></div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No reports found</h3>
             <p className="text-gray-600">Try adjusting your search terms or filters to find more reports.</p>
           </div>

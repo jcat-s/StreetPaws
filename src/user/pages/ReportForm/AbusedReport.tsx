@@ -9,6 +9,8 @@ import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
 import { supabase } from '../../../config/supabase'
 
 interface AbusedAnimalFormData {
+    caseTitle: string
+    animalType: string
     incidentLocation: string
     incidentDate: string
     incidentTime: string
@@ -31,7 +33,13 @@ const AbusedReport = () => {
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<AbusedAnimalFormData>()
     const [isBarangayOpen, setIsBarangayOpen] = useState(false)
+    const [barangayQuery, setBarangayQuery] = useState("")
     const selectedBarangay = watch('incidentLocation')
+    const today = new Date()
+    const todayStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+    const nowTimeStr = new Date().toTimeString().slice(0,5)
+    const selectedIncidentDate = watch('incidentDate')
+    const maxIncidentTime = selectedIncidentDate === todayStr ? nowTimeStr : '23:59'
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || [])
@@ -56,6 +64,7 @@ const AbusedReport = () => {
     const removeFile = (index: number) => { setUploadedFiles(prev => prev.filter((_, i) => i !== index)); setFilePreviews(prev => prev.filter((_, i) => i !== index)) }
 
     const barangays = LIPA_BARANGAYS
+    const filteredBarangays = barangays.filter(b => b.toLowerCase().startsWith(barangayQuery.toLowerCase()))
 
     const onSubmit = async (data: AbusedAnimalFormData) => {
         if (uploadedFiles.filter(f => f.type.startsWith('image/')).length === 0) {
@@ -74,6 +83,8 @@ const AbusedReport = () => {
             console.log('🚀 Submitting abuse report with files:', uploadedFiles)
             const reportData = {
                 type: 'abuse' as const,
+                caseTitle: data.caseTitle,
+                animalType: data.animalType,
                 incidentLocation: data.incidentLocation,
                 incidentDate: data.incidentDate,
                 incidentTime: data.incidentTime,
@@ -111,23 +122,65 @@ const AbusedReport = () => {
                 <h1 className="text-2xl font-bold text-center text-orange-500 mb-6">Abused Animal Report</h1>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Case Title *</label>
+                            <input {...register('caseTitle', { required: 'Case title is required' })} className="input-field" placeholder="e.g., Stray dog tied and beaten in Barangay 12" />
+                            {errors.caseTitle && <p className="mt-1 text-sm text-red-600">{errors.caseTitle.message}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Animal Type *</label>
+                            <select {...register('animalType', { required: 'Animal type is required' })} className="input-field" defaultValue="">
+                                <option value="" disabled hidden>Select animal type</option>
+                                <option value="dog">Dog</option>
+                                <option value="cat">Cat</option>
+                                <option value="other">Other</option>
+                            </select>
+                            {errors.animalType && <p className="mt-1 text-sm text-red-600">{errors.animalType.message}</p>}
+                        </div>
+                        
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Incident Location *</label>
                             <input type="hidden" {...register('incidentLocation', { required: 'Incident location is required' })} />
                             <div className="relative">
-                                <button type="button" onClick={() => setIsBarangayOpen(!isBarangayOpen)} className="input-field text-left">{selectedBarangay || 'Select barangay'}</button>
-                                {isBarangayOpen && (<div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">{barangays.map(b => (<button key={b} type="button" onClick={() => { setValue('incidentLocation', b, { shouldValidate: true }); setIsBarangayOpen(false) }} className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}>{b}</button>))}</div>)}
+                                <button type="button" onClick={() => { setIsBarangayOpen(!isBarangayOpen); if (!isBarangayOpen) setBarangayQuery('') }} className="input-field text-left">{selectedBarangay || 'Select barangay'}</button>
+                                {isBarangayOpen && (
+                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-64 overflow-y-auto">
+                                        <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
+                                            <input
+                                                type="text"
+                                                value={barangayQuery}
+                                                onChange={(e) => setBarangayQuery(e.target.value)}
+                                                placeholder="Type to search barangay..."
+                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-300"
+                                                autoFocus
+                                            />
+                                        </div>
+                                        {(barangayQuery ? filteredBarangays : barangays).map(b => (
+                                            <button
+                                                key={b}
+                                                type="button"
+                                                onClick={() => { setValue('incidentLocation', b, { shouldValidate: true }); setIsBarangayOpen(false) }}
+                                                className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}
+                                            >
+                                                {b}
+                                            </button>
+                                        ))}
+                                        {(barangayQuery && filteredBarangays.length === 0) && (
+                                            <div className="px-4 py-2 text-sm text-gray-500">No results</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             {errors.incidentLocation && <p className="mt-1 text-sm text-red-600">{errors.incidentLocation.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Incident Date *</label>
-                            <input {...register('incidentDate', { required: 'Incident date is required' })} type="date" className="input-field" />
+                            <input {...register('incidentDate', { required: 'Incident date is required', validate: (v) => v <= todayStr || 'Date cannot be in the future', onChange: (e) => { const v = (e.target as HTMLInputElement).value; if (v > todayStr) { (e.target as HTMLInputElement).value = todayStr; setValue('incidentDate', todayStr, { shouldValidate: true }); toast.error('Date cannot be in the future') } } })} type="date" className="input-field" max={todayStr} />
                             {errors.incidentDate && <p className="mt-1 text-sm text-red-600">{errors.incidentDate.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Incident Time *</label>
-                            <input {...register('incidentTime', { required: 'Incident time is required' })} type="time" className="input-field" />
+                            <input {...register('incidentTime', { required: 'Incident time is required', validate: (v) => { if (selectedIncidentDate === todayStr) { return v <= nowTimeStr || 'Time cannot be in the future' } return true } })} type="time" className="input-field" max={maxIncidentTime} />
                             {errors.incidentTime && <p className="mt-1 text-sm text-red-600">{errors.incidentTime.message}</p>}
                         </div>
                     </div>

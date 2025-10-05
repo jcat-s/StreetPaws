@@ -600,7 +600,7 @@ const ReportsManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{report.animalName}</div>
-                      <div className="text-sm text-gray-500 capitalize">{report.animalType} • {report.breed}</div>
+                      <div className="text-sm text-gray-500 capitalize">{report.animalType}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{report.reporterName}</div>

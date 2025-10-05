@@ -133,7 +133,7 @@ const AbusedReport = () => {
                                 <option value="" disabled hidden>Select animal type</option>
                                 <option value="dog">Dog</option>
                                 <option value="cat">Cat</option>
-                                <option value="other">Other</option>
+                      
                             </select>
                             {errors.animalType && <p className="mt-1 text-sm text-red-600">{errors.animalType.message}</p>}
                         </div>

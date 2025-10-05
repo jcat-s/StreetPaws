@@ -117,12 +117,7 @@ const ContentHome = () => {
     const processDocs = (docs: any[], collectionType: 'lost' | 'found'): LostFoundItem[] => {
       return docs
         .filter((doc) => {
-          const d: any = doc.data()
-          // Only process published items for Content Management
-          if (d?.published !== true) {
-            console.log('Skipping unpublished item:', doc.id, 'published:', d?.published)
-            return false
-          }
+          // Process all items for Content Management (both published and unpublished)
           return true
         })
         .map((doc) => {
@@ -162,7 +157,7 @@ const ContentHome = () => {
             reporterPhone: d?.contactPhone || '',
             reporterEmail: d?.contactEmail || '',
             createdAt: createdAtIso,
-            published: true, // Only published items reach here
+            published: d?.published !== false, // Default to true if not explicitly false
             description: d?.description || '',
             additionalDetails: d?.additionalDetails || '',
             imageUrl: undefined

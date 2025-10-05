@@ -45,8 +45,8 @@ const LostAndFound = () => {
       const lostMapped: LostFoundAnimal[] = []
       for (const d of lostSnap.docs) {
         const data: any = d.data()
-        // Only show published items to users (if published field exists and is false, hide it)
-        if (data?.published === false || data?.isPublished === false) continue
+        // Only show published items to users (only show if published is explicitly true)
+        if (data?.published !== true) continue
         
         let imageUrl: string = data?.image || ''
         if (!imageUrl && data?.uploadObjectKey) {
@@ -88,8 +88,8 @@ const LostAndFound = () => {
       const foundMapped: LostFoundAnimal[] = []
       for (const d of foundSnap.docs) {
         const data: any = d.data()
-        // Only show published items to users (if published field exists and is false, hide it)
-        if (data?.published === false || data?.isPublished === false) continue
+        // Only show published items to users (only show if published is explicitly true)
+        if (data?.published !== true) continue
 
         let imageUrl: string = data?.image || ''
         if (!imageUrl && data?.uploadObjectKey) {
@@ -141,6 +141,7 @@ const LostAndFound = () => {
     
     return matchesSearch && matchesType && matchesAnimalType
   })
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {

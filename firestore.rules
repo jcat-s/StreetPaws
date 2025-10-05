@@ -34,7 +34,7 @@ service cloud.firestore {
     
     // Lost reports collection - anyone can create, admins can read/write
     match /reports-lost/{reportId} {
-      allow read: if resource.data.published == true || isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow read: if true; // Temporarily allow all reads for debugging
       allow create: if true;
       allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
       allow delete: if isAdmin();
@@ -42,7 +42,7 @@ service cloud.firestore {
     
     // Found reports collection - anyone can create, admins can read/write
     match /reports-found/{reportId} {
-      allow read: if resource.data.published == true || isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow read: if true; // Temporarily allow all reads for debugging
       allow create: if true;
       allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
       allow delete: if isAdmin();

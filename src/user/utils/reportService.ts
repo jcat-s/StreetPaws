@@ -140,6 +140,7 @@ export async function submitReport(data: SubmitReportData, file: File | null, us
 		contactEmail: data.contactEmail,
 		additionalDetails: data.additionalDetails || undefined,
 		status: 'open' as const,
+		published: false, // Default to unpublished - admin must approve
 		createdAt: serverTimestamp(),
 		createdAtMs: Date.now(),
 		createdBy: userId || null,
@@ -231,6 +232,7 @@ export async function submitAbuseReport(data: AbuseReportData, files: File[], us
 		contactEmail: data.contactEmail,
 		additionalDetails: data.additionalDetails || undefined,
 		status: 'open' as const,
+		published: false, // Default to unpublished - admin must approve
 		createdAt: serverTimestamp(),
 		createdAtMs: Date.now(),
 		createdBy: userId || null,

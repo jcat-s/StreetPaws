@@ -170,8 +170,9 @@ const ReportsManagement = () => {
           console.log('🐕 Processing abuse report:', doc.id, 'evidenceObjects:', d?.evidenceObjects)
           return {
             ...base,
-            animalName: 'N/A',
-            animalType: 'N/A',
+            // For abuse reports, display the case title and animal type in the table's "Animal Info" column
+            animalName: d?.caseTitle || 'N/A',
+            animalType: d?.animalType || 'N/A',
             breed: 'N/A',
             age: 'N/A',
             gender: 'N/A',
@@ -273,6 +274,12 @@ const ReportsManagement = () => {
       case 'abuse': return 'bg-red-100 text-red-600'
       default: return 'bg-gray-100 text-gray-600'
     }
+  }
+
+  const truncateText = (text: string | undefined, maxLength: number): string => {
+    const s = String(text ?? '')
+    if (s.length <= maxLength) return s
+    return s.slice(0, maxLength) + '...'
   }
 
   const resolveAttachments = async (attachments: string[] | undefined): Promise<string[]> => {
@@ -599,8 +606,12 @@ const ReportsManagement = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{report.animalName}</div>
-                      <div className="text-sm text-gray-500 capitalize">{report.animalType}</div>
+                      <div className="text-sm font-medium text-gray-900" title={report.animalName}>
+                        {truncateText(report.animalName, 8)}
+                      </div>
+                      <div className="text-sm text-gray-500 capitalize" title={report.animalType}>
+                        {truncateText(report.animalType, 8)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{report.reporterName}</div>
@@ -774,6 +785,14 @@ const ReportsManagement = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Incident Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Case Title</label>
+                        <p className="text-sm text-gray-900">{selectedReport.animalName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Animal Type</label>
+                        <p className="text-sm text-gray-900 capitalize">{selectedReport.animalType || 'N/A'}</p>
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Abuse Type</label>
                         <p className="text-sm text-gray-900 capitalize">{selectedReport.abuseType || 'Not specified'}</p>

@@ -110,6 +110,12 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
     
+    // Messages (Contact Us) - anyone can create; only admins can read/write after
+    match /messages/{messageId} {
+      allow create: if true; // public submission
+      allow read, update, delete: if isAdmin();
+    }
+    
     // System settings - only superadmin
     match /system_settings/{settingId} {
       allow read, write: if isSuperAdmin();

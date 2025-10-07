@@ -187,8 +187,8 @@ const Navbar = () => {
                           </span>
                           <span className="relative inline-flex items-center">
                             <span className="bg-orange-500 text-white text-[11px] px-2 py-0.5 rounded-full shadow">
-                              {unreadCount}
-                            </span>
+                                {unreadCount}
+                              </span>
                           </span>
                         </button>
                         {notifOpen && (
@@ -230,10 +230,10 @@ const Navbar = () => {
                                     <div className="flex items-start justify-between">
                                       <div className="pr-3">
                                         <div className="font-medium">{titleNode}</div>
-                                        {n.reason && <div className="text-gray-600 mt-0.5">{n.reason}</div>}
-                                        {n.createdAt?.seconds && (
-                                          <div className="text-xs text-gray-400 mt-1">{new Date(n.createdAt.seconds * 1000).toLocaleString()}</div>
-                                        )}
+                                    {n.reason && <div className="text-gray-600 mt-0.5">{n.reason}</div>}
+                                    {n.createdAt?.seconds && (
+                                      <div className="text-xs text-gray-400 mt-1">{new Date(n.createdAt.seconds * 1000).toLocaleString()}</div>
+                                    )}
                                       </div>
                                       <button
                                         className="text-xs text-orange-500 hover:text-red-600"
@@ -257,13 +257,13 @@ const Navbar = () => {
                         )}
                       </div>
                       <div className="px-4 pt-1">
-                        <button
-                          onClick={handleLogout}
+                      <button
+                        onClick={handleLogout}
                           className="flex items-center w-full justify-center rounded-full bg-white border border-orange-300 text-orange-700 font-semibold px-4 py-2 hover:bg-orange-100 transition"
-                        >
-                          <LogOut className="h-4 w-4 mr-2" />
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
                           LogOut
-                        </button>
+                      </button>
                       </div>
                     </div>
                   )}

@@ -12,6 +12,7 @@ import Volunteers from './pages/Forms/VolunteersManagement'
 import Donors from './pages/Forms/DonorsManagement'
 import ContentHome from './pages/Content/Lost&FoundManagement'
 import Heatmap from './pages/Heatmap'
+import MessageManagement from './pages/MessageManagement'
 import AdminLoginModal from './authentication/AdminLoginModal'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
@@ -126,6 +127,7 @@ const AdminAppContent = () => {
         <Route path="abuse" element={<ReportsManagement />} />
         <Route path="volunteers" element={<Volunteers />} />
         <Route path="donors" element={<Donors />} />
+        <Route path="messages" element={<MessageManagement />} />
         <Route path="analytics" element={<AnalyticsDashboard />} />
         <Route path="heatmap" element={<Heatmap />} />
         <Route path="content" element={<ContentHome />} />

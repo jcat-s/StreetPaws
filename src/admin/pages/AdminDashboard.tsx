@@ -141,7 +141,30 @@ const AdminDashboard = () => {
     const processReportDocs = (docs: any[], collectionType: string) => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        
+
+        // Normalize createdAt similar to ReportsManagement
+        let createdAtIso: string
+        if (d?.createdAt?.toDate) {
+          createdAtIso = d.createdAt.toDate().toISOString()
+        } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
+          createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
+        } else if (typeof d?.createdAtMs === 'number') {
+          createdAtIso = new Date(d.createdAtMs).toISOString()
+        } else if (typeof d?.submissionId === 'string' && /^\d+\-/.test(d.submissionId)) {
+          const ms = Number(d.submissionId.split('-')[0])
+          createdAtIso = isNaN(ms) ? 'Invalid Date' : new Date(ms).toISOString()
+        } else if (typeof d?.createdAt === 'string') {
+          const parsed = new Date(d.createdAt)
+          createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
+        } else if (d?.submittedAt) {
+          createdAtIso = processTimestamp(d.submittedAt)
+        } else {
+          createdAtIso = 'Invalid Date'
+        }
+
+        const rawStatus: string = (d?.status || 'pending').toString().toLowerCase()
+        const status: string = rawStatus === 'open' ? 'pending' : rawStatus
+
         return {
           id: doc.id,
           type: collectionType,
@@ -149,8 +172,8 @@ const AdminDashboard = () => {
           animalType: d?.animalType || d?.type || 'unknown',
           location: d?.lastSeenLocation || d?.foundLocation || d?.incidentLocation || d?.location || 'Unknown Location',
           reporter: d?.contactName || d?.reporterName || d?.name || 'Anonymous',
-          date: processTimestamp(d?.createdAt || d?.submittedAt),
-          status: (d?.status || 'pending').toLowerCase(),
+          date: createdAtIso,
+          status,
           priority: (d?.priority || 'normal').toLowerCase()
         }
       })
@@ -217,10 +240,10 @@ const AdminDashboard = () => {
     let allReports: DashboardReport[] = []
     let reportsByType: { [key: string]: DashboardReport[] } = { lost: [], found: [], abuse: [] }
     
-    // Use collectionGroup to read nested subcollections under reports/*
-    const lostGroup = collectionGroup(db, 'lost')
-    const foundGroup = collectionGroup(db, 'found')
-    const abuseGroup = collectionGroup(db, 'abuse')
+    // Read from new top-level collections after migration
+    const lostCollection = collection(db, 'reports-lost')
+    const foundCollection = collection(db, 'reports-found')
+    const abuseCollection = collection(db, 'reports-abuse')
     const adoptionsQuery = query(collection(db, 'adoptions'), orderBy('submittedAt', 'desc'))
     const donationsQuery = query(collection(db, 'donations'), orderBy('createdAt', 'desc'))
     const volunteersQuery = query(collection(db, 'volunteers'), orderBy('createdAt', 'desc'))
@@ -252,17 +275,17 @@ const AdminDashboard = () => {
       setRecentReports([...allReports])
     }
     
-    const unsubscribeAbuse = onSnapshot(query(abuseGroup), (snap) => {
+    const unsubscribeAbuse = onSnapshot(query(abuseCollection, orderBy('createdAt', 'desc')), (snap) => {
       reportsByType.abuse = processReportDocs(snap.docs, 'abuse')
       updateReports()
     })
 
-    const unsubscribeLost = onSnapshot(query(lostGroup), (snap) => {
+    const unsubscribeLost = onSnapshot(query(lostCollection, orderBy('createdAt', 'desc')), (snap) => {
       reportsByType.lost = processReportDocs(snap.docs, 'lost')
       updateReports()
     })
     
-    const unsubscribeFound = onSnapshot(query(foundGroup), (snap) => {
+    const unsubscribeFound = onSnapshot(query(foundCollection, orderBy('createdAt', 'desc')), (snap) => {
       reportsByType.found = processReportDocs(snap.docs, 'found')
       updateReports()
     })

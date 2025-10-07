@@ -31,6 +31,7 @@ const LostAndFound = () => {
   const [filterType, setFilterType] = useState<'all' | 'lost' | 'found'>('all')
   const [filterAnimalType, setFilterAnimalType] = useState<'all' | 'dog' | 'cat'>('all')
   const [selectedItem, setSelectedItem] = useState<LostFoundAnimal | null>(null)
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false)
   const [items, setItems] = useState<LostFoundAnimal[]>([])
   const { search } = useLocation()
   const params = new URLSearchParams(search)
@@ -297,14 +298,20 @@ const LostAndFound = () => {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col items-center">
-                   <img
-                     src={selectedItem.image || `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`}
-                     alt={selectedItem.name || `${selectedItem.breed} ${selectedItem.type}`}
-                     className="w-full h-64 object-cover bg-gray-100 rounded-lg"
-                     onError={e => {
-                       ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/400x300/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
-                     }}
-                   />
+                  <button
+                    type="button"
+                    className="w-full group"
+               
+                  >
+                    <img
+                      src={selectedItem.image || `https://via.placeholder.com/800x600/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`}
+                      alt={selectedItem.name || `${selectedItem.breed} ${selectedItem.type}`}
+                      className="w-full max-h-[50vh] object-contain bg-gray-900 rounded-lg shadow-sm"
+                      onError={e => {
+                        ;(e.target as HTMLImageElement).src = `https://via.placeholder.com/800x600/ffd6e0/8a2be2?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`
+                      }}
+                    />
+                  </button>
                   <div className="w-full mt-4 bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium mb-2">Contact Information:</h4>
                     <div className="space-y-1">
@@ -360,6 +367,27 @@ const LostAndFound = () => {
                   )}
                 </div>
               </div>
+
+              {/* Full-screen image preview */}
+              {isImagePreviewOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/80" onClick={() => setIsImagePreviewOpen(false)} />
+                  <div className="relative max-w-[95vw] max-h-[95vh] z-[61]">
+                    <button
+                      className="absolute -top-10 right-0 text-white/90 hover:text-white text-2xl"
+                      onClick={() => setIsImagePreviewOpen(false)}
+                      aria-label="Close image preview"
+                    >
+                      ✕
+                    </button>
+                    <img
+                      src={selectedItem.image || `https://via.placeholder.com/1200x900/000000/ffffff?text=${selectedItem.animalType === 'dog' ? '🐕' : '🐱'}`}
+                      alt={selectedItem.name || `${selectedItem.breed} ${selectedItem.type}`}
+                      className="w-auto h-auto max-w-[95vw] max-h-[95vh] object-contain rounded"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

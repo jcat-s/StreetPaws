@@ -68,8 +68,7 @@ const ReportsManagement = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [reportToDelete, setReportToDelete] = useState<{id: string, type: string, name: string} | null>(null)
-  const [deletedReports, setDeletedReports] = useState<AdminReport[]>([])
-  const [showUndo, setShowUndo] = useState(false)
+  
   const location = useLocation()
 
   useEffect(() => {
@@ -404,14 +403,7 @@ const ReportsManagement = () => {
   const handleDelete = async () => {
     if (!db || !reportToDelete) return
     
-    // Store the report for potential undo
-    const reportToUndo = reports.find(r => r.id === reportToDelete.id)
-    if (reportToUndo) {
-      setDeletedReports(prev => [...prev, reportToUndo])
-      setShowUndo(true)
-      // Auto-hide undo after 10 seconds
-      setTimeout(() => setShowUndo(false), 10000)
-    }
+    // Proceed with immediate delete (no undo)
     
     setDeletingId(reportToDelete.id)
     setShowDeleteConfirm(false)
@@ -427,33 +419,7 @@ const ReportsManagement = () => {
     }
   }
 
-  const handleUndoDelete = async () => {
-    if (!db || deletedReports.length === 0) return
-    
-    const lastDeleted = deletedReports[deletedReports.length - 1]
-    
-    try {
-      // Restore the report by adding it back to the appropriate collection
-      const collectionName = `reports-${lastDeleted.type}`
-      
-      // Create the document with the same data
-      const reportData = {
-        ...lastDeleted,
-        createdAt: new Date()
-      }
-      // Remove id and parentId since they're not needed in the new structure
-      const { id, parentId, ...cleanReportData } = reportData
-      
-      // We need to use addDoc since we can't restore with the same ID
-      await addDoc(collection(db, collectionName), cleanReportData)
-      
-      // Remove from deleted reports
-      setDeletedReports(prev => prev.slice(0, -1))
-      setShowUndo(false)
-    } catch (error) {
-      console.error('Failed to undo delete:', error)
-    }
-  }
+  
 
   const handleExportCsv = () => {
     const rows = filteredReports.map(r => ({
@@ -1002,9 +968,9 @@ const ReportsManagement = () => {
                 <p className="text-gray-700">
                   Are you sure you want to delete this <span className="font-medium">{reportToDelete.type}</span> report for <span className="font-medium">{reportToDelete.name}</span>?
                 </p>
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    <strong>Warning:</strong> This will permanently delete the report. This action cannot be undone.
                   </p>
                 </div>
               </div>
@@ -1029,38 +995,7 @@ const ReportsManagement = () => {
           </div>
         )}
 
-        {/* Undo Notification */}
-        {showUndo && deletedReports.length > 0 && (
-          <div className="fixed bottom-4 right-4 z-50">
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
-              <div className="flex items-start space-x-3">
-                <div className="p-1 bg-green-100 rounded-full">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Report deleted</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {deletedReports[deletedReports.length - 1]?.animalName || deletedReports[deletedReports.length - 1]?.type} report has been deleted.
-                  </p>
-                </div>
-                <div className="flex flex-col space-y-1">
-                  <button
-                    onClick={handleUndoDelete}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Undo
-                  </button>
-                  <button
-                    onClick={() => setShowUndo(false)}
-                    className="text-sm text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        
       </div>
     </div>
   )

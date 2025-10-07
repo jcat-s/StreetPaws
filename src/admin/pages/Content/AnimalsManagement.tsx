@@ -21,8 +21,7 @@ const AnimalsManagement = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [animalToDelete, setAnimalToDelete] = useState<{id: string, name: string, type: string} | null>(null)
-  const [deletedAnimals, setDeletedAnimals] = useState<any[]>([])
-  const [showUndo, setShowUndo] = useState(false)
+  
   const [animals, setAnimals] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -115,13 +114,7 @@ const AnimalsManagement = () => {
 
   const handleDelete = async () => {
     if (!animalToDelete) return
-    // Store the animal for potential undo
-    const animalToUndo = animals.find(a => a.id === animalToDelete.id)
-    if (animalToUndo) {
-      setDeletedAnimals(prev => [...prev, animalToUndo])
-      setShowUndo(true)
-      setTimeout(() => setShowUndo(false), 10000)
-    }
+    // Proceed with immediate delete (no undo)
     
     setDeletingId(animalToDelete.id)
     setShowDeleteConfirm(false)
@@ -130,26 +123,14 @@ const AnimalsManagement = () => {
       await deleteAnimal(animalToDelete.id)
       setAnimals(prev => prev.filter(animal => animal.id !== animalToDelete.id))
     } catch (e) {
-      // If deletion fails, revert undo notification
-      setShowUndo(false)
+      // Ignore
     } finally {
       setDeletingId(null)
       setAnimalToDelete(null)
     }
   }
 
-  const handleUndoDelete = () => {
-    if (deletedAnimals.length === 0) return
-    
-    const lastDeleted = deletedAnimals[deletedAnimals.length - 1]
-    
-    // Restore the animal
-    setAnimals(prev => [...prev, lastDeleted])
-    
-    // Remove from deleted animals
-    setDeletedAnimals(prev => prev.slice(0, -1))
-    setShowUndo(false)
-  }
+  
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -644,9 +625,9 @@ const AnimalsManagement = () => {
                 <p className="text-gray-700">
                   Are you sure you want to delete <span className="font-medium">{animalToDelete.name}</span>, the {animalToDelete.type}?
                 </p>
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    <strong>Warning:</strong> This will permanently delete the animal. This action cannot be undone.
                   </p>
                 </div>
               </div>
@@ -671,38 +652,7 @@ const AnimalsManagement = () => {
           </div>
         )}
 
-        {/* Undo Notification */}
-        {showUndo && deletedAnimals.length > 0 && (
-          <div className="fixed bottom-4 right-4 z-50">
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
-              <div className="flex items-start space-x-3">
-                <div className="p-1 bg-green-100 rounded-full">
-                  <span className="text-lg">{deletedAnimals[deletedAnimals.length - 1]?.type === 'dog' ? '🐕' : '🐱'}</span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Animal deleted</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {deletedAnimals[deletedAnimals.length - 1]?.name} has been removed from the system.
-                  </p>
-                </div>
-                <div className="flex flex-col space-y-1">
-                  <button
-                    onClick={handleUndoDelete}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Undo
-                  </button>
-                  <button
-                    onClick={() => setShowUndo(false)}
-                    className="text-sm text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        
       </div>
     </div>
   )

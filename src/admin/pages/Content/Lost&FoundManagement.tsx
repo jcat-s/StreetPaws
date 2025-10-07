@@ -58,8 +58,7 @@ const ContentHome = () => {
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<{id: string, type: string, animalName: string} | null>(null)
-  const [deletedItems, setDeletedItems] = useState<LostFoundItem[]>([])
-  const [showUndo, setShowUndo] = useState(false)
+  
 
   useEffect(() => {
     if (!db) return
@@ -300,15 +299,7 @@ const ContentHome = () => {
   const handleDelete = async () => {
     if (!db || !itemToDelete) return
     
-    // Store the item for potential undo
-    const itemToUndo = items.find(i => i.id === itemToDelete.id)
-    if (itemToUndo) {
-      setDeletedItems(prev => [...prev, itemToUndo])
-      setShowUndo(true)
-      // Auto-hide undo after 10 seconds
-      setTimeout(() => setShowUndo(false), 10000)
-    }
-    
+    // Proceed with immediate delete (no undo)
     setDeletingId(itemToDelete.id)
     setShowDeleteConfirm(false)
     
@@ -321,32 +312,7 @@ const ContentHome = () => {
       setItemToDelete(null)
     }
   }
-
-  const handleUndoDelete = async () => {
-    if (!db || deletedItems.length === 0) return
-    
-    const lastDeleted = deletedItems[deletedItems.length - 1]
-    
-    try {
-      // Restore the item by adding it back to the appropriate collection
-      const itemData = {
-        ...lastDeleted,
-        createdAt: serverTimestamp(),
-        id: undefined // Let Firestore generate new ID
-      }
-      delete itemData.id
-      
-      // Determine the correct collection based on item type
-      const collectionName = lastDeleted.type === 'lost' ? 'reports-lost' : 'reports-found'
-      await addDoc(collection(db, collectionName), itemData)
-      
-      // Remove from deleted items
-      setDeletedItems(prev => prev.slice(0, -1))
-      setShowUndo(false)
-    } catch (error) {
-      console.error('Failed to undo delete:', error)
-    }
-  }
+  
 
   const handleAddNew = () => {
     setShowAddModal(true)
@@ -815,9 +781,9 @@ const ContentHome = () => {
               <p className="text-gray-700">
                 Are you sure you want to delete the {itemToDelete.type} report for <span className="font-medium">{itemToDelete.animalName}</span>?
               </p>
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <strong>Warning:</strong> This will permanently delete the report. This action cannot be undone.
                 </p>
               </div>
             </div>
@@ -842,41 +808,7 @@ const ContentHome = () => {
         </div>
       )}
 
-      {/* Undo Notification */}
-      {showUndo && deletedItems.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
-            <div className="flex items-start space-x-3">
-              <div className="p-1 bg-green-100 rounded-full">
-                {deletedItems[deletedItems.length - 1]?.type === 'lost' ? 
-                  <AlertTriangle className="h-5 w-5 text-green-600" /> : 
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                }
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{deletedItems[deletedItems.length - 1]?.type === 'lost' ? 'Lost' : 'Found'} report deleted</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  {deletedItems[deletedItems.length - 1]?.animalName}'s report has been deleted.
-                </p>
-              </div>
-              <div className="flex flex-col space-y-1">
-                <button
-                  onClick={handleUndoDelete}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Undo
-                </button>
-                <button
-                  onClick={() => setShowUndo(false)}
-                  className="text-sm text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   )
 }

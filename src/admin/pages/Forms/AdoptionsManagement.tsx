@@ -453,6 +453,12 @@ const AdoptionsManagement = () => {
                       <label className="block text-sm font-medium text-gray-700">Has Yard</label>
                       <p className="text-sm text-gray-900">{selectedAdoption.hasYard}</p>
                     </div>
+                    {selectedAdoption.yardSize && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Yard Size</label>
+                        <p className="text-sm text-gray-900">{selectedAdoption.yardSize}</p>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Other Pets</label>
                       <p className="text-sm text-gray-900">{selectedAdoption.hasOtherPets}</p>
@@ -501,10 +507,10 @@ const AdoptionsManagement = () => {
 
                 {/* References */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">References</h3>
+            
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-medium text-gray-900 mb-2">Reference 1</h4>
+                      <h4 className="font-medium text-gray-900 mb-2">Reference</h4>
                       <p className="text-sm text-gray-900"><strong>Name:</strong> {selectedAdoption.reference1Name}</p>
                       <p className="text-sm text-gray-900"><strong>Phone:</strong> {selectedAdoption.reference1Phone}</p>
                       <p className="text-sm text-gray-900"><strong>Relation:</strong> {selectedAdoption.reference1Relation}</p>
@@ -525,6 +531,12 @@ const AdoptionsManagement = () => {
                       <label className="block text-sm font-medium text-gray-700">Emergency Plan</label>
                       <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedAdoption.emergencyPlan}</p>
                     </div>
+                    {selectedAdoption.specialNeeds && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Special Needs</label>
+                        <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedAdoption.specialNeeds}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 

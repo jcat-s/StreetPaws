@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { 
   Search, 
@@ -21,7 +21,11 @@ type Volunteer = {
   availability?: string
   preferredRoles?: string[]
   experience?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  message?: string
   status: 'pending' | 'approved' | 'rejected'
+  userId?: string | null
   createdAt: string
 }
 
@@ -56,7 +60,11 @@ const Volunteers = () => {
           availability: data?.availability || '',
           preferredRoles: Array.isArray(data?.preferredRoles) ? data.preferredRoles : [],
           experience: data?.experience || '',
+          emergencyContactName: data?.emergencyContactName || '',
+          emergencyContactPhone: data?.emergencyContactPhone || '',
+          message: data?.message || '',
           status: (data?.status || 'pending') as Volunteer['status'],
+          userId: data?.userId || null,
           createdAt
         }
       })
@@ -94,11 +102,38 @@ const Volunteers = () => {
 
   const handleSave = async () => {
     if (!db || !selectedVolunteer) return
-    const ref = doc(db, 'volunteers', selectedVolunteer.id)
-    await updateDoc(ref, {
-      status: editStatus
-    })
-    setShowVolunteerModal(false)
+    
+    try {
+      const ref = doc(db, 'volunteers', selectedVolunteer.id)
+      await updateDoc(ref, {
+        status: editStatus
+      })
+      
+      // Create notification for the volunteer
+      try {
+        await addDoc(collection(db, 'notifications'), {
+          volunteerId: selectedVolunteer.id,
+          recipientUid: selectedVolunteer.userId || null,
+          recipientEmail: selectedVolunteer.email,
+          status: editStatus,
+          volunteerName: selectedVolunteer.name,
+          reason: editStatus === 'approved' 
+            ? `Congratulations ${selectedVolunteer.name}! Your volunteer application has been approved. Welcome to our volunteer team!`
+            : editStatus === 'rejected'
+            ? `Thank you for your interest in volunteering, ${selectedVolunteer.name}. Unfortunately, we cannot proceed with your application at this time.`
+            : 'Your volunteer application status has been updated.',
+          createdAt: serverTimestamp(),
+          read: false
+        })
+      } catch (notificationError) {
+        console.error('Failed to create notification:', notificationError)
+        // Don't fail the main operation if notification fails
+      }
+      
+      setShowVolunteerModal(false)
+    } catch (error) {
+      console.error('Failed to update volunteer status:', error)
+    }
   }
 
   const handleDeleteClick = (volunteer: Volunteer) => {
@@ -396,6 +431,31 @@ const Volunteers = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Emergency Contact Information */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Emergency Contact Name</label>
+                      <p className="text-sm text-gray-900">{selectedVolunteer.emergencyContactName || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Emergency Contact Phone</label>
+                      <p className="text-sm text-gray-900">{selectedVolunteer.emergencyContactPhone || 'Not provided'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message */}
+                {selectedVolunteer.message && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Volunteer Message</h3>
+                    <p className="text-sm text-gray-900 bg-gray-50 p-4 rounded-lg">
+                      {selectedVolunteer.message}
+                    </p>
+                  </div>
+                )}
 
                 {/* Status Management */}
                 <div>

@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
+import { useAuth } from '../../../contexts/AuthContext'
 
 // Import actual QR code images
 import GCashQR from '../../../assets/images/QR/gcash.png'
@@ -19,6 +20,7 @@ interface DonationData {
 }
 
 const DonationForm = () => {
+  const { currentUser } = useAuth()
   const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<DonationData>({
     defaultValues: {
       paymentMethod: "", // 👈 force dropdown to start empty
@@ -40,6 +42,7 @@ const DonationForm = () => {
         message: data.message || null,
         consent: !!data.consent,
         status: 'pending',
+        userId: currentUser?.uid || null, // Capture user ID for notifications
         createdAt: serverTimestamp()
       })
       toast.success('🙏 Thank you for your donation! We will verify your payment.')

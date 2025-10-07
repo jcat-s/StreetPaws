@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, doc, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { 
   Search, 
@@ -21,6 +21,7 @@ type Donation = {
   reference?: string | null
   message?: string | null
   status: 'pending' | 'verified' | 'rejected'
+  userId?: string | null
   createdAt: string
 }
 
@@ -56,6 +57,7 @@ const Donors = () => {
           reference: data?.reference || null,
           message: data?.message || null,
           status: (data?.status || 'pending') as Donation['status'],
+          userId: data?.userId || null,
           createdAt
         }
       })
@@ -103,11 +105,40 @@ const Donors = () => {
 
   const handleSave = async () => {
     if (!db || !selectedDonation) return
-    const ref = doc(db, 'donations', selectedDonation.id)
-    await updateDoc(ref, {
-      status: editStatus
-    })
-    setShowDonationModal(false)
+    
+    try {
+      const ref = doc(db, 'donations', selectedDonation.id)
+      await updateDoc(ref, {
+        status: editStatus
+      })
+      
+      // Create notification for the donor
+      try {
+        await addDoc(collection(db, 'notifications'), {
+          donationId: selectedDonation.id,
+          recipientUid: selectedDonation.userId || null,
+          recipientEmail: selectedDonation.email,
+          status: editStatus,
+          donorName: selectedDonation.name,
+          amount: selectedDonation.amount,
+          paymentMethod: selectedDonation.paymentMethod,
+          reason: editStatus === 'verified' 
+            ? `Thank you so much ${selectedDonation.name}! Your ₱${selectedDonation.amount.toLocaleString()} donation has been received and verified.`
+            : editStatus === 'rejected'
+            ? `Your donation of ₱${selectedDonation.amount.toLocaleString()} could not be verified. Please contact us for assistance.`
+            : 'Your donation status has been updated.',
+          createdAt: serverTimestamp(),
+          read: false
+        })
+      } catch (notificationError) {
+        console.error('Failed to create notification:', notificationError)
+        // Don't fail the main operation if notification fails
+      }
+      
+      setShowDonationModal(false)
+    } catch (error) {
+      console.error('Failed to update donation status:', error)
+    }
   }
 
   const handleDeleteClick = (donation: Donation) => {

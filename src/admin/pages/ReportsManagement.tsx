@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { collection, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { createSignedEvidenceUrl } from '../../user/utils/reportService'
 import { supabase } from '../../config/supabase'
@@ -358,6 +358,33 @@ const ReportsManagement = () => {
         assignedTo: editAssignedTo || null,
         published: editPublished
       })
+      
+      // Create notification for the reporter when report is published
+      if (editPublished && (selectedReport.reporterEmail || selectedReport.createdBy)) {
+        try {
+          await addDoc(collection(db, 'notifications'), {
+            reportId: selectedReport.id,
+            recipientUid: selectedReport.createdBy || null,
+            recipientEmail: selectedReport.reporterEmail || null,
+            status: 'published',
+            reportType: selectedReport.type,
+            animalName: selectedReport.animalName || 'your reported animal',
+            reason: selectedReport.type === 'lost' 
+              ? `Your lost ${selectedReport.animalType || 'pet'} ${selectedReport.animalName || ''} report has been published and is now visible to the public.`
+              : selectedReport.type === 'found'
+              ? `Your found ${selectedReport.animalType || 'animal'} report has been published and is now visible to the public.`
+              : selectedReport.type === 'abuse'
+              ? `Your abuse report has been published and is now being investigated.`
+              : 'Your report has been published and is now visible to the public.',
+            createdAt: serverTimestamp(),
+            read: false
+          })
+        } catch (notificationError) {
+          console.error('Failed to create notification:', notificationError)
+          // Don't fail the main operation if notification fails
+        }
+      }
+      
       setShowReportModal(false)
     } catch (error) {
       console.error('Error updating report:', error)

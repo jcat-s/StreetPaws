@@ -3,6 +3,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
+import { useAuth } from '../../../contexts/AuthContext'
 
 interface VolunteerFormData {
     name: string;
@@ -22,6 +23,7 @@ interface VolunteerFormData {
 // Removed static barangay list; using free-text location input to support global addresses
 
 const VolunteerForm = () => {
+    const { currentUser } = useAuth()
     const { register, handleSubmit, formState: { errors }, reset } = useForm<VolunteerFormData>();
     const [otherRole, setOtherRole] = useState('');
 
@@ -31,6 +33,7 @@ const VolunteerForm = () => {
             const payload = {
                 ...data,
                 preferredRoles: [...(data.preferredRoles || []), ...(otherRole ? [otherRole] : [])],
+                userId: currentUser?.uid || null, // Capture user ID for notifications
                 createdAt: serverTimestamp(),
                 status: 'pending'
             }

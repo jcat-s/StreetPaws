@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { Menu, X, User, Bell, LogOut } from 'lucide-react'
 import LogoImage from '../../assets/images/LOGO.png'
-import toast from 'react-hot-toast'
+// toast removed per new notification UX
 import { collection, onSnapshot, query, where, updateDoc, doc, orderBy, limit } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 
@@ -15,10 +15,24 @@ const Navbar = () => {
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifOpen, setNotifOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
+  const [processedNotifications, setProcessedNotifications] = useState<Set<string>>(new Set())
+  const [hiddenNotificationIds, setHiddenNotificationIds] = useState<Set<string>>(() => new Set())
+  const [lastDeleted, setLastDeleted] = useState<{ id: string, item: any } | null>(null)
+  
   // Listen for adoption notifications for the logged-in user (by uid OR email)
   useEffect(() => {
     const database = db
     if (!database || (!currentUser?.uid && !currentUser?.email)) return
+    
+    // Reset processed notifications when user changes
+    setProcessedNotifications(new Set())
+    // Load hidden notifications from localStorage per-user
+    try {
+      const key = `hiddenNotifications:${currentUser?.uid || currentUser?.email || 'guest'}`
+      const stored = localStorage.getItem(key)
+      if (stored) setHiddenNotificationIds(new Set(JSON.parse(stored)))
+      else setHiddenNotificationIds(new Set())
+    } catch {}
     const emailFilter = currentUser?.email ? where('recipientEmail', '==', currentUser.email) : null
     const uidFilter = currentUser?.uid ? where('recipientUid', '==', currentUser.uid) : null
     const constraints = [] as any[]
@@ -33,23 +47,45 @@ const Navbar = () => {
     const unsubUnread = onSnapshot(qUnread, async (snap) => {
       setUnreadCount(snap.size)
       for (const d of snap.docs) {
-        const data: any = d.data()
-        const status = String(data?.status || '').toLowerCase()
-        const animal = data?.animalName || 'your selected pet'
-        const reason = data?.reason ? ` Reason: ${data.reason}` : ''
-        if (status === 'approved') {
-          toast.success(`Adoption approved for ${animal}.${reason}`)
-        } else if (status === 'rejected') {
-          toast.error(`Adoption rejected for ${animal}.${reason}`)
-        } else {
-          toast(`Update on adoption for ${animal}.${reason}`)
+        const notificationId = d.id
+        // Track processed to avoid repeated work
+        if (!processedNotifications.has(notificationId)) {
+          setProcessedNotifications(prev => new Set([...prev, notificationId]))
         }
-        // mark as read to avoid repeated toasts
+        // Mark as read to avoid repeated processing
         try { await updateDoc(doc(database, 'notifications', d.id), { read: true, readAt: new Date().toISOString() }) } catch {}
       }
     })
     return () => { unsubAll(); unsubUnread() }
   }, [currentUser?.email, db])
+
+  // Helpers to persist hidden notifications per-user
+  const persistHidden = (next: Set<string>) => {
+    try {
+      const key = `hiddenNotifications:${currentUser?.uid || currentUser?.email || 'guest'}`
+      localStorage.setItem(key, JSON.stringify(Array.from(next)))
+    } catch {}
+  }
+
+  const handleHideNotification = (id: string) => {
+    const item = notifications.find(n => n.id === id)
+    const next = new Set(hiddenNotificationIds)
+    next.add(id)
+    setHiddenNotificationIds(next)
+    setLastDeleted(item ? { id, item } : null)
+    persistHidden(next)
+  }
+
+  const handleUndoLastDelete = () => {
+    if (!lastDeleted) return
+    const next = new Set(hiddenNotificationIds)
+    next.delete(lastDeleted.id)
+    setHiddenNotificationIds(next)
+    setLastDeleted(null)
+    persistHidden(next)
+  }
+
+  const visibleNotifications = notifications.filter(n => !hiddenNotificationIds.has(n.id))
 
 
   const navigation = [
@@ -155,18 +191,51 @@ const Navbar = () => {
                         {notifOpen && (
                           <div className="absolute right-4 mt-1 w-80 max-h-80 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                             <div className="p-2 text-xs text-gray-500 border-b">Recent</div>
-                            {notifications.length === 0 ? (
+                            {visibleNotifications.length === 0 ? (
                               <div className="p-4 text-sm text-gray-600">No notifications</div>
                             ) : (
-                              notifications.map((n) => (
-                                <div key={n.id} className="px-4 py-3 hover:bg-gray-50 text-sm text-gray-800 border-b last:border-b-0">
-                                  <div className="font-medium capitalize">{n.status || 'update'}: {n.animalName || ''}</div>
-                                  {n.reason && <div className="text-gray-600 mt-0.5">{n.reason}</div>}
-                                  {n.createdAt?.seconds && (
-                                    <div className="text-xs text-gray-400 mt-1">{new Date(n.createdAt.seconds * 1000).toLocaleString()}</div>
-                                  )}
-                                </div>
-                              ))
+                              visibleNotifications.map((n) => {
+                                // Determine notification title based on type
+                                let title = ''
+                                if (n.adoptionId) {
+                                  title = `${n.status || 'update'}: ${n.animalName || 'adoption'}`
+                                } else if (n.donationId) {
+                                  title = `Donation ${n.status || 'update'}: ₱${n.amount?.toLocaleString() || '0'}`
+                                } else if (n.volunteerId) {
+                                  title = `Volunteer application ${n.status || 'update'}`
+                                } else if (n.reportId) {
+                                  title = `${n.reportType || 'Report'} ${n.status || 'update'}`
+                                } else {
+                                  title = `${n.status || 'update'} notification`
+                                }
+                                
+                                return (
+                                  <div key={n.id} className="px-4 py-3 hover:bg-gray-50 text-sm text-gray-800 border-b last:border-b-0">
+                                    <div className="flex items-start justify-between">
+                                      <div className="pr-3">
+                                        <div className="font-medium capitalize">{title}</div>
+                                        {n.reason && <div className="text-gray-600 mt-0.5">{n.reason}</div>}
+                                        {n.createdAt?.seconds && (
+                                          <div className="text-xs text-gray-400 mt-1">{new Date(n.createdAt.seconds * 1000).toLocaleString()}</div>
+                                        )}
+                                      </div>
+                                      <button
+                                        className="text-xs text-gray-400 hover:text-red-600"
+                                        onClick={() => handleHideNotification(n.id)}
+                                        aria-label="Delete notification"
+                                      >
+                                        Delete
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })
+                            )}
+                            {lastDeleted && (
+                              <div className="flex items-center justify-between px-4 py-2 bg-orange-50 text-xs text-orange-700">
+                                <span>Notification deleted.</span>
+                                <button className="font-semibold hover:underline" onClick={handleUndoLastDelete}>Undo</button>
+                              </div>
                             )}
                           </div>
                         )}

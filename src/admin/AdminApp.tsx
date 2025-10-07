@@ -6,7 +6,6 @@ import AdminDashboard from './pages/AdminDashboard'
 import ReportsManagement from './pages/ReportsManagement'
 import AdoptionsManagement from './pages/Forms/AdoptionsManagement'
 import AnimalsManagement from './pages/Content/AnimalsManagement'
-import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import AdminSettings from './pages/AdminSettings'
 import Volunteers from './pages/Forms/VolunteersManagement'
 import Donors from './pages/Forms/DonorsManagement'
@@ -128,7 +127,6 @@ const AdminAppContent = () => {
         <Route path="volunteers" element={<Volunteers />} />
         <Route path="donors" element={<Donors />} />
         <Route path="messages" element={<MessageManagement />} />
-        <Route path="analytics" element={<AnalyticsDashboard />} />
         <Route path="heatmap" element={<Heatmap />} />
         <Route path="content" element={<ContentHome />} />
         <Route path="content/animals" element={<AnimalsManagement />} />

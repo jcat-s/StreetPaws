@@ -12,10 +12,11 @@ import {
   MapPin,
   DollarSign,
   User,
-  PieChart
+  PieChart as PieChartIcon
 } from 'lucide-react'
 import { collection, onSnapshot, orderBy, query, collectionGroup } from 'firebase/firestore'
 import { db } from '../../config/firebase'
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 
 // Dashboard data types
 type DashboardReport = {
@@ -64,7 +65,7 @@ type DashboardAnimal = {
 }
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'adoptions'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'adoptions' | 'analytics'>('overview')
   
   // Data states
   const [recentReports, setRecentReports] = useState<DashboardReport[]>([])
@@ -111,42 +112,46 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (!db) return
     
-    // Helper function to process documents
+    // Helper function to safely process timestamps
+    const processTimestamp = (timestamp: any): string => {
+      if (!timestamp) return new Date().toISOString()
+      
+      if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate().toISOString()
+      }
+      
+      if (timestamp.seconds && typeof timestamp.seconds === 'number') {
+        return new Date(timestamp.seconds * 1000).toISOString()
+      }
+      
+      if (typeof timestamp === 'string') {
+        const parsed = new Date(timestamp)
+        return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+      }
+      
+      if (typeof timestamp === 'number') {
+        const parsed = new Date(timestamp)
+        return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
+      }
+      
+      return new Date().toISOString()
+    }
+
+    // Helper function to process documents with better data normalization
     const processReportDocs = (docs: any[], collectionType: string) => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        const type: string = (d?.type || collectionType) as string
-        // Normalize createdAt: support Timestamp.toDate, {seconds}, string, number; pending serverTimestamp -> mark invalid
-        let createdAtIso: string
-        if (d?.createdAt?.toDate) {
-          createdAtIso = d.createdAt.toDate().toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
-          createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
-        } else if (typeof d?.createdAt === 'string') {
-          const parsed = new Date(d.createdAt)
-          createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
-        } else if (typeof d?.createdAt === 'number') {
-          const parsed = new Date(d.createdAt)
-          createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'object' && (d.createdAt._methodName === 'serverTimestamp' || d.createdAt.__type__ === 'serverTimestamp')) {
-          createdAtIso = 'Invalid Date'
-        } else {
-          createdAtIso = 'Invalid Date'
-        }
-
-        const rawStatus: string = (d?.status || 'pending').toString().toLowerCase()
-        const status: string = rawStatus === 'open' ? 'pending' : rawStatus
-
+        
         return {
           id: doc.id,
-          type: type as any,
-          animalName: d?.animalName || 'Unknown',
-          animalType: d?.animalType || 'unknown',
-          location: d?.lastSeenLocation || d?.foundLocation || d?.incidentLocation || '',
-          reporter: d?.contactName || d?.reporterName || 'Unknown',
-          date: createdAtIso,
-          status,
-          priority: (d?.priority || 'normal') as DashboardReport['priority']
+          type: collectionType,
+          animalName: d?.animalName || d?.name || 'Unknown Animal',
+          animalType: d?.animalType || d?.type || 'unknown',
+          location: d?.lastSeenLocation || d?.foundLocation || d?.incidentLocation || d?.location || 'Unknown Location',
+          reporter: d?.contactName || d?.reporterName || d?.name || 'Anonymous',
+          date: processTimestamp(d?.createdAt || d?.submittedAt),
+          status: (d?.status || 'pending').toLowerCase(),
+          priority: (d?.priority || 'normal').toLowerCase()
         }
       })
     }
@@ -154,18 +159,14 @@ const AdminDashboard = () => {
     const processAdoptionDocs = (docs: any[]) => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        const createdAtIso: string = d?.submittedAt?.toDate ? d.submittedAt.toDate().toISOString() : 
-                                   d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : 
-                                   (typeof d?.submittedAt === 'string' ? d.submittedAt : 
-                                    typeof d?.createdAt === 'string' ? d.createdAt : 'Invalid Date')
         
         return {
           id: doc.id,
-          animalName: d?.animalName || 'Unknown',
-          animalType: (d?.animalType || 'dog') as 'dog' | 'cat',
-          applicantName: d?.applicantName || 'Unknown',
-          status: (d?.status || 'pending') as 'pending' | 'approved' | 'rejected',
-          submittedAt: createdAtIso
+          animalName: d?.animalName || d?.name || 'Unknown Animal',
+          animalType: (d?.animalType || d?.type || 'dog') as 'dog' | 'cat',
+          applicantName: d?.applicantName || d?.name || 'Anonymous',
+          status: (d?.status || 'pending').toLowerCase() as 'pending' | 'approved' | 'rejected',
+          submittedAt: processTimestamp(d?.submittedAt || d?.createdAt)
         }
       })
     }
@@ -173,15 +174,14 @@ const AdminDashboard = () => {
     const processDonationDocs = (docs: any[]) => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : 'Invalid Date')
         
         return {
           id: doc.id,
-          name: d?.name || 'Anonymous',
-          amount: Number(d?.amount || 0),
-          paymentMethod: d?.paymentMethod || 'unknown',
-          status: (d?.status || 'pending') as 'pending' | 'verified' | 'rejected',
-          createdAt: createdAtIso
+          name: d?.name || d?.donorName || 'Anonymous',
+          amount: Number(d?.amount || d?.donationAmount || 0),
+          paymentMethod: d?.paymentMethod || d?.paymentType || 'unknown',
+          status: (d?.status || 'pending').toLowerCase() as 'pending' | 'verified' | 'rejected',
+          createdAt: processTimestamp(d?.createdAt || d?.donationDate)
         }
       })
     }
@@ -189,13 +189,12 @@ const AdminDashboard = () => {
     const processVolunteerDocs = (docs: any[]) => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : 'Invalid Date')
         
         return {
           id: doc.id,
-          name: d?.name || 'Unknown',
-          status: (d?.status || 'pending') as 'pending' | 'approved' | 'rejected',
-          createdAt: createdAtIso
+          name: d?.name || d?.fullName || 'Anonymous',
+          status: (d?.status || 'pending').toLowerCase() as 'pending' | 'approved' | 'rejected',
+          createdAt: processTimestamp(d?.createdAt || d?.applicationDate)
         }
       })
     }
@@ -203,97 +202,139 @@ const AdminDashboard = () => {
     const processAnimalDocs = (docs: any[]) => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        const createdAtIso: string = d?.createdAt?.toDate ? d.createdAt.toDate().toISOString() : (typeof d?.createdAt === 'string' ? d.createdAt : 'Invalid Date')
         
         return {
           id: doc.id,
-          name: d?.name || 'Unknown',
-          type: (d?.type || 'dog') as 'dog' | 'cat',
-          status: (d?.status || 'available') as 'available' | 'pending' | 'adopted' | 'archived',
-          createdAt: createdAtIso
+          name: d?.name || d?.animalName || 'Unknown',
+          type: (d?.type || d?.animalType || 'dog') as 'dog' | 'cat',
+          status: (d?.status || 'available').toLowerCase() as 'available' | 'pending' | 'adopted' | 'archived',
+          createdAt: processTimestamp(d?.createdAt || d?.admissionDate)
         }
       })
     }
+    
+    // Initialize data containers
+    let allReports: DashboardReport[] = []
+    let reportsByType: { [key: string]: DashboardReport[] } = { lost: [], found: [], abuse: [] }
     
     // Use collectionGroup to read nested subcollections under reports/*
     const lostGroup = collectionGroup(db, 'lost')
     const foundGroup = collectionGroup(db, 'found')
     const abuseGroup = collectionGroup(db, 'abuse')
-    const adoptionsQuery = query(collection(db, 'adoptions'))
-    const donationsQuery = query(collection(db, 'donations'))
-    const volunteersQuery = query(collection(db, 'volunteers'))
+    const adoptionsQuery = query(collection(db, 'adoptions'), orderBy('submittedAt', 'desc'))
+    const donationsQuery = query(collection(db, 'donations'), orderBy('createdAt', 'desc'))
+    const volunteersQuery = query(collection(db, 'volunteers'), orderBy('createdAt', 'desc'))
     
-    let allReports: DashboardReport[] = []
-    
-    const unsubscribeAbuse = onSnapshot(query(abuseGroup), (snap) => {
-      const reportsData = processReportDocs(snap.docs, 'abuse')
-      allReports = allReports.filter(r => r.type !== 'abuse').concat(reportsData)
-      updateReportCounts()
-    })
-
-    const unsubscribeLost = onSnapshot(query(lostGroup), (snap) => {
-      const lostData = processReportDocs(snap.docs, 'lost')
-      allReports = allReports.filter(r => r.type !== 'lost').concat(lostData)
-      updateReportCounts()
-    })
-    
-    const unsubscribeFound = onSnapshot(query(foundGroup), (snap) => {
-      const foundData = processReportDocs(snap.docs, 'found')
-      allReports = allReports.filter(r => r.type !== 'found').concat(foundData)
-      updateReportCounts()
-    })
-
-    const unsubscribeAdoptions = onSnapshot(adoptionsQuery, (snap) => {
-      setAdoptions(processAdoptionDocs(snap.docs))
-    })
-
-    const unsubscribeDonations = onSnapshot(donationsQuery, (snap) => {
-      setDonations(processDonationDocs(snap.docs))
-    })
-
-    const unsubscribeVolunteers = onSnapshot(volunteersQuery, (snap) => {
-      setVolunteers(processVolunteerDocs(snap.docs))
-    })
-
-    // For animals, we need to check if they exist in Firebase or use Supabase
-    // For now, let's try Firebase first
-    try {
-      const animalsQuery = query(collection(db, 'animals'), orderBy('createdAt', 'desc'))
-      const unsubscribeAnimals = onSnapshot(animalsQuery, (snap) => {
-        setAnimals(processAnimalDocs(snap.docs))
-      })
+    // Function to update reports without duplicates
+    const updateReports = () => {
+      allReports = [...reportsByType.lost, ...reportsByType.found, ...reportsByType.abuse]
+      // Remove duplicates based on ID
+      const uniqueReports = allReports.reduce((acc, current) => {
+        const existingIndex = acc.findIndex(item => item.id === current.id)
+        if (existingIndex === -1) {
+          acc.push(current)
+        } else {
+          // Keep the most recent version
+          if (new Date(current.date) > new Date(acc[existingIndex].date)) {
+            acc[existingIndex] = current
+          }
+        }
+        return acc
+      }, [] as DashboardReport[])
       
-      return () => {
-        unsubscribeAbuse()
-        unsubscribeLost()
-        unsubscribeFound()
-        unsubscribeAdoptions()
-        unsubscribeDonations()
-        unsubscribeVolunteers()
-        unsubscribeAnimals()
-      }
-    } catch (error) {
-      // If animals collection doesn't exist in Firebase, just return other unsubscribes
-      console.log('Animals collection not found in Firebase, using empty array')
-      setAnimals([])
+      allReports = uniqueReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       
-      return () => {
-        unsubscribeAbuse()
-        unsubscribeLost()
-        unsubscribeFound()
-        unsubscribeAdoptions()
-        unsubscribeDonations()
-        unsubscribeVolunteers()
-      }
-    }
-    
-    const updateReportCounts = () => {
       const totalCount = allReports.length
       const pendingCount = allReports.filter(r => r.status === 'pending' || r.status === 'investigating').length
       const resolvedCount = allReports.filter(r => r.status === 'resolved').length
       
       setReportCounts({ total: totalCount, pending: pendingCount, resolved: resolvedCount })
       setRecentReports([...allReports])
+    }
+    
+    const unsubscribeAbuse = onSnapshot(query(abuseGroup), (snap) => {
+      reportsByType.abuse = processReportDocs(snap.docs, 'abuse')
+      updateReports()
+    })
+
+    const unsubscribeLost = onSnapshot(query(lostGroup), (snap) => {
+      reportsByType.lost = processReportDocs(snap.docs, 'lost')
+      updateReports()
+    })
+    
+    const unsubscribeFound = onSnapshot(query(foundGroup), (snap) => {
+      reportsByType.found = processReportDocs(snap.docs, 'found')
+      updateReports()
+    })
+
+    const unsubscribeAdoptions = onSnapshot(adoptionsQuery, (snap) => {
+      const adoptionData = processAdoptionDocs(snap.docs)
+      // Remove duplicates
+      const uniqueAdoptions = adoptionData.reduce((acc, current) => {
+        const existingIndex = acc.findIndex(item => item.id === current.id)
+        if (existingIndex === -1) {
+          acc.push(current)
+        }
+        return acc
+      }, [] as DashboardAdoption[])
+      setAdoptions(uniqueAdoptions)
+    })
+
+    const unsubscribeDonations = onSnapshot(donationsQuery, (snap) => {
+      const donationData = processDonationDocs(snap.docs)
+      // Remove duplicates
+      const uniqueDonations = donationData.reduce((acc, current) => {
+        const existingIndex = acc.findIndex(item => item.id === current.id)
+        if (existingIndex === -1) {
+          acc.push(current)
+        }
+        return acc
+      }, [] as DashboardDonation[])
+      setDonations(uniqueDonations)
+    })
+
+    const unsubscribeVolunteers = onSnapshot(volunteersQuery, (snap) => {
+      const volunteerData = processVolunteerDocs(snap.docs)
+      // Remove duplicates
+      const uniqueVolunteers = volunteerData.reduce((acc, current) => {
+        const existingIndex = acc.findIndex(item => item.id === current.id)
+        if (existingIndex === -1) {
+          acc.push(current)
+        }
+        return acc
+      }, [] as DashboardVolunteer[])
+      setVolunteers(uniqueVolunteers)
+    })
+
+    // Try to fetch animals from Firebase
+    let unsubscribeAnimals: (() => void) | null = null
+    try {
+      const animalsQuery = query(collection(db, 'animals'), orderBy('createdAt', 'desc'))
+      unsubscribeAnimals = onSnapshot(animalsQuery, (snap) => {
+        const animalData = processAnimalDocs(snap.docs)
+        // Remove duplicates
+        const uniqueAnimals = animalData.reduce((acc, current) => {
+          const existingIndex = acc.findIndex(item => item.id === current.id)
+          if (existingIndex === -1) {
+            acc.push(current)
+          }
+          return acc
+        }, [] as DashboardAnimal[])
+        setAnimals(uniqueAnimals)
+      })
+    } catch (error) {
+      console.log('Animals collection not found in Firebase, using empty array')
+      setAnimals([])
+    }
+    
+    return () => {
+      unsubscribeAbuse()
+      unsubscribeLost()
+      unsubscribeFound()
+      unsubscribeAdoptions()
+      unsubscribeDonations()
+      unsubscribeVolunteers()
+      if (unsubscribeAnimals) unsubscribeAnimals()
     }
   }, [])
 
@@ -373,6 +414,36 @@ const AdminDashboard = () => {
     
     return months
   }, [recentReports, adoptions])
+
+  // Analytics calculations
+  const analytics = useMemo(() => ({
+    overview: {
+      totalReports: recentReports.length,
+      totalAdoptions: adoptions.filter(a => a.status === 'approved').length,
+      totalAnimals: animals.length,
+      totalDonations: donations.filter(d => d.status === 'verified').reduce((sum, d) => sum + d.amount, 0),
+      adoptionRate: adoptions.length > 0 ? (adoptions.filter(a => a.status === 'approved').length / adoptions.length) * 100 : 0,
+      resolutionRate: recentReports.length > 0 ? (recentReports.filter(r => r.status === 'resolved').length / recentReports.length) * 100 : 0
+    },
+    reportsByType: [
+      { type: 'Lost', count: recentReports.filter(r => r.type === 'lost').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.type === 'lost').length / recentReports.length) * 100 : 0 },
+      { type: 'Found', count: recentReports.filter(r => r.type === 'found').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.type === 'found').length / recentReports.length) * 100 : 0 },
+      { type: 'Abuse', count: recentReports.filter(r => r.type === 'abuse').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.type === 'abuse').length / recentReports.length) * 100 : 0 }
+    ],
+    reportsByStatus: [
+      { status: 'Resolved', count: recentReports.filter(r => r.status === 'resolved').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.status === 'resolved').length / recentReports.length) * 100 : 0 },
+      { status: 'Investigating', count: recentReports.filter(r => r.status === 'investigating').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.status === 'investigating').length / recentReports.length) * 100 : 0 },
+      { status: 'Pending', count: recentReports.filter(r => r.status === 'pending').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.status === 'pending').length / recentReports.length) * 100 : 0 }
+    ],
+    animalTypes: [
+      { type: 'Dogs', count: animals.filter(a => a.type === 'dog').length, percentage: animals.length > 0 ? (animals.filter(a => a.type === 'dog').length / animals.length) * 100 : 0 },
+      { type: 'Cats', count: animals.filter(a => a.type === 'cat').length, percentage: animals.length > 0 ? (animals.filter(a => a.type === 'cat').length / animals.length) * 100 : 0 }
+    ]
+  }), [recentReports, adoptions, animals, donations])
+
+  const formatPercentage = (value: number) => {
+    return `${value.toFixed(1)}%`
+  }
 
   // Recent activity for the last 7 days
   const recentActivity = useMemo(() => {
@@ -615,7 +686,8 @@ const AdminDashboard = () => {
               {[
                 { id: 'overview', name: 'Overview', icon: TrendingUp },
                 { id: 'reports', name: 'Recent Reports', icon: FileText },
-                { id: 'adoptions', name: 'Recent Adoptions', icon: Heart }
+                { id: 'adoptions', name: 'Recent Adoptions', icon: Heart },
+                { id: 'analytics', name: 'Analytics', icon: PieChartIcon }
               ].map((tab) => {
                 const Icon = tab.icon
                 return (
@@ -844,6 +916,221 @@ const AdminDashboard = () => {
                       )}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'analytics' && (
+              <div className="space-y-8">
+                {/* Key Performance Indicators */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Performance Indicators</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-blue-600">Resolution Rate</p>
+                          <p className="text-3xl font-bold text-blue-900">{formatPercentage(analytics.overview.resolutionRate)}</p>
+                        </div>
+                        <CheckCircle className="h-8 w-8 text-blue-600" />
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-green-600">Adoption Success Rate</p>
+                          <p className="text-3xl font-bold text-green-900">{formatPercentage(analytics.overview.adoptionRate)}</p>
+                        </div>
+                        <Heart className="h-8 w-8 text-green-600" />
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-6 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-orange-600">Total Donations</p>
+                          <p className="text-3xl font-bold text-orange-900">{formatCurrency(analytics.overview.totalDonations)}</p>
+                        </div>
+                        <DollarSign className="h-8 w-8 text-orange-600" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visual Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Reports by Type - Pie Chart */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Reports by Type</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={analytics.reportsByType}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            dataKey="count"
+                            label={({ type, percentage }: any) => `${type}: ${percentage.toFixed(1)}%`}
+                          >
+                            {analytics.reportsByType.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={
+                                  entry.type === 'Lost' ? '#3B82F6' :
+                                  entry.type === 'Found' ? '#10B981' : '#EF4444'
+                                } 
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Reports by Status - Pie Chart */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Reports by Status</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={analytics.reportsByStatus}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            dataKey="count"
+                            label={({ status, percentage }: any) => `${status}: ${percentage.toFixed(1)}%`}
+                          >
+                            {analytics.reportsByStatus.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={
+                                  entry.status === 'Resolved' ? '#10B981' :
+                                  entry.status === 'Investigating' ? '#3B82F6' : '#F59E0B'
+                                } 
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Monthly Trends - Bar Chart */}
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Activity Trends</h3>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="reports" fill="#3B82F6" name="Reports" />
+                        <Bar dataKey="adoptions" fill="#10B981" name="Adoptions" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Animal Distribution - Pie Chart */}
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Type Distribution</h3>
+                  <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={analytics.animalTypes}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            dataKey="count"
+                            label={({ type, percentage }: any) => `${type}: ${percentage.toFixed(1)}%`}
+                          >
+                            {analytics.animalTypes.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.type === 'Dogs' ? '#3B82F6' : '#8B5CF6'} 
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Detailed Analytics Cards */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Adoption Analytics */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Adoption Analytics</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Total Applications</span>
+                        <span className="text-lg font-bold text-green-600">{adoptions.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Approved</span>
+                        <span className="text-lg font-bold text-blue-600">{adoptions.filter(a => a.status === 'approved').length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Pending</span>
+                        <span className="text-lg font-bold text-yellow-600">{adoptions.filter(a => a.status === 'pending').length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Rejected</span>
+                        <span className="text-lg font-bold text-red-600">{adoptions.filter(a => a.status === 'rejected').length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Donation Analytics */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Donation Analytics</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Verified Donations</span>
+                        <span className="text-lg font-bold text-green-600">{formatCurrency(donationStats.totalAmount)}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Pending Verification</span>
+                        <span className="text-lg font-bold text-yellow-600">{formatCurrency(donationStats.pendingAmount)}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Average Donation</span>
+                        <span className="text-lg font-bold text-blue-600">{formatCurrency(donationStats.averageAmount)}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Total Donors</span>
+                        <span className="text-lg font-bold text-purple-600">{donations.length}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Geographic Summary */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Distribution</h3>
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">Geographic analytics based on report locations</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Reports with Location</p>
+                          <p className="text-2xl font-bold text-blue-600">{recentReports.filter(r => r.location && r.location !== 'Unknown Location').length}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Total Reports</p>
+                          <p className="text-2xl font-bold text-green-600">{recentReports.length}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

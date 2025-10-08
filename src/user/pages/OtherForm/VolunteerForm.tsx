@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { useAuth } from '../../../contexts/AuthContext'
+import LocationPicker from '../../components/LocationPicker'
 
 interface VolunteerFormData {
     name: string;
@@ -26,6 +27,11 @@ const VolunteerForm = () => {
     const { currentUser } = useAuth()
     const { register, handleSubmit, formState: { errors }, reset } = useForm<VolunteerFormData>();
     const [otherRole, setOtherRole] = useState('');
+    const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lon: number; address: string }>({
+        lat: 0,
+        lon: 0,
+        address: ''
+    });
 
     const onSubmit = async (data: VolunteerFormData) => {
         try {
@@ -34,6 +40,7 @@ const VolunteerForm = () => {
                 ...data,
                 preferredRoles: [...(data.preferredRoles || []), ...(otherRole ? [otherRole] : [])],
                 userId: currentUser?.uid || null, // Capture user ID for notifications
+                location: selectedLocation,
                 createdAt: serverTimestamp(),
                 status: 'pending'
             }
@@ -41,6 +48,7 @@ const VolunteerForm = () => {
             toast.success('Thank you for volunteering!')
             reset()
             setOtherRole('')
+            setSelectedLocation({ lat: 0, lon: 0, address: '' })
         } catch (e) {
             toast.error('Failed to submit volunteer form. Please try again.')
         }
@@ -67,10 +75,15 @@ const VolunteerForm = () => {
                             <input {...register('phone', { required: 'Phone is required', validate: value => /^\d+$/.test(value) || 'Numbers only' })} type="tel" className="input-field" placeholder="e.g., 09123456789" onKeyPress={e => { if (!/[0-9]/.test(e.key)) e.preventDefault(); }} />
                             {errors.phone && <p className="text-sm text-red-600">{errors.phone.message}</p>}
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Location (City/Region, Country) *</label>
-                            <input {...register('barangay', { required: 'Location is required' })} type="text" className="input-field" placeholder="e.g., Lipa City, Batangas, Philippines" />
-                            {errors.barangay && <p className="text-sm text-red-600">{errors.barangay.message}</p>}
+                        <div className="md:col-span-2">
+                            <LocationPicker
+                                label="Location"
+                                value={selectedLocation.address}
+                                onChange={setSelectedLocation}
+                                placeholder="e.g., Barangay 1, Lipa City, Batangas"
+                                required
+                                error={errors.barangay?.message}
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>

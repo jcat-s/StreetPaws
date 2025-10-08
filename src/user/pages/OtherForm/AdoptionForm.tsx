@@ -6,6 +6,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { getAnimalById, type AnimalRecord } from '../../../shared/utils/animalsService'
 import { useAuth } from '../../../contexts/AuthContext'
+import LocationPicker from '../../components/LocationPicker'
 
 interface AdoptionFormData {
   // Personal Information
@@ -54,6 +55,11 @@ const AdoptionForm = () => {
   
   const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<AdoptionFormData>()
   const { currentUser } = useAuth()
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lon: number; address: string }>({
+    lat: 0,
+    lon: 0,
+    address: ''
+  })
   useEffect(() => {
     let mounted = true
     async function loadAnimal() {
@@ -94,6 +100,7 @@ const AdoptionForm = () => {
         applicantOccupation: data.occupation,
         applicantBarangay: data.barangay,
         applicantAddress: data.address,
+        location: selectedLocation,
         // Animal info for admin views
         animalName: selectedAnimal?.name || 'Selected Animal',
         animalType: selectedAnimal?.type || 'unknown',
@@ -133,6 +140,7 @@ const AdoptionForm = () => {
       
       toast.success('Adoption application submitted successfully! We will contact you within 3-5 business days.')
       reset()
+      setSelectedLocation({ lat: 0, lon: 0, address: '' })
       navigate('/our-animals')
     } catch (error: any) {
       console.error('Adoption form submission error:', error)
@@ -230,27 +238,18 @@ const AdoptionForm = () => {
                 {errors.occupation && <p className="text-sm text-red-600">{errors.occupation.message}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location (City/Region, Country) *</label>
-                <input
-                  {...register('barangay', { required: 'Location is required' })}
-                  type="text"
-                  className="input-field"
-                  placeholder="e.g., Lipa City, Batangas, Philippines"
+              <div className="md:col-span-2">
+                <LocationPicker
+                  label="Location"
+                  value={selectedLocation.address}
+                  onChange={setSelectedLocation}
+                  placeholder="e.g., Barangay 1, Lipa City, Batangas"
+                  required
+                  error={errors.barangay?.message}
                 />
-                {errors.barangay && <p className="text-sm text-red-600">{errors.barangay.message}</p>}
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Complete Address *</label>
-                <textarea
-                  {...register('address', { required: 'Address is required' })}
-                  className="input-field"
-                  rows={3}
-                  placeholder="House number, street, subdivision, etc."
-                />
-                {errors.address && <p className="text-sm text-red-600">{errors.address.message}</p>}
-              </div>
+         
             </div>
           </div>
 

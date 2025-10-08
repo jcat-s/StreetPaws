@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import LocationErrorModal from './LocationErrorModal'
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -47,7 +48,23 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
   const [coordinates, setCoordinates] = useState<{ lat: number; lon: number } | null>(null)
   const [mapCenter, setMapCenter] = useState<[number, number]>([14.0048, 121.1631]) // Default to Lipa City
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [modalMessage, setModalMessage] = useState('')
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Validate Lipa location
+  const validateLipaLocation = useCallback((address: string) => {
+    if (!address) return null
+    const locationLower = address.toLowerCase()
+    if (!locationLower.includes('lipa')) {
+      const errorMessage = 'Sorry, the scope of our service is limited to Lipa City only. Please select a location within Lipa City.'
+      setModalMessage(errorMessage)
+      setShowErrorModal(true)
+      setShowMap(false) // Close the map when showing error modal
+      return errorMessage
+    }
+    return null
+  }, [])
 
   // Reverse geocoding function
   const reverseGeocode = useCallback(async (lat: number, lon: number): Promise<string> => {
@@ -138,6 +155,14 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       
       try {
         const addressResult = await reverseGeocode(latitude, longitude)
+        
+        // Check if current location is in Lipa
+        const lipaValidation = validateLipaLocation(addressResult)
+        if (lipaValidation) {
+          setErrorMsg(lipaValidation)
+          return
+        }
+        
         setAddress(addressResult)
         setCoordinates({ lat: latitude, lon: longitude })
         onChange({ lat: latitude, lon: longitude, address: addressResult })
@@ -155,7 +180,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       timeout: 10000,
       maximumAge: 60000
     })
-  }, [reverseGeocode, onChange])
+  }, [reverseGeocode, onChange, validateLipaLocation])
 
   // Handle address search
   const handleSearch = useCallback(async () => {
@@ -167,6 +192,13 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
     try {
       const result = await forwardGeocode(address)
       if (result) {
+        // Check if location is in Lipa
+        const lipaValidation = validateLipaLocation(result.address)
+        if (lipaValidation) {
+          setErrorMsg(lipaValidation)
+          return
+        }
+        
         setCoordinates({ lat: result.lat, lon: result.lon })
         setMapCenter([result.lat, result.lon])
         onChange(result)
@@ -179,7 +211,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [address, forwardGeocode, onChange])
+  }, [address, forwardGeocode, onChange, validateLipaLocation])
 
   // Handle map click
   const handleMapClick = useCallback(async (lat: number, lon: number) => {
@@ -188,6 +220,14 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
 
     try {
       const addressResult = await reverseGeocode(lat, lon)
+      
+      // Check if location is in Lipa
+      const lipaValidation = validateLipaLocation(addressResult)
+      if (lipaValidation) {
+        setErrorMsg(lipaValidation)
+        return
+      }
+      
       setAddress(addressResult)
       setCoordinates({ lat, lon })
       onChange({ lat, lon, address: addressResult })
@@ -196,7 +236,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [reverseGeocode, onChange])
+  }, [reverseGeocode, onChange, validateLipaLocation])
 
   // Clear location
   const clearLocation = useCallback(() => {
@@ -207,8 +247,14 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
 
   // Handle input change
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setAddress(e.target.value)
-  }, [])
+    const newAddress = e.target.value
+    setAddress(newAddress)
+    
+    // Clear any existing error when user starts typing
+    if (errorMsg) {
+      setErrorMsg(null)
+    }
+  }, [errorMsg])
 
   // Handle enter key
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
@@ -257,7 +303,12 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={() => setShowMap(!showMap)}
+          onClick={() => {
+            // Always center on Lipa City, Batangas when showing map
+            setMapCenter([14.0048, 121.1631])
+            setShowMap(!showMap)
+            setShowErrorModal(false) // Close error modal when showing map
+          }}
           className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors duration-200 shadow-sm"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -304,7 +355,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       </div>
 
       {/* Map */}
-      {showMap && (
+      {showMap && !showErrorModal && (
         <div className="bg-white border border-orange-200 rounded-xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold text-gray-900">Select Location on Map</h3>
@@ -322,7 +373,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
           <div className="h-96 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
             <MapContainer
               center={mapCenter}
-              zoom={13}
+              zoom={14}
               style={{ height: '100%', width: '100%' }}
             >
               <TileLayer
@@ -336,9 +387,14 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
             </MapContainer>
           </div>
           
-          <p className="text-sm text-gray-600 mt-3 text-center">
-            Click on the map to select a location, or search for an address above.
-          </p>
+          <div className="mt-3 text-center">
+            <p className="text-sm text-gray-600">
+              Click on the map to select a location, or search for an address above.
+            </p>
+            <p className="text-xs text-orange-600 mt-1 font-medium">
+              Map is centered on Lipa City, Batangas
+            </p>
+          </div>
         </div>
       )}
 
@@ -362,6 +418,16 @@ const LocationPicker: React.FC<LocationPickerProps> = ({
       {/* Error Messages */}
       {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{error}</p>}
       {errorMsg && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{errorMsg}</p>}
+
+      {/* Error Modal */}
+      <LocationErrorModal
+        isOpen={showErrorModal}
+        onClose={() => {
+          setShowErrorModal(false)
+          setErrorMsg(null) // Clear any existing error messages
+        }}
+        message={modalMessage}
+      />
     </div>
   )
 }

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { submitReport } from '../../utils/reportService'
-import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
+import LocationPicker from '../../components/LocationPicker'
 
 interface FoundAnimalFormData {
     animalType: string
@@ -32,9 +32,11 @@ const FoundReport = () => {
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FoundAnimalFormData>()
-    const [isBarangayOpen, setIsBarangayOpen] = useState(false)
-    const [barangayQuery, setBarangayQuery] = useState("")
-    const selectedBarangay = watch('foundLocation')
+    const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lon: number; address: string }>({
+        lat: 0,
+        lon: 0,
+        address: ''
+    })
     const today = new Date()
     const todayStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
     const nowTimeStr = new Date().toTimeString().slice(0,5)
@@ -65,12 +67,26 @@ const FoundReport = () => {
 
     const removeImage = () => { setUploadedImage(null); setImagePreview(null) }
 
-    const barangays = LIPA_BARANGAYS
-    const filteredBarangays = barangays.filter(b => b.toLowerCase().startsWith(barangayQuery.toLowerCase()))
-
     const validatePhoneNumber = (value: string) => /^\d+$/.test(value) || 'Please enter numbers only'
+    
+    const validateLipaLocation = (value: string) => {
+        if (!value) return 'Location is required'
+        const locationLower = value.toLowerCase()
+        if (!locationLower.includes('lipa')) {
+            return 'Sorry, the scope of our service is limited to Lipa City only. Please select a location within Lipa City.'
+        }
+        return true
+    }
 
     const onSubmit = async (data: FoundAnimalFormData) => {
+        const locationToValidate = selectedLocation.address || data.foundLocation
+        const locationValidation = validateLipaLocation(locationToValidate)
+        
+        if (locationValidation !== true) {
+            toast.error(locationValidation)
+            return
+        }
+        
         setIsSubmitting(true)
         try {
             await submitReport(
@@ -82,7 +98,7 @@ const FoundReport = () => {
                     colors: data.colors,
                     estimatedAge: data.estimatedAge,
                     gender: data.gender,
-                    foundLocation: data.foundLocation,
+                    foundLocation: locationToValidate,
                     foundDate: data.foundDate,
                     foundTime: data.foundTime,
                     contactName: data.contactName,
@@ -94,7 +110,7 @@ const FoundReport = () => {
                 currentUser ? currentUser.uid : null
             )
             toast.success('Found report submitted')
-            reset(); setUploadedImage(null); setImagePreview(null)
+            reset(); setUploadedImage(null); setImagePreview(null); setSelectedLocation({ lat: 0, lon: 0, address: '' })
             navigate('/lost-and-found?submitted=1')
         } catch (e: any) { 
             console.error('Report submission error:', e)
@@ -151,23 +167,22 @@ const FoundReport = () => {
 
                     <div className="grid md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Found Location *</label>
-                            <input type="hidden" {...register('foundLocation', { required: 'Found location is required' })} />
-                            <div className="relative">
-                                <button type="button" onClick={() => { setIsBarangayOpen(!isBarangayOpen); if (!isBarangayOpen) setBarangayQuery('') }} className="input-field text-left">{selectedBarangay || 'Select barangay'}</button>
-                                {isBarangayOpen && (
-                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-64 overflow-y-auto">
-                                        <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
-                                            <input type="text" value={barangayQuery} onChange={(e) => setBarangayQuery(e.target.value)} placeholder="Type to search barangay..." className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-300" autoFocus />
-                                        </div>
-                                        {(barangayQuery ? filteredBarangays : barangays).map(b => (
-                                            <button key={b} type="button" onClick={() => { setValue('foundLocation', b, { shouldValidate: true }); setIsBarangayOpen(false); }} className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}>{b}</button>
-                                        ))}
-                                        {(barangayQuery && filteredBarangays.length === 0) && (<div className="px-4 py-2 text-sm text-gray-500">No results</div>)}
-                                    </div>
-                                )}
-                            </div>
-                            {errors.foundLocation && <p className="mt-1 text-sm text-red-600">{errors.foundLocation.message}</p>}
+                            <LocationPicker
+                                label="Found Location"
+                                value={selectedLocation.address}
+                                onChange={(location) => {
+                                    setSelectedLocation(location)
+                                    // Trigger validation when location changes
+                                    setValue('foundLocation', location.address, { shouldValidate: true })
+                                }}
+                                placeholder="e.g., Barangay 1, Lipa City, Batangas"
+                                required
+                                error={errors.foundLocation?.message}
+                            />
+                            <input type="hidden" {...register('foundLocation', { 
+                                required: 'Found location is required',
+                                validate: validateLipaLocation
+                            })} />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Found Date *</label>

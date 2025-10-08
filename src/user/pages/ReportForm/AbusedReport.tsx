@@ -5,8 +5,8 @@ import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { submitAbuseReport } from '../../utils/reportService'
-import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
 import { supabase } from '../../../config/supabase'
+import LocationPicker from '../../components/LocationPicker'
 
 interface AbusedAnimalFormData {
     caseTitle: string
@@ -32,9 +32,11 @@ const AbusedReport = () => {
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<AbusedAnimalFormData>()
-    const [isBarangayOpen, setIsBarangayOpen] = useState(false)
-    const [barangayQuery, setBarangayQuery] = useState("")
-    const selectedBarangay = watch('incidentLocation')
+    const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lon: number; address: string }>({
+        lat: 0,
+        lon: 0,
+        address: ''
+    })
     const today = new Date()
     const todayStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
     const nowTimeStr = new Date().toTimeString().slice(0,5)
@@ -63,12 +65,26 @@ const AbusedReport = () => {
 
     const removeFile = (index: number) => { setUploadedFiles(prev => prev.filter((_, i) => i !== index)); setFilePreviews(prev => prev.filter((_, i) => i !== index)) }
 
-    const barangays = LIPA_BARANGAYS
-    const filteredBarangays = barangays.filter(b => b.toLowerCase().startsWith(barangayQuery.toLowerCase()))
+    const validateLipaLocation = (value: string) => {
+        if (!value) return 'Location is required'
+        const locationLower = value.toLowerCase()
+        if (!locationLower.includes('lipa')) {
+            return 'Sorry, the scope of our service is limited to Lipa City only. Please select a location within Lipa City.'
+        }
+        return true
+    }
 
     const onSubmit = async (data: AbusedAnimalFormData) => {
         if (uploadedFiles.filter(f => f.type.startsWith('image/')).length === 0) {
             toast.error('Please upload at least one evidence photo')
+            return
+        }
+        
+        const locationToValidate = selectedLocation.address || data.incidentLocation
+        const locationValidation = validateLipaLocation(locationToValidate)
+        
+        if (locationValidation !== true) {
+            toast.error(locationValidation)
             return
         }
         
@@ -85,7 +101,7 @@ const AbusedReport = () => {
                 type: 'abuse' as const,
                 caseTitle: data.caseTitle,
                 animalType: data.animalType,
-                incidentLocation: data.incidentLocation,
+                incidentLocation: locationToValidate,
                 incidentDate: data.incidentDate,
                 incidentTime: data.incidentTime,
                 abuseType: data.abuseType,
@@ -101,7 +117,7 @@ const AbusedReport = () => {
             console.log('📋 Report data:', reportData)
             await submitAbuseReport(reportData, uploadedFiles, currentUser?.uid || null)
             toast.success('Abuse report submitted')
-            reset(); setUploadedFiles([]); setFilePreviews([])
+            reset(); setUploadedFiles([]); setFilePreviews([]); setSelectedLocation({ lat: 0, lon: 0, address: '' })
             navigate(-1)
         } catch (e: any) { 
             console.error('Abuse report submission error:', e)
@@ -139,39 +155,22 @@ const AbusedReport = () => {
                         </div>
                         
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Incident Location *</label>
-                            <input type="hidden" {...register('incidentLocation', { required: 'Incident location is required' })} />
-                            <div className="relative">
-                                <button type="button" onClick={() => { setIsBarangayOpen(!isBarangayOpen); if (!isBarangayOpen) setBarangayQuery('') }} className="input-field text-left">{selectedBarangay || 'Select barangay'}</button>
-                                {isBarangayOpen && (
-                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-64 overflow-y-auto">
-                                        <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
-                                            <input
-                                                type="text"
-                                                value={barangayQuery}
-                                                onChange={(e) => setBarangayQuery(e.target.value)}
-                                                placeholder="Type to search barangay..."
-                                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-300"
-                                                autoFocus
-                                            />
-                                        </div>
-                                        {(barangayQuery ? filteredBarangays : barangays).map(b => (
-                                            <button
-                                                key={b}
-                                                type="button"
-                                                onClick={() => { setValue('incidentLocation', b, { shouldValidate: true }); setIsBarangayOpen(false) }}
-                                                className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}
-                                            >
-                                                {b}
-                                            </button>
-                                        ))}
-                                        {(barangayQuery && filteredBarangays.length === 0) && (
-                                            <div className="px-4 py-2 text-sm text-gray-500">No results</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            {errors.incidentLocation && <p className="mt-1 text-sm text-red-600">{errors.incidentLocation.message}</p>}
+                            <LocationPicker
+                                label="Incident Location"
+                                value={selectedLocation.address}
+                                onChange={(location) => {
+                                    setSelectedLocation(location)
+                                    // Trigger validation when location changes
+                                    setValue('incidentLocation', location.address, { shouldValidate: true })
+                                }}
+                                placeholder="e.g., Barangay 1, Lipa City, Batangas"
+                                required
+                                error={errors.incidentLocation?.message}
+                            />
+                            <input type="hidden" {...register('incidentLocation', { 
+                                required: 'Incident location is required',
+                                validate: validateLipaLocation
+                            })} />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Incident Date *</label>

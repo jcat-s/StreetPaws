@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { X, Eye, EyeOff, Shield, AlertCircle } from 'lucide-react'
+import { X, Eye, EyeOff, Shield } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAdminAuth } from '../hooks/useAdminAuth'
+import { auth } from '../../config/firebase'
+import { sendPasswordResetEmail } from 'firebase/auth'
 
 interface AdminLoginFormData {
   email: string
@@ -19,12 +21,21 @@ const AdminLoginModal = ({ isOpen, onClose }: AdminLoginModalProps) => {
   const [isLoading, setIsLoading] = useState(false)
   const { login } = useAdminAuth()
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<AdminLoginFormData>()
+  const { register, handleSubmit, formState: { errors }, reset, getValues } = useForm<AdminLoginFormData>()
+
+  // Normalize input so users can type either username or full email
+  const normalizeAdminEmail = (raw: string): string => {
+    const trimmed = (raw || '').trim().toLowerCase()
+    if (!trimmed) return ''
+    if (trimmed.includes('@')) return trimmed
+    return `${trimmed}@streetpaws.gov.ph`
+  }
 
   const onSubmit = async (data: AdminLoginFormData) => {
     setIsLoading(true)
     try {
-      await login(data.email, data.password)
+      const normalizedEmail = normalizeAdminEmail(data.email)
+      await login(normalizedEmail, data.password)
       toast.success('Admin login successful!')
       reset()
       onClose()
@@ -32,6 +43,31 @@ const AdminLoginModal = ({ isOpen, onClose }: AdminLoginModalProps) => {
       toast.error(error.message || 'Login failed. Please check your credentials.')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    // Use the current email/username value from the form state for reliability
+    const emailValue = normalizeAdminEmail(getValues('email') || '')
+
+    if (!emailValue) {
+      toast.error('Enter your admin email to reset your password.')
+      return
+    }
+
+    // We no longer check a hardcoded allowlist here; Firestore rules protect data.
+
+    if (!auth) {
+      toast.error('Password reset is unavailable right now.')
+      return
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, emailValue)
+      toast.success('Password reset email sent. Check your inbox.')
+    } catch (error: any) {
+      const message = error?.message || 'Failed to send reset email.'
+      toast.error(message)
     }
   }
 
@@ -61,37 +97,20 @@ const AdminLoginModal = ({ isOpen, onClose }: AdminLoginModalProps) => {
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
-          {/* Security Notice */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h4 className="text-sm font-medium text-amber-800">Authorized Personnel Only</h4>
-                <p className="text-sm text-amber-700 mt-1">
-                  This area is restricted to verified City Vet Office personnel. 
-                  Unauthorized access is prohibited.
-                </p>
-              </div>
-            </div>
-          </div>
 
-          {/* Email Field */}
+          {/* Username (Email) Field */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              Admin Email
+              Username or Email
             </label>
             <input
               {...register('email', {
-                required: 'Email is required',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address'
-                }
+                required: 'Username or email is required'
               })}
-              type="email"
+              type="text"
               id="email"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-              placeholder="admin@streetpaws.gov.ph"
+              placeholder="Username (e.g., admin) or full email"
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -128,6 +147,11 @@ const AdminLoginModal = ({ isOpen, onClose }: AdminLoginModalProps) => {
             {errors.password && (
               <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
             )}
+            <div className="mt-2 text-right">
+              <button type="button" onClick={handleForgotPassword} className="text-sm text-orange-600 hover:text-orange-700 font-medium">
+                Forgot Password?
+              </button>
+            </div>
           </div>
 
           {/* Submit Button */}
@@ -144,18 +168,14 @@ const AdminLoginModal = ({ isOpen, onClose }: AdminLoginModalProps) => {
             ) : (
               <>
                 <Shield className="h-5 w-5" />
-                <span>Access Admin Panel</span>
+                <span>Log In</span>
               </>
             )}
           </button>
         </form>
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 rounded-b-2xl">
-          <p className="text-xs text-gray-500 text-center">
-            StreetPaws Admin Portal • City Vet Office • Lipa City
-          </p>
-        </div>
+        {/* Footer (kept minimal per target design) */}
+        <div className="px-6 py-4 bg-gray-50 rounded-b-2xl"></div>
       </div>
     </div>
   )

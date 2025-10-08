@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth'
 // Removed AdminNavbar per requested layout
 import AdminSidebar from './components/AdminSidebar'
@@ -141,9 +142,12 @@ const AdminAppContent = () => {
 const AdminApp = () => {
   return (
     <AdminAuthProvider>
-      <ProtectedRoute>
-        <AdminAppContent />
-      </ProtectedRoute>
+      <>
+        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+        <ProtectedRoute>
+          <AdminAppContent />
+        </ProtectedRoute>
+      </>
     </AdminAuthProvider>
   )
 }

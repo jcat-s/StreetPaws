@@ -8,17 +8,13 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && 
-        request.auth.token.email in [
-          'admin@streetpaws.gov.ph',
-          'superadmin@streetpaws.gov.ph',
-          'vet@streetpaws.gov.ph'
-        ];
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' || request.auth.token.role == 'super_admin'
+      );
     }
     
     function isSuperAdmin() {
-      return isAuthenticated() && 
-        request.auth.token.email == 'superadmin@streetpaws.gov.ph';
+      return isAuthenticated() && request.auth.token.role == 'super_admin';
     }
     
     function isOwner(userId) {

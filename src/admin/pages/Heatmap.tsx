@@ -5,7 +5,6 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.heat'
-import { X, BarChart3 } from 'lucide-react'
 import { LIPA_BARANGAYS, LIPA_BARANGAY_COORDINATES } from '../../shared/constants/barangays'
 
 // Fix for default markers in react-leaflet
@@ -106,18 +105,13 @@ const Heatmap = () => {
   const [filterFound, setFilterFound] = useState(true)
   const [filterAbuse, setFilterAbuse] = useState(true)
   const [selectedBarangay, setSelectedBarangay] = useState<string>('')
-  const [applyKey, setApplyKey] = useState(0)
   const [mapCenter, setMapCenter] = useState<[number, number]>([13.9411, 121.1639])
   const [mapZoom, setMapZoom] = useState(11)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [searchResults, setSearchResults] = useState<string[]>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
-  const [showStatsModal, setShowStatsModal] = useState(false)
-  const [modalPosition, setModalPosition] = useState({ x: 50, y: 50 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const modalRef = useRef<HTMLDivElement>(null)
+  const [showAllCases, setShowAllCases] = useState(false)
 
   useEffect(() => {
     if (!db) return
@@ -149,12 +143,6 @@ const Heatmap = () => {
     }
   }, [])
 
-  function getDate(v: any): Date | null {
-    if (!v) return null
-    if (typeof v?.toDate === 'function') return v.toDate() as Date
-    if (typeof v === 'string') return new Date(v)
-    return null
-  }
 
   // Parse location string to coordinates and extract barangay
   function parseLocation(location: string): Coordinate | null {
@@ -243,7 +231,6 @@ const Heatmap = () => {
     if (barangayCoords) {
       setMapCenter([barangayCoords.lat, barangayCoords.lng])
       setMapZoom(15)
-      setApplyKey((v) => v + 1)
     }
   }
 
@@ -253,14 +240,7 @@ const Heatmap = () => {
     setShowSearchResults(false)
   }
 
-  // Always show ALL reports for heatmap, but filter for statistics
-  const allReportsForHeatmap = useMemo(() => {
-    return reports.filter((r) => {
-      // Always include all reports for heatmap visualization
-      return true
-    })
-  }, [reports])
-
+  // Filter reports based on user selections
   const filtered = useMemo(() => {
     const from = dateFrom ? new Date(dateFrom) : null
     const to = dateTo ? new Date(dateTo) : null
@@ -268,9 +248,40 @@ const Heatmap = () => {
     
     return reports.filter((r) => {
       if (!types[r.type || '']) return false
-      const d = getDate(r.createdAt)
-      if (from && d && d < from) return false
-      if (to && d && d > to) return false
+      
+      // Filter by date
+      if (from || to) {
+        const createdAt = r.createdAt
+        let reportDate: Date | null = null
+        
+        if (createdAt) {
+          if (typeof createdAt?.toDate === 'function') {
+            reportDate = createdAt.toDate() as Date
+          } else if (typeof createdAt === 'string') {
+            reportDate = new Date(createdAt)
+          } else if (typeof createdAt === 'object' && createdAt.seconds) {
+            reportDate = new Date(createdAt.seconds * 1000)
+          }
+        }
+        
+        // If we have date filters but no report date, exclude this report
+        if (!reportDate) {
+          return false
+        }
+        
+        // Normalize dates to compare only date part (ignore time)
+        const reportDateOnly = new Date(reportDate.getFullYear(), reportDate.getMonth(), reportDate.getDate())
+        
+        if (from) {
+          const fromDateOnly = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+          if (reportDateOnly < fromDateOnly) return false
+        }
+        
+        if (to) {
+          const toDateOnly = new Date(to.getFullYear(), to.getMonth(), to.getDate())
+          if (reportDateOnly > toDateOnly) return false
+        }
+      }
       
       // Filter by barangay if selected
       if (selectedBarangay) {
@@ -282,7 +293,13 @@ const Heatmap = () => {
       
       return true
     })
-  }, [reports, dateFrom, dateTo, filterLost, filterFound, filterAbuse, selectedBarangay, applyKey])
+  }, [reports, dateFrom, dateTo, filterLost, filterFound, filterAbuse, selectedBarangay])
+
+  // Use filtered reports for heatmap OR all reports if showAllCases is true
+  const allReportsForHeatmap = useMemo(() => {
+    return showAllCases ? reports : filtered
+  }, [showAllCases, reports, filtered])
+
 
   // Convert ALL reports to coordinates for heatmap (always show all cases)
   const heatmapData = useMemo(() => {
@@ -331,101 +348,6 @@ const Heatmap = () => {
     return max
   }, [heatmapData])
 
-  // Calculate statistics for selected barangay
-  const selectedBarangayStats = useMemo(() => {
-    if (!selectedBarangay) return null
-    
-    const barangayReports = filtered.filter(report => {
-      const location = report.type === 'lost' ? report.lastSeenLocation : 
-                      report.type === 'found' ? report.foundLocation : 
-                      report.incidentLocation
-      
-      if (!location) return false
-      
-      // More flexible matching - check if any known barangay is in the location
-      const locationLower = location.toLowerCase()
-      const barangayLower = selectedBarangay.toLowerCase()
-      
-      // Direct match
-      if (locationLower.includes(barangayLower)) return true
-      
-      // Check if the location contains any barangay name that matches our selected one
-      const foundBarangay = LIPA_BARANGAYS.find(b => 
-        b.toLowerCase() === barangayLower && locationLower.includes(b.toLowerCase())
-      )
-      
-      return !!foundBarangay
-    })
-    
-    if (barangayReports.length === 0) return null
-    
-    const typeCounts = {
-      lost: 0,
-      found: 0,
-      abuse: 0
-    }
-    
-    barangayReports.forEach(report => {
-      if (report.type === 'lost') typeCounts.lost++
-      else if (report.type === 'found') typeCounts.found++
-      else if (report.type === 'abuse') typeCounts.abuse++
-    })
-    
-    const activeTypes = []
-    if (filterLost && typeCounts.lost > 0) activeTypes.push('Lost')
-    if (filterFound && typeCounts.found > 0) activeTypes.push('Found')
-    if (filterAbuse && typeCounts.abuse > 0) activeTypes.push('Abuse')
-    
-    const totalCases = activeTypes.reduce((sum, type) => {
-      if (type === 'Lost') return sum + typeCounts.lost
-      if (type === 'Found') return sum + typeCounts.found
-      if (type === 'Abuse') return sum + typeCounts.abuse
-      return sum
-    }, 0)
-    
-    return {
-      barangay: selectedBarangay,
-      totalCases,
-      typeString: activeTypes.join(' & '),
-      typeCounts
-    }
-  }, [selectedBarangay, filtered, filterLost, filterFound, filterAbuse])
-
-  // Drag functionality for modal
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (modalRef.current) {
-      const rect = modalRef.current.getBoundingClientRect()
-      setIsDragging(true)
-      setDragStart({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      })
-    }
-  }
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (isDragging) {
-      setModalPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      })
-    }
-  }
-
-  const handleMouseUp = () => {
-    setIsDragging(false)
-  }
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove)
-        document.removeEventListener('mouseup', handleMouseUp)
-      }
-    }
-  }, [isDragging, dragStart])
 
   useEffect(() => {
     if (!selectedBarangay && barangays.length > 0) {
@@ -458,20 +380,31 @@ const Heatmap = () => {
         setMapZoom(15)
       }
     }
-    setApplyKey((v) => v + 1)
   }
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold text-gray-900 mb-4">Lipa City Stray Animals Cases Heatmap</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-3xl font-bold text-gray-900">Lipa City Stray Animals Cases Heatmap</h1>
+        <button
+          onClick={() => setShowAllCases(!showAllCases)}
+          className={`px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ${
+            showAllCases 
+              ? 'bg-orange-600 text-white hover:bg-orange-700' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          {showAllCases ? 'Show Filtered Cases' : 'Show All Cases'}
+        </button>
+      </div>
       
       {/* Cases Summary */}
       <div className="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{reports.length}</div>
-              <div className="text-sm text-gray-600">Total Cases</div>
+              <div className="text-2xl font-bold text-orange-600">{showAllCases ? reports.length : filtered.length}</div>
+              <div className="text-sm text-gray-600">{showAllCases ? 'All Cases' : 'Filtered Cases'}</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">{heatmapData.length}</div>
@@ -642,8 +575,41 @@ const Heatmap = () => {
           <div className="border border-orange-200 rounded-md mb-4">
             <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Filter by Date</div>
             <div className="px-3 py-3 space-y-2">
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="w-full border border-gray-300 rounded-md px-3 py-2" />
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">From Date</label>
+                <input 
+                  type="date" 
+                  value={dateFrom} 
+                  onChange={(e) => setDateFrom(e.target.value)} 
+                  max={new Date().toISOString().split('T')[0]}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2" 
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">To Date</label>
+                <input 
+                  type="date" 
+                  value={dateTo} 
+                  onChange={(e) => setDateTo(e.target.value)} 
+                  min={dateFrom || undefined}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2" 
+                />
+              </div>
+              {(dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo)) && (
+                <div className="text-red-600 text-xs mt-1">
+                  ⚠️ From date cannot be after To date
+                </div>
+              )}
+              <button 
+                onClick={() => {
+                  setDateFrom('')
+                  setDateTo('')
+                }}
+                className="w-full mt-2 px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors duration-200"
+              >
+                Clear Date Filters
+              </button>
             </div>
           </div>
 
@@ -676,20 +642,26 @@ const Heatmap = () => {
                   <option key={barangay} value={barangay}>{barangay}</option>
                 ))}
               </select>
-              <button onClick={handleApplyFilters} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-md">Apply Filters</button>
+              <button onClick={handleApplyFilters} className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-md mb-2">Apply Filters</button>
+               <button 
+                 onClick={() => {
+                   setDateFrom('')
+                   setDateTo('')
+                   setFilterLost(true)
+                   setFilterFound(true)
+                   setFilterAbuse(true)
+                   setSelectedBarangay('')
+                   setSearchQuery('')
+                   setShowSearchResults(false)
+                   setShowAllCases(false)
+                 }}
+                 className="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 rounded-md"
+               >
+                 Clear All Filters
+               </button>
             </div>
           </div>
 
-           {/* Statistics Button */}
-           <div className="border border-orange-200 rounded-md mb-4">
-             <button
-               onClick={() => setShowStatsModal(true)}
-               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-md transition-colors duration-200"
-             >
-               <BarChart3 className="w-5 h-5" />
-               View Statistics
-             </button>
-           </div>
 
           {/* Legend */}
           <div className="border border-orange-200 rounded-md">
@@ -724,91 +696,6 @@ const Heatmap = () => {
         </div>
       </div>
 
-      {/* Draggable Statistics Modal */}
-      {showStatsModal && (
-        <div
-          ref={modalRef}
-          className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[300px] max-w-[400px]"
-          style={{
-            left: `${modalPosition.x}px`,
-            top: `${modalPosition.y}px`,
-            cursor: isDragging ? 'grabbing' : 'grab'
-          }}
-          onMouseDown={handleMouseDown}
-        >
-          {/* Modal Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50 rounded-t-lg">
-            <h3 className="text-lg font-semibold text-gray-900">Statistics</h3>
-            <button
-              onClick={() => setShowStatsModal(false)}
-              className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Modal Content */}
-          <div className="p-4 space-y-4">
-            {/* Selected Barangay Stats */}
-            {selectedBarangayStats && (
-              <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-                <div className="text-center">
-                  <div className="font-bold text-gray-900 text-lg mb-2">
-                    {selectedBarangayStats.barangay}
-                  </div>
-                  <div className="text-orange-600 font-bold text-xl mb-1">
-                    {selectedBarangayStats.totalCases} Cases
-                  </div>
-                  <div className="text-sm text-gray-600 capitalize">
-                    Type: {selectedBarangayStats.typeString}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Basic Stats */}
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-700">Total Reports:</span>
-                <span className="font-semibold text-gray-900">{filtered.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Mapped Locations:</span>
-                <span className="font-semibold text-gray-900">{heatmapData.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Max Cases:</span>
-                <span className="font-semibold text-gray-900">{maxCount}</span>
-              </div>
-              {selectedBarangay && (
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Selected Barangay:</span>
-                  <span className="font-semibold text-gray-900">{selectedBarangay}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Filter Status */}
-            <div className="border-t border-gray-200 pt-4">
-              <h4 className="text-md font-semibold text-gray-900 mb-3">Active Filters</h4>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${filterLost ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm text-gray-700">Lost Reports</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${filterFound ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm text-gray-700">Found Reports</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${filterAbuse ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
-                  <span className="text-sm text-gray-700">Abuse Reports</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

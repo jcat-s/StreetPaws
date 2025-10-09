@@ -78,6 +78,7 @@ type ReportDoc = {
   id?: string
   type?: 'lost' | 'found' | 'abuse'
   createdAt?: any
+  createdAtMs?: number
   lastSeenLocation?: string
   foundLocation?: string
   incidentLocation?: string
@@ -249,7 +250,7 @@ const Heatmap = () => {
     return reports.filter((r) => {
       if (!types[r.type || '']) return false
       
-      // Filter by date
+      // Filter by date (using submission date - createdAt)
       if (from || to) {
         const createdAt = r.createdAt
         let reportDate: Date | null = null
@@ -261,11 +262,26 @@ const Heatmap = () => {
             reportDate = new Date(createdAt)
           } else if (typeof createdAt === 'object' && createdAt.seconds) {
             reportDate = new Date(createdAt.seconds * 1000)
+          } else if (r.createdAtMs && typeof r.createdAtMs === 'number') {
+            reportDate = new Date(r.createdAtMs)
           }
+        }
+        
+        // Debug: Log date information for troubleshooting
+        if (from || to) {
+          console.log(`Report ${r.id} date filtering:`, {
+            createdAt: r.createdAt,
+            createdAtMs: r.createdAtMs,
+            parsedDate: reportDate,
+            fromDate: from,
+            toDate: to,
+            location: r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation
+          })
         }
         
         // If we have date filters but no report date, exclude this report
         if (!reportDate) {
+          console.log(`Excluding report ${r.id} - no valid date found`)
           return false
         }
         
@@ -274,13 +290,21 @@ const Heatmap = () => {
         
         if (from) {
           const fromDateOnly = new Date(from.getFullYear(), from.getMonth(), from.getDate())
-          if (reportDateOnly < fromDateOnly) return false
+          if (reportDateOnly < fromDateOnly) {
+            console.log(`Excluding report ${r.id} - date ${reportDateOnly.toDateString()} is before ${fromDateOnly.toDateString()}`)
+            return false
+          }
         }
         
         if (to) {
           const toDateOnly = new Date(to.getFullYear(), to.getMonth(), to.getDate())
-          if (reportDateOnly > toDateOnly) return false
+          if (reportDateOnly > toDateOnly) {
+            console.log(`Excluding report ${r.id} - date ${reportDateOnly.toDateString()} is after ${toDateOnly.toDateString()}`)
+            return false
+          }
         }
+        
+        console.log(`Including report ${r.id} - date ${reportDateOnly.toDateString()} is within range`)
       }
       
       // Filter by barangay if selected
@@ -422,6 +446,11 @@ const Heatmap = () => {
           {reports.length === 0 && (
             <div className="text-red-600 font-medium">
               ❌ No reports found
+            </div>
+          )}
+          {(dateFrom || dateTo) && (
+            <div className="mt-2 text-blue-600 text-sm">
+              🔍 Date filter active: {dateFrom || 'no start'} to {dateTo || 'no end'} - Check console for debugging info
             </div>
           )}
         </div>

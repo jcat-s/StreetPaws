@@ -8,13 +8,13 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Eye,
   MapPin,
   DollarSign,
   User,
+  Mail,
   PieChart as PieChartIcon
 } from 'lucide-react'
-import { collection, onSnapshot, orderBy, query, collectionGroup } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 
@@ -64,8 +64,19 @@ type DashboardAnimal = {
   createdAt: string
 }
 
+type DashboardMessage = {
+  id: string
+  name: string
+  email: string
+  subject: string
+  message: string
+  read: boolean
+  archived: boolean
+  createdAt: string
+}
+
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'adoptions' | 'analytics'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'geographic'>('analytics')
   
   // Data states
   const [recentReports, setRecentReports] = useState<DashboardReport[]>([])
@@ -73,6 +84,7 @@ const AdminDashboard = () => {
   const [donations, setDonations] = useState<DashboardDonation[]>([])
   const [volunteers, setVolunteers] = useState<DashboardVolunteer[]>([])
   const [animals, setAnimals] = useState<DashboardAnimal[]>([])
+  const [messages, setMessages] = useState<DashboardMessage[]>([])
   
   // Counts
   const [reportCounts, setReportCounts] = useState({ total: 0, pending: 0, resolved: 0 })
@@ -91,15 +103,6 @@ const AdminDashboard = () => {
     }
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800'
-      case 'high': return 'bg-orange-100 text-orange-800'
-      case 'medium': return 'bg-yellow-100 text-yellow-800'
-      case 'normal': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
 
   // Format currency helper
   const formatCurrency = (amount: number) => {
@@ -235,6 +238,23 @@ const AdminDashboard = () => {
         }
       })
     }
+
+    const processMessageDocs = (docs: any[]) => {
+      return docs.map((doc) => {
+        const d: any = doc.data()
+        
+        return {
+          id: doc.id,
+          name: d?.name || 'Anonymous',
+          email: d?.email || '',
+          subject: d?.subject || 'No Subject',
+          message: d?.message || '',
+          read: d?.read || false,
+          archived: d?.archived || false,
+          createdAt: processTimestamp(d?.createdAt)
+        }
+      })
+    }
     
     // Initialize data containers
     let allReports: DashboardReport[] = []
@@ -247,6 +267,7 @@ const AdminDashboard = () => {
     const adoptionsQuery = query(collection(db, 'adoptions'), orderBy('submittedAt', 'desc'))
     const donationsQuery = query(collection(db, 'donations'), orderBy('createdAt', 'desc'))
     const volunteersQuery = query(collection(db, 'volunteers'), orderBy('createdAt', 'desc'))
+    const messagesQuery = query(collection(db, 'messages'), orderBy('createdAt', 'desc'))
     
     // Function to update reports without duplicates
     const updateReports = () => {
@@ -329,6 +350,19 @@ const AdminDashboard = () => {
       setVolunteers(uniqueVolunteers)
     })
 
+    const unsubscribeMessages = onSnapshot(messagesQuery, (snap) => {
+      const messageData = processMessageDocs(snap.docs)
+      // Remove duplicates
+      const uniqueMessages = messageData.reduce((acc, current) => {
+        const existingIndex = acc.findIndex(item => item.id === current.id)
+        if (existingIndex === -1) {
+          acc.push(current)
+        }
+        return acc
+      }, [] as DashboardMessage[])
+      setMessages(uniqueMessages)
+    })
+
     // Try to fetch animals from Firebase
     let unsubscribeAnimals: (() => void) | null = null
     try {
@@ -357,12 +391,42 @@ const AdminDashboard = () => {
       unsubscribeAdoptions()
       unsubscribeDonations()
       unsubscribeVolunteers()
+      unsubscribeMessages()
       if (unsubscribeAnimals) unsubscribeAnimals()
     }
   }, [])
 
   // Calculated metrics
   const urgentReportsCount = useMemo(() => recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length, [recentReports])
+  
+  // Message metrics
+  const messageStats = useMemo(() => ({
+    total: messages.length,
+    unread: messages.filter(m => !m.read && !m.archived).length,
+    read: messages.filter(m => m.read && !m.archived).length,
+    archived: messages.filter(m => m.archived).length
+  }), [messages])
+
+  // Recent activity for the last 7 days
+  const recentActivity = useMemo(() => {
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    
+    const recentAdoptions = adoptions.filter(a => new Date(a.submittedAt) >= weekAgo)
+    const recentDonations = donations.filter(d => new Date(d.createdAt) >= weekAgo)
+    const recentVolunteers = volunteers.filter(v => new Date(v.createdAt) >= weekAgo)
+    const recentReportsActivity = recentReports.filter(r => new Date(r.date) >= weekAgo)
+    const recentMessages = messages.filter(m => new Date(m.createdAt) >= weekAgo)
+    
+    return {
+      adoptions: recentAdoptions.length,
+      donations: recentDonations.length,
+      volunteers: recentVolunteers.length,
+      reports: recentReportsActivity.length,
+      messages: recentMessages.length,
+      totalAmount: recentDonations.filter(d => d.status === 'verified').reduce((sum, d) => sum + d.amount, 0)
+    }
+  }, [adoptions, donations, volunteers, recentReports, messages])
   
   // Adoption metrics
   const adoptionStats = useMemo(() => ({
@@ -428,15 +492,33 @@ const AdminDashboard = () => {
         return adoptionDate.getMonth() === date.getMonth() && adoptionDate.getFullYear() === date.getFullYear()
       }).length
       
+      const monthVolunteers = volunteers.filter(v => {
+        const volunteerDate = new Date(v.createdAt)
+        return volunteerDate.getMonth() === date.getMonth() && volunteerDate.getFullYear() === date.getFullYear()
+      }).length
+      
+      const monthDonations = donations.filter(d => {
+        const donationDate = new Date(d.createdAt)
+        return donationDate.getMonth() === date.getMonth() && donationDate.getFullYear() === date.getFullYear()
+      }).length
+      
+      const monthMessages = messages.filter(m => {
+        const messageDate = new Date(m.createdAt)
+        return messageDate.getMonth() === date.getMonth() && messageDate.getFullYear() === date.getFullYear()
+      }).length
+      
       months.push({
         month: monthName,
         reports: monthReports,
-        adoptions: monthAdoptions
+        adoptions: monthAdoptions,
+        volunteers: monthVolunteers,
+        donations: monthDonations,
+        messages: monthMessages
       })
     }
     
     return months
-  }, [recentReports, adoptions])
+  }, [recentReports, adoptions, volunteers, donations, messages])
 
   // Analytics calculations
   const analytics = useMemo(() => ({
@@ -468,22 +550,6 @@ const AdminDashboard = () => {
     return `${value.toFixed(1)}%`
   }
 
-  // Recent activity for the last 7 days
-  const recentActivity = useMemo(() => {
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    
-    const recentAdoptions = adoptions.filter(a => new Date(a.submittedAt) >= weekAgo)
-    const recentDonations = donations.filter(d => new Date(d.createdAt) >= weekAgo)
-    const recentVolunteers = volunteers.filter(v => new Date(v.createdAt) >= weekAgo)
-    
-    return {
-      adoptions: recentAdoptions.length,
-      donations: recentDonations.length,
-      volunteers: recentVolunteers.length,
-      totalAmount: recentDonations.filter(d => d.status === 'verified').reduce((sum, d) => sum + d.amount, 0)
-    }
-  }, [adoptions, donations, volunteers])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -585,110 +651,30 @@ const AdminDashboard = () => {
                 <p className="text-sm text-gray-600">{donationStats.pending} donations to verify</p>
               </div>
             </button>
-          </div>
-        </div>
-
-        {/* Analytics Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Monthly Trends Chart */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Monthly Trends</h3>
-              <TrendingUp className="h-5 w-5 text-orange-600" />
-            </div>
-            <div className="space-y-4">
-              {monthlyTrends.map((trend, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 text-sm font-medium text-gray-600">{trend.month}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-16 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-orange-500 h-2 rounded-full" 
-                            style={{ width: `${Math.min(100, (trend.reports / Math.max(1, Math.max(...monthlyTrends.map(t => t.reports)))) * 100)}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-gray-600">{trend.reports}</span>
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">Reports</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-16 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-500 h-2 rounded-full" 
-                        style={{ width: `${Math.min(100, (trend.adoptions / Math.max(1, Math.max(...monthlyTrends.map(t => t.adoptions)))) * 100)}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-sm text-gray-600">{trend.adoptions}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Animal Distribution */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">Animal Distribution</h3>
-              <PieChart className="h-5 w-5 text-orange-600" />
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-gray-900">Dogs</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-gray-900">{animalStats.dogs}</div>
-                  <div className="text-xs text-gray-500">
-                    {animalStats.total > 0 ? Math.round((animalStats.dogs / animalStats.total) * 100) : 0}% of total
-                  </div>
-                </div>
+            <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              <Mail className="h-5 w-5 text-pink-600" />
+              <div className="text-left">
+                <p className="font-medium text-gray-900">Unread Messages</p>
+                <p className="text-sm text-gray-600">{messageStats.unread} messages need attention</p>
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-gray-900">Cats</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-gray-900">{animalStats.cats}</div>
-                  <div className="text-xs text-gray-500">
-                    {animalStats.total > 0 ? Math.round((animalStats.cats / animalStats.total) * 100) : 0}% of total
-                  </div>
-                </div>
-              </div>
-              <div className="pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-lg font-bold text-green-600">{animalStats.available}</div>
-                    <div className="text-xs text-gray-500">Available</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-blue-600">{animalStats.adopted}</div>
-                    <div className="text-xs text-gray-500">Adopted</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-yellow-600">{animalStats.pending}</div>
-                    <div className="text-xs text-gray-500">Pending</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            </button>
           </div>
         </div>
 
         {/* Recent Activity Summary */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity (Last 7 Days)</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">{recentActivity.reports}</div>
+              <div className="text-sm text-gray-600">New Reports</div>
+            </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{recentActivity.adoptions}</div>
               <div className="text-sm text-gray-600">New Adoptions</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{recentActivity.volunteers}</div>
+              <div className="text-2xl font-bold text-purple-600">{recentActivity.volunteers}</div>
               <div className="text-sm text-gray-600">New Volunteers</div>
             </div>
             <div className="text-center">
@@ -696,7 +682,11 @@ const AdminDashboard = () => {
               <div className="text-sm text-gray-600">New Donations</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{formatCurrency(recentActivity.totalAmount)}</div>
+              <div className="text-2xl font-bold text-pink-600">{recentActivity.messages}</div>
+              <div className="text-sm text-gray-600">New Messages</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-600">{formatCurrency(recentActivity.totalAmount)}</div>
               <div className="text-sm text-gray-600">Donation Amount</div>
             </div>
           </div>
@@ -707,10 +697,9 @@ const AdminDashboard = () => {
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8 px-6">
               {[
-                { id: 'overview', name: 'Overview', icon: TrendingUp },
-                { id: 'reports', name: 'Recent Reports', icon: FileText },
-                { id: 'adoptions', name: 'Recent Adoptions', icon: Heart },
-                { id: 'analytics', name: 'Analytics', icon: PieChartIcon }
+                { id: 'analytics', name: 'Analytics', icon: PieChartIcon },
+                { id: 'overview', name: 'Overview All', icon: TrendingUp },
+                { id: 'geographic', name: 'Geographic', icon: MapPin }
               ].map((tab) => {
                 const Icon = tab.icon
                 return (
@@ -733,6 +722,58 @@ const AdminDashboard = () => {
 
           <div className="p-6">
             {activeTab === 'overview' && (
+              <div className="space-y-8">
+                {/* Overview Summary */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-blue-600">Total Reports</p>
+                        <p className="text-3xl font-bold text-blue-900">{recentReports.length}</p>
+                      </div>
+                      <FileText className="h-8 w-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-green-600">Total Adoptions</p>
+                        <p className="text-3xl font-bold text-green-900">{adoptions.length}</p>
+                      </div>
+                      <Heart className="h-8 w-8 text-green-600" />
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-purple-600">Total Volunteers</p>
+                        <p className="text-3xl font-bold text-purple-900">{volunteers.length}</p>
+                      </div>
+                      <Users className="h-8 w-8 text-purple-600" />
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-6 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-orange-600">Total Donations</p>
+                        <p className="text-3xl font-bold text-orange-900">{formatCurrency(donationStats.totalAmount)}</p>
+                      </div>
+                      <DollarSign className="h-8 w-8 text-orange-600" />
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-pink-50 to-pink-100 p-6 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-pink-600">Total Messages</p>
+                        <p className="text-3xl font-bold text-pink-900">{messages.length}</p>
+                        <p className="text-xs text-pink-700">{messageStats.unread} unread</p>
+                      </div>
+                      <Mail className="h-8 w-8 text-pink-600" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Activity Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Recent Reports Summary */}
                 <div>
@@ -741,7 +782,7 @@ const AdminDashboard = () => {
                     {recentReports.length === 0 ? (
                       <p className="text-center text-gray-500">No recent reports to display.</p>
                     ) : (
-                      recentReports.slice(0, 3).map((report) => (
+                        recentReports.slice(0, 5).map((report) => (
                         <div key={report.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center space-x-3">
                             <div className={`p-2 rounded-full ${
@@ -762,7 +803,7 @@ const AdminDashboard = () => {
                             <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(report.status)}`}>
                               {report.status}
                             </span>
-                            <p className="text-xs text-gray-500 mt-1">{report.date}</p>
+                              <p className="text-xs text-gray-500 mt-1">{new Date(report.date).toLocaleDateString()}</p>
                           </div>
                         </div>
                       ))
@@ -777,7 +818,7 @@ const AdminDashboard = () => {
                     {adoptions.length === 0 ? (
                       <p className="text-center text-gray-500">No recent adoptions.</p>
                     ) : (
-                      adoptions.slice(0, 3).map((adoption) => (
+                        adoptions.slice(0, 5).map((adoption) => (
                         <div key={adoption.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center space-x-3">
                             <div className="bg-orange-100 p-2 rounded-full">
@@ -802,153 +843,115 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               </div>
-            )}
 
-            {activeTab === 'reports' && (
+                {/* Recent Volunteers and Donations */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Recent Volunteers */}
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">All Recent Reports</h3>
-                  <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">
-                    View All Reports
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Report</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporter</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {recentReports.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">No reports found.</td>
-                        </tr>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Volunteers</h3>
+                    <div className="space-y-3">
+                      {volunteers.length === 0 ? (
+                        <p className="text-center text-gray-500">No recent volunteers.</p>
                       ) : (
-                        recentReports.map((report) => (
-                          <tr key={report.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className={`p-2 rounded-full ${
-                                  report.type === 'lost' ? 'bg-blue-100 text-blue-600' :
-                                  report.type === 'found' ? 'bg-green-100 text-green-600' :
-                                  'bg-red-100 text-red-600'
-                                }`}>
-                                  {report.type === 'lost' ? <AlertTriangle className="h-4 w-4" /> :
-                                   report.type === 'found' ? <CheckCircle className="h-4 w-4" /> :
-                                   <XCircle className="h-4 w-4" />}
+                        volunteers.slice(0, 5).map((volunteer) => (
+                          <div key={volunteer.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="bg-purple-100 p-2 rounded-full">
+                                <Users className="h-4 w-4 text-purple-600" />
                                 </div>
-                                <div className="ml-3">
-                                  <div className="text-sm font-medium text-gray-900">{report.animalName}</div>
-                                  <div className="text-sm text-gray-500 capitalize">{report.animalType} • {report.type}</div>
+                              <div>
+                                <p className="font-medium text-gray-900">{volunteer.name}</p>
+                                <p className="text-sm text-gray-600">Volunteer Application</p>
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center text-sm text-gray-900">
-                                <MapPin className="h-4 w-4 text-gray-400 mr-1" />
-                                {report.location}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{report.reporter}</td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(report.status)}`}>
-                                {report.status}
+                            <div className="text-right">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(volunteer.status)}`}>
+                                {volunteer.status}
                               </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(report.priority)}`}>
-                                {report.priority}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button className="text-orange-600 hover:text-orange-900 flex items-center space-x-1">
-                                <Eye className="h-4 w-4" />
-                                <span>View</span>
-                              </button>
-                            </td>
-                          </tr>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {new Date(volunteer.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
                         ))
                       )}
-                    </tbody>
-                  </table>
+                </div>
+              </div>
+
+                  {/* Recent Donations */}
+              <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Donations</h3>
+                    <div className="space-y-3">
+                      {donations.length === 0 ? (
+                        <p className="text-center text-gray-500">No recent donations.</p>
+                      ) : (
+                        donations.slice(0, 5).map((donation) => (
+                          <div key={donation.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="bg-orange-100 p-2 rounded-full">
+                                <DollarSign className="h-4 w-4 text-orange-600" />
+                                </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{donation.name}</p>
+                                <p className="text-sm text-gray-600">{formatCurrency(donation.amount)} • {donation.paymentMethod}</p>
+                                </div>
+                              </div>
+                            <div className="text-right">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(donation.status)}`}>
+                                {donation.status}
+                              </span>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {new Date(donation.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Recent Messages */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Messages</h3>
+                    <div className="space-y-3">
+                      {messages.length === 0 ? (
+                        <p className="text-center text-gray-500">No recent messages.</p>
+                      ) : (
+                        messages.slice(0, 5).map((message) => (
+                          <div key={message.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className={`p-2 rounded-full ${message.read ? 'bg-green-100' : 'bg-red-100'}`}>
+                                <Mail className={`h-4 w-4 ${message.read ? 'text-green-600' : 'text-red-600'}`} />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{message.name}</p>
+                                <p className="text-sm text-gray-600">{message.subject}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${message.read ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                {message.read ? 'read' : 'unread'}
+                              </span>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {new Date(message.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
-            {activeTab === 'adoptions' && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">All Recent Adoptions</h3>
-                  <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">
-                    View All Adoptions
-                  </button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {adoptions.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">No adoption data available.</td>
-                        </tr>
-                      ) : (
-                        adoptions.map((adoption) => (
-                          <tr key={adoption.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="p-2 rounded-full bg-orange-100 text-orange-600">
-                                  <Heart className="h-4 w-4" />
-                                </div>
-                                <div className="ml-3">
-                                  <div className="text-sm font-medium text-gray-900">{adoption.animalName}</div>
-                                  <div className="text-sm text-gray-500 capitalize">{adoption.animalType}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{adoption.applicantName}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {new Date(adoption.submittedAt).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(adoption.status)}`}>
-                                {adoption.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button className="text-orange-600 hover:text-orange-900 flex items-center space-x-1">
-                                <Eye className="h-4 w-4" />
-                                <span>View</span>
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
 
             {activeTab === 'analytics' && (
               <div className="space-y-8">
                 {/* Key Performance Indicators */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Performance Indicators</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div>
@@ -974,6 +977,17 @@ const AdminDashboard = () => {
                           <p className="text-3xl font-bold text-orange-900">{formatCurrency(analytics.overview.totalDonations)}</p>
                         </div>
                         <DollarSign className="h-8 w-8 text-orange-600" />
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-purple-600">Volunteer Approval Rate</p>
+                          <p className="text-3xl font-bold text-purple-900">
+                            {volunteers.length > 0 ? formatPercentage((volunteers.filter(v => v.status === 'approved').length / volunteers.length) * 100) : '0%'}
+                          </p>
+                        </div>
+                        <Users className="h-8 w-8 text-purple-600" />
                       </div>
                     </div>
                   </div>
@@ -1055,6 +1069,9 @@ const AdminDashboard = () => {
                         <Legend />
                         <Bar dataKey="reports" fill="#3B82F6" name="Reports" />
                         <Bar dataKey="adoptions" fill="#10B981" name="Adoptions" />
+                        <Bar dataKey="volunteers" fill="#8B5CF6" name="Volunteers" />
+                        <Bar dataKey="donations" fill="#F59E0B" name="Donations" />
+                        <Bar dataKey="messages" fill="#EC4899" name="Messages" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1088,7 +1105,7 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Detailed Analytics Cards */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-8">
                   {/* Adoption Analytics */}
                   <div className="bg-white p-6 rounded-lg shadow-sm">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Adoption Analytics</h3>
@@ -1134,6 +1151,75 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Volunteer Analytics */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Volunteer Analytics</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Total Applications</span>
+                        <span className="text-lg font-bold text-green-600">{volunteers.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Approved</span>
+                        <span className="text-lg font-bold text-blue-600">{volunteers.filter(v => v.status === 'approved').length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Pending</span>
+                        <span className="text-lg font-bold text-yellow-600">{volunteers.filter(v => v.status === 'pending').length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Rejected</span>
+                        <span className="text-lg font-bold text-red-600">{volunteers.filter(v => v.status === 'rejected').length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Animal Analytics */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Analytics</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Total Animals</span>
+                        <span className="text-lg font-bold text-green-600">{animals.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Available</span>
+                        <span className="text-lg font-bold text-blue-600">{animals.filter(a => a.status === 'available').length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Adopted</span>
+                        <span className="text-lg font-bold text-purple-600">{animals.filter(a => a.status === 'adopted').length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Pending</span>
+                        <span className="text-lg font-bold text-orange-600">{animals.filter(a => a.status === 'pending').length}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Message Analytics */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Analytics</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Total Messages</span>
+                        <span className="text-lg font-bold text-green-600">{messages.length}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Unread</span>
+                        <span className="text-lg font-bold text-red-600">{messageStats.unread}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Read</span>
+                        <span className="text-lg font-bold text-blue-600">{messageStats.read}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Archived</span>
+                        <span className="text-lg font-bold text-gray-600">{messageStats.archived}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Geographic Summary */}
@@ -1152,6 +1238,101 @@ const AdminDashboard = () => {
                           <p className="text-2xl font-bold text-green-600">{recentReports.length}</p>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'geographic' && (
+              <div className="space-y-8">
+                {/* Geographic Distribution */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Distribution</h3>
+                  <div className="bg-gray-50 p-6 rounded-lg">
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">Geographic analytics based on report locations</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Reports with Location</p>
+                          <p className="text-2xl font-bold text-blue-600">{recentReports.filter(r => r.location && r.location !== 'Unknown Location').length}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                          <p className="text-sm font-medium text-gray-900">Total Reports</p>
+                          <p className="text-2xl font-bold text-green-600">{recentReports.length}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location-based Analytics */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Reports by Location */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Reports by Location</h3>
+                    <div className="space-y-3">
+                      {recentReports.length === 0 ? (
+                        <p className="text-center text-gray-500">No reports with location data.</p>
+                      ) : (
+                        recentReports
+                          .filter(r => r.location && r.location !== 'Unknown Location')
+                          .slice(0, 5)
+                          .map((report) => (
+                            <div key={report.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{report.location}</p>
+                                  <p className="text-xs text-gray-500">{report.type} • {report.animalType}</p>
+                                </div>
+                              </div>
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(report.status)}`}>
+                                {report.status}
+                              </span>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Location Statistics */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Location Statistics</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Reports with Valid Location</span>
+                        <span className="text-lg font-bold text-blue-600">
+                          {recentReports.filter(r => r.location && r.location !== 'Unknown Location').length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Reports without Location</span>
+                        <span className="text-lg font-bold text-yellow-600">
+                          {recentReports.filter(r => !r.location || r.location === 'Unknown Location').length}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <span className="text-sm font-medium text-gray-700">Location Coverage</span>
+                        <span className="text-lg font-bold text-green-600">
+                          {recentReports.length > 0 
+                            ? Math.round((recentReports.filter(r => r.location && r.location !== 'Unknown Location').length / recentReports.length) * 100)
+                            : 0}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Map Integration Note */}
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+                  <div className="flex items-center space-x-3">
+                    <MapPin className="h-6 w-6 text-orange-600" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-orange-900">Interactive Map</h3>
+                      <p className="text-orange-700 mt-1">
+                        For detailed geographic visualization and heatmap analysis, visit the dedicated Heatmap section in the sidebar.
+                      </p>
                     </div>
                   </div>
                 </div>

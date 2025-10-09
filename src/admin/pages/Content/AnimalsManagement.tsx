@@ -8,12 +8,11 @@ import {
   XCircle
 } from 'lucide-react'
 
-import { listAllAnimalsForAdmin, deleteAnimal, createAnimal, updateAnimal, type AnimalRecord, type AnimalType, type AnimalStatus } from '../../../shared/utils/animalsService'
+import { listAllAnimalsForAdmin, deleteAnimal, createAnimal, updateAnimal, type AnimalRecord, type AnimalType } from '../../../shared/utils/animalsService'
 import { supabase } from '../../../config/supabase'
 
 const AnimalsManagement = () => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'adopted' | 'pending'>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'dog' | 'cat'>('all')
   const [selectedAnimal, setSelectedAnimal] = useState<any>(null)
   const [showAnimalModal, setShowAnimalModal] = useState(false)
@@ -31,7 +30,6 @@ const AnimalsManagement = () => {
   const [newAnimal, setNewAnimal] = useState<Partial<AnimalRecord>>({
     name: '',
     type: 'dog',
-    status: 'available',
     isPublished: false
   })
   const [newImageFile, setNewImageFile] = useState<File | null>(null)
@@ -63,29 +61,11 @@ const AnimalsManagement = () => {
       (animal.breed || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (animal.microchipId || '').toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesStatus = statusFilter === 'all' || animal.status === statusFilter
     const matchesType = typeFilter === 'all' || animal.type === typeFilter
 
-    return matchesSearch && matchesStatus && matchesType
+    return matchesSearch && matchesType
   })
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available': return 'bg-green-100 text-green-800'
-      case 'adopted': return 'bg-blue-100 text-blue-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusTextColor = (status: string) => {
-    switch (status) {
-      case 'available': return 'text-green-600'
-      case 'adopted': return 'text-blue-600'
-      case 'pending': return 'text-yellow-600'
-      default: return 'text-gray-600'
-    }
-  }
 
   
 
@@ -154,7 +134,7 @@ const AnimalsManagement = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Search */}
             <div className="lg:col-span-2">
               <div className="relative">
@@ -167,20 +147,6 @@ const AnimalsManagement = () => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 />
               </div>
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              >
-                <option value="all">All Status</option>
-                <option value="available">Available</option>
-                <option value="adopted">Adopted</option>
-                <option value="pending">Pending</option>
-              </select>
             </div>
 
             {/* Type Filter */}
@@ -210,7 +176,6 @@ const AnimalsManagement = () => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animal</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Spay/Neuter</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
@@ -234,9 +199,6 @@ const AnimalsManagement = () => {
                             <div className="text-sm text-gray-500 capitalize">{animal.type} • {animal.breed || '—'}</div>
                   </div>
                 </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(animal.status)}`}>{animal.status}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{animal.gender || '—'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{animal.spayNeuterStatus || '—'}</td>
@@ -387,9 +349,6 @@ const AnimalsManagement = () => {
                     </div>
                     {(() => { const current = editing ? editValues : selectedAnimal; return (
                       <>
-                        {current.status && (
-                          <div className={`text-sm ${getStatusTextColor(current.status)} mt-1`}>Status: {current.status}</div>
-                        )}
                         {current.adoptionFee != null && (
                           <div className="text-sm text-gray-800 font-medium">Adoption Fee: {formatCurrency(Number(current.adoptionFee))}</div>
                         )}
@@ -480,18 +439,6 @@ const AnimalsManagement = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Status</label>
-                    <select
-                      value={(newAnimal.status as AnimalStatus) || 'available'}
-                      onChange={(e) => setNewAnimal((s) => ({ ...s, status: e.target.value as AnimalStatus }))}
-                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                    >
-                      <option value="available">Available</option>
-                      <option value="pending">Pending</option>
-                      <option value="adopted">Adopted</option>
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium text-gray-700">Adoption Fee (PHP)</label>
                     <input
                       type="number"
@@ -540,7 +487,7 @@ const AnimalsManagement = () => {
                     <div className="w-full mb-3 p-3 rounded-lg bg-yellow-50 text-yellow-800 text-sm border border-yellow-200">{addWarning}</div>
                   )}
                   <button
-                    onClick={() => { setShowAddModal(false); setNewAnimal({ name: '', type: 'dog', status: 'available', isPublished: false }) }}
+                    onClick={() => { setShowAddModal(false); setNewAnimal({ name: '', type: 'dog', isPublished: false }) }}
                     className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                     disabled={saving}
                   >
@@ -548,7 +495,7 @@ const AnimalsManagement = () => {
                   </button>
                   <button
                     onClick={async () => {
-                      if (!newAnimal.name || !newAnimal.type || !newAnimal.status) return
+                      if (!newAnimal.name || !newAnimal.type) return
                       try {
                         setSaving(true)
                         setAddError(null)
@@ -575,7 +522,7 @@ const AnimalsManagement = () => {
                         const id = await createAnimal({
                           name: newAnimal.name!,
                           type: newAnimal.type as AnimalType,
-                          status: newAnimal.status as AnimalStatus,
+                          status: 'available',
                           isPublished: Boolean(newAnimal.isPublished),
                           breed: newAnimal.breed,
                           age: newAnimal.age,
@@ -587,7 +534,7 @@ const AnimalsManagement = () => {
                         })
                         setAnimals((prev) => [{ id, ...newAnimal, images } as any, ...prev])
                         setShowAddModal(false)
-                        setNewAnimal({ name: '', type: 'dog', status: 'available', isPublished: false })
+                        setNewAnimal({ name: '', type: 'dog', isPublished: false })
                         setNewImageFile(null)
                       } catch (e: any) {
                         const msg = e?.message || 'Failed to save. Are you logged in as an admin?'

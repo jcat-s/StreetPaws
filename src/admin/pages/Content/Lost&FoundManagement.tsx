@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Search, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, EyeOff } from 'lucide-react'
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
 import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
@@ -115,7 +115,7 @@ const ContentHome = () => {
     // Helper function to process documents (matching ReportsManagement structure)
     const processDocs = (docs: any[], collectionType: 'lost' | 'found'): LostFoundItem[] => {
       return docs
-        .filter((doc) => {
+        .filter(() => {
           // Process all items for Content Management (both published and unpublished)
           return true
         })
@@ -453,7 +453,9 @@ const ContentHome = () => {
                     <div className="text-sm text-gray-500 capitalize">{item.animalType} • {item.breed}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.location || '—'}</div>
+                    <div className="text-sm text-gray-900">
+                      {item.location ? (item.location.length > 8 ? `${item.location.substring(0, 8)}...` : item.location) : '—'}
+                    </div>
                     <div className="text-sm text-gray-500">{item.date || '—'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

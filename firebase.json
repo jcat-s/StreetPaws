@@ -20,7 +20,7 @@
       ]
     },
     {
-      "site": "admin-streetpaws",
+      "target": "admin",
       "public": "dist/admin",
       "ignore": [
         "firebase.json",

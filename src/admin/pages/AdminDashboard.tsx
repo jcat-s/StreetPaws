@@ -5,12 +5,10 @@ import {
   Users, 
   AlertTriangle, 
   TrendingUp, 
-
   CheckCircle,
   XCircle,
   MapPin,
   DollarSign,
-  User,
   Mail,
   PieChart as PieChartIcon
 } from 'lucide-react'
@@ -289,7 +287,7 @@ const AdminDashboard = () => {
       allReports = uniqueReports.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       
       const totalCount = allReports.length
-      const pendingCount = allReports.filter(r => r.status === 'pending' || r.status === 'investigating').length
+      const pendingCount = allReports.filter(r => r.status === 'pending').length
       const resolvedCount = allReports.filter(r => r.status === 'resolved').length
       
       setReportCounts({ total: totalCount, pending: pendingCount, resolved: resolvedCount })
@@ -397,7 +395,7 @@ const AdminDashboard = () => {
   }, [])
 
   // Calculated metrics
-  const urgentReportsCount = useMemo(() => recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length, [recentReports])
+  // const urgentReportsCount = useMemo(() => recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length, [recentReports])
   
   // Message metrics
   const messageStats = useMemo(() => ({
@@ -408,25 +406,25 @@ const AdminDashboard = () => {
   }), [messages])
 
   // Recent activity for the last 7 days
-  const recentActivity = useMemo(() => {
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    
-    const recentAdoptions = adoptions.filter(a => new Date(a.submittedAt) >= weekAgo)
-    const recentDonations = donations.filter(d => new Date(d.createdAt) >= weekAgo)
-    const recentVolunteers = volunteers.filter(v => new Date(v.createdAt) >= weekAgo)
-    const recentReportsActivity = recentReports.filter(r => new Date(r.date) >= weekAgo)
-    const recentMessages = messages.filter(m => new Date(m.createdAt) >= weekAgo)
-    
-    return {
-      adoptions: recentAdoptions.length,
-      donations: recentDonations.length,
-      volunteers: recentVolunteers.length,
-      reports: recentReportsActivity.length,
-      messages: recentMessages.length,
-      totalAmount: recentDonations.filter(d => d.status === 'verified').reduce((sum, d) => sum + d.amount, 0)
-    }
-  }, [adoptions, donations, volunteers, recentReports, messages])
+  // const recentActivity = useMemo(() => {
+  //   const weekAgo = new Date()
+  //   weekAgo.setDate(weekAgo.getDate() - 7)
+  //   
+  //   const recentAdoptions = adoptions.filter(a => new Date(a.submittedAt) >= weekAgo)
+  //   const recentDonations = donations.filter(d => new Date(d.createdAt) >= weekAgo)
+  //   const recentVolunteers = volunteers.filter(v => new Date(v.createdAt) >= weekAgo)
+  //   const recentReportsActivity = recentReports.filter(r => new Date(r.date) >= weekAgo)
+  //   const recentMessages = messages.filter(m => new Date(m.createdAt) >= weekAgo)
+  //   
+  //   return {
+  //     adoptions: recentAdoptions.length,
+  //     donations: recentDonations.length,
+  //     volunteers: recentVolunteers.length,
+  //     reports: recentReportsActivity.length,
+  //     messages: recentMessages.length,
+  //     totalAmount: recentDonations.filter(d => d.status === 'verified').reduce((sum, d) => sum + d.amount, 0)
+  //   }
+  // }, [adoptions, donations, volunteers, recentReports, messages])
   
   // Adoption metrics
   const adoptionStats = useMemo(() => ({
@@ -464,14 +462,14 @@ const AdminDashboard = () => {
   }), [volunteers])
 
   // Animal metrics
-  const animalStats = useMemo(() => ({
-    total: animals.length,
-    available: animals.filter(a => a.status === 'available').length,
-    adopted: animals.filter(a => a.status === 'adopted').length,
-    pending: animals.filter(a => a.status === 'pending').length,
-    dogs: animals.filter(a => a.type === 'dog').length,
-    cats: animals.filter(a => a.type === 'cat').length
-  }), [animals])
+  // const animalStats = useMemo(() => ({
+  //   total: animals.length,
+  //   available: animals.filter(a => a.status === 'available').length,
+  //   adopted: animals.filter(a => a.status === 'adopted').length,
+  //   pending: animals.filter(a => a.status === 'pending').length,
+  //   dogs: animals.filter(a => a.type === 'dog').length,
+  //   cats: animals.filter(a => a.type === 'cat').length
+  // }), [animals])
 
   // Monthly trends (last 6 months)
   const monthlyTrends = useMemo(() => {
@@ -573,7 +571,7 @@ const AdminDashboard = () => {
             <nav className="-mb-px flex space-x-8 px-6">
               {[
                 { id: 'analytics', name: 'Analytics', icon: PieChartIcon },
-                { id: 'overview', name: 'Overview All', icon: TrendingUp },
+                { id: 'overview', name: 'Overview', icon: TrendingUp },
                 { id: 'geographic', name: 'Geographic', icon: MapPin }
               ].map((tab) => {
                 const Icon = tab.icon
@@ -622,10 +620,7 @@ const AdminDashboard = () => {
                         <span>Investigating</span>
                         <span>{recentReports.filter(r => r.status === 'investigating').length}</span>
                       </div>
-                      <div className="flex justify-between text-xs text-blue-700">
-                        <span>Urgent</span>
-                        <span>{recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length}</span>
-                      </div>
+                 
                     </div>
                   </div>
                   <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-lg">
@@ -960,7 +955,7 @@ const AdminDashboard = () => {
                             cy="50%"
                             outerRadius={80}
                             dataKey="count"
-                            label={({ type, percentage }: any) => `${type}: ${percentage.toFixed(1)}%`}
+                            label={({ percentage }: any) => `${percentage.toFixed(1)}%`}
                           >
                             {analytics.reportsByType.map((entry, index) => (
                               <Cell 
@@ -976,6 +971,20 @@ const AdminDashboard = () => {
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
+                    <div className="flex justify-center mt-2 space-x-4 text-xs">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
+                        <span>Lost</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                        <span>Found</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                        <span>Abuse</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Reports by Priority - Pie Chart */}
@@ -990,7 +999,7 @@ const AdminDashboard = () => {
                             cy="50%"
                             outerRadius={80}
                             dataKey="count"
-                            label={({ priority, percentage }: any) => `${priority}: ${percentage.toFixed(1)}%`}
+                            label={({ percentage }: any) => `${percentage.toFixed(1)}%`}
                           >
                             {analytics.reportsByPriority.map((entry, index) => (
                               <Cell 
@@ -1007,6 +1016,24 @@ const AdminDashboard = () => {
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
+                    <div className="flex justify-center mt-2 space-x-2 text-xs">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                        <span>Urgent</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div>
+                        <span>High</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
+                        <span>Medium</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                        <span>Normal</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Reports by Status - Pie Chart */}
@@ -1021,7 +1048,7 @@ const AdminDashboard = () => {
                             cy="50%"
                             outerRadius={80}
                             dataKey="count"
-                            label={({ status, percentage }: any) => `${status}: ${percentage.toFixed(1)}%`}
+                            label={({ percentage }: any) => `${percentage.toFixed(1)}%`}
                           >
                             {analytics.reportsByStatus.map((entry, index) => (
                               <Cell 
@@ -1036,6 +1063,20 @@ const AdminDashboard = () => {
                           <Tooltip />
                         </PieChart>
                       </ResponsiveContainer>
+                    </div>
+                    <div className="flex justify-center mt-2 space-x-3 text-xs">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                        <span>Resolved</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
+                        <span>Investigating</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-orange-500 rounded-full mr-1"></div>
+                        <span>Pending</span>
+                      </div>
                     </div>
                   </div>
                 </div>

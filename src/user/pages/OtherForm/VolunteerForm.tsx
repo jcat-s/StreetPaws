@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { useAuth } from '../../../contexts/AuthContext'
-import LocationPicker from '../../components/LocationPicker'
+import GlobalLocationPicker from '../../components/GlobalLocationPicker'
 
 interface VolunteerFormData {
     name: string;
@@ -76,11 +76,11 @@ const VolunteerForm = () => {
                             {errors.phone && <p className="text-sm text-red-600">{errors.phone.message}</p>}
                         </div>
                         <div className="md:col-span-2">
-                            <LocationPicker
+                            <GlobalLocationPicker
                                 label="Location"
                                 value={selectedLocation.address}
                                 onChange={setSelectedLocation}
-                                placeholder="e.g., Barangay 1, Lipa City, Batangas"
+                                placeholder="e.g., Your City, State/Province, Country"
                                 required
                                 error={errors.barangay?.message}
                             />

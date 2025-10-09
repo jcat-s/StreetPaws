@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
-import { collection, onSnapshot } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.heat'
-import { LIPA_BARANGAY_COORDINATES } from '../../shared/constants/barangays'
+import { X, BarChart3 } from 'lucide-react'
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -75,11 +75,17 @@ const HeatmapLayer: React.FC<HeatmapLayerProps> = ({
 }
 
 type ReportDoc = {
+  id?: string
   type?: 'lost' | 'found' | 'abuse'
   createdAt?: any
   lastSeenLocation?: string
   foundLocation?: string
   incidentLocation?: string
+  // Additional fields that might be present
+  animalType?: string
+  caseTitle?: string
+  status?: string
+  published?: boolean
 }
 
 type Coordinate = {
@@ -90,8 +96,26 @@ type Coordinate = {
   location: string
 }
 
-// Use the accurate Lipa City Barangays from shared constants
-const LIPA_BARANGAYS = LIPA_BARANGAY_COORDINATES
+// Known Lipa City barangays for reference
+const LIPA_BARANGAYS = [
+  'Adya', 'Anilao', 'Anilao-Labac', 'Antipolo del Norte', 'Antipolo del Sur',
+  'Bagong Pook', 'Balintawak', 'Banaybanay', 'Bolbok', 'Bugtong na Pulo',
+  'Bulacnin', 'Bulaklakan', 'Calamias', 'Cumba', 'Dagatan', 'Duhatan',
+  'Halang', 'Inosloban', 'Kayumanggi', 'Labac', 'Latag', 'Lodlod',
+  'Lumbang', 'Mabini', 'Mataas na Lupa', 'Malagonlong', 'Malitlit',
+  'Marauoy', 'Munting Pulo', 'Pagolingin Bata', 'Pagolingin East',
+  'Pagolingin West', 'Pangao', 'Pinagkawitan', 'Pinagtongulan',
+  'Plaridel', 'Poblacion Barangay 1', 'Poblacion Barangay 2',
+  'Poblacion Barangay 3', 'Poblacion Barangay 4', 'Poblacion Barangay 5',
+  'Poblacion Barangay 6', 'Poblacion Barangay 7', 'Poblacion Barangay 8',
+  'Poblacion Barangay 9', 'Poblacion Barangay 9-A', 'Poblacion Barangay 10',
+  'Poblacion Barangay 11', 'Poblacion Barangay 12', 'Pusil', 'Quezon',
+  'Rizal', 'Sabang', 'Sampaguita', 'San Benito', 'San Carlos',
+  'San Celestino', 'San Francisco', 'San Guillermo', 'San Isidro',
+  'San Jose', 'San Lucas', 'San Salvador', 'San Sebastian',
+  'Santo Niño', 'Santo Toribio', 'Sico', 'Talisay', 'Tambo',
+  'Tangob', 'Tangway', 'Tibig'
+]
 
 const Heatmap = () => {
   const [reports, setReports] = useState<ReportDoc[]>([])
@@ -108,14 +132,47 @@ const Heatmap = () => {
   const [searchResults, setSearchResults] = useState<string[]>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const [showStatsModal, setShowStatsModal] = useState(false)
+  const [modalPosition, setModalPosition] = useState({ x: 50, y: 50 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!db) return
-    const unsub = onSnapshot(collection(db, 'reports'), (snap) => {
-      const list = snap.docs.map((d) => d.data() as ReportDoc)
-      setReports(list)
+    
+    // Listen to all three report collections
+    const collections = ['reports-lost', 'reports-found', 'reports-abuse']
+    const unsubscribers: (() => void)[] = []
+    
+    collections.forEach(collectionName => {
+      if (!db) return
+      
+      const q = query(collection(db, collectionName), orderBy('createdAt', 'desc'))
+      const unsub = onSnapshot(q, (snap) => {
+        const newReports = snap.docs.map((d) => ({ ...d.data(), id: d.id } as ReportDoc))
+        
+        console.log(`📥 Loaded ${newReports.length} reports from ${collectionName}:`, newReports.map(r => ({
+          id: r.id,
+          type: r.type,
+          location: r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation,
+          createdAt: r.createdAt
+        })))
+        
+        setReports(prevReports => {
+          // Remove old reports from this collection and add new ones
+          const filtered = prevReports.filter(r => !r.id?.includes(collectionName))
+          const updated = [...filtered, ...newReports]
+          console.log(`📊 Total reports after update: ${updated.length}`)
+          return updated
+        })
+      })
+      unsubscribers.push(unsub)
     })
-    return () => unsub()
+    
+    return () => {
+      unsubscribers.forEach(unsub => unsub())
+    }
   }, [])
 
   function getDate(v: any): Date | null {
@@ -125,11 +182,11 @@ const Heatmap = () => {
     return null
   }
 
-  // Parse location string to coordinates
+  // Parse location string to coordinates and extract barangay
   function parseLocation(location: string): Coordinate | null {
     if (!location) return null
     
-    // Try to parse as "lat,lng" format
+    // Try to parse as "lat,lng" format first
     const coords = location.split(',').map(s => s.trim())
     if (coords.length === 2) {
       const lat = parseFloat(coords[0])
@@ -139,13 +196,77 @@ const Heatmap = () => {
       }
     }
     
-    // For now, return null for non-coordinate strings
-    // In a real app, you might want to geocode these addresses
+    // Extract barangay from full address
+    const locationLower = location.toLowerCase()
+    const foundBarangay = LIPA_BARANGAYS.find(barangay => 
+      locationLower.includes(barangay.toLowerCase())
+    )
+    
+    if (foundBarangay) {
+      // Use approximate coordinates for the barangay
+      // These are rough estimates - in a real app you'd want more precise coordinates
+      const barangayCoords = getBarangayCoordinates(foundBarangay)
+      if (barangayCoords) {
+        return {
+          lat: barangayCoords.lat,
+          lng: barangayCoords.lng,
+          intensity: 1,
+          type: '',
+          location: foundBarangay
+        }
+      }
+    }
+    
     return null
   }
 
+  // Get approximate coordinates for barangays
+  function getBarangayCoordinates(barangay: string): { lat: number; lng: number } | null {
+    // Approximate coordinates for major barangays in Lipa City
+    const coordinates: Record<string, { lat: number; lng: number }> = {
+      'Latag': { lat: 13.9334, lng: 121.1722 },
+      'Tipacan': { lat: 13.9500, lng: 121.1500 },
+      'Poblacion Barangay 1': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 2': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 3': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 4': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 5': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 6': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 7': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 8': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 9': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 9-A': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 10': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 11': { lat: 13.9411, lng: 121.1639 },
+      'Poblacion Barangay 12': { lat: 13.9411, lng: 121.1639 },
+      'Anilao': { lat: 13.9015, lng: 121.1717 },
+      'Balintawak': { lat: 13.9538, lng: 121.1585 },
+      'Bolbok': { lat: 13.9238, lng: 121.1488 },
+      'Cumba': { lat: 13.9074, lng: 121.1383 },
+      'Dagatan': { lat: 13.9660, lng: 121.1816 },
+      'Halang': { lat: 13.9524, lng: 121.0830 },
+      'Inosloban': { lat: 13.9828, lng: 121.1706 },
+      'Kayumanggi': { lat: 13.9258, lng: 121.1606 },
+      'Lodlod': { lat: 13.9306, lng: 121.1415 },
+      'Mabini': { lat: 13.8968, lng: 121.1492 },
+      'Malagonlong': { lat: 13.9099, lng: 121.1563 },
+      'Malitlit': { lat: 13.9178, lng: 121.2352 },
+      'Marauoy': { lat: 13.9635, lng: 121.1612 },
+      'Munting Pulo': { lat: 13.9545, lng: 121.1854 },
+      'Pagolingin Bata': { lat: 13.8927, lng: 121.1623 },
+      'San Jose': { lat: 13.9200, lng: 121.1800 },
+      'San Sebastian': { lat: 13.9100, lng: 121.1900 },
+      'Santo Niño': { lat: 13.9300, lng: 121.1700 },
+      'Talisay': { lat: 13.9400, lng: 121.2000 },
+      'Tambo': { lat: 13.9000, lng: 121.1400 },
+      'Tibig': { lat: 13.9500, lng: 121.1200 }
+    }
+    
+    return coordinates[barangay] || null
+  }
+
   const barangays = useMemo(() => {
-    return Object.keys(LIPA_BARANGAYS).sort()
+    return LIPA_BARANGAYS.sort()
   }, [])
 
   // Search functionality
@@ -170,15 +291,11 @@ const Heatmap = () => {
     setShowSearchResults(false)
     
     // Center map on selected barangay
-    if (LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS]) {
-      const barangayData = LIPA_BARANGAYS[barangay as keyof typeof LIPA_BARANGAYS]
-      // Check if the barangay data has valid coordinates
-      if (barangayData && typeof barangayData === 'object' && 'lat' in barangayData && 'lng' in barangayData && 'zoom' in barangayData) {
-        const coords = barangayData as { lat: number; lng: number; zoom: number }
-        setMapCenter([coords.lat, coords.lng])
-        setMapZoom(coords.zoom)
+    const barangayCoords = getBarangayCoordinates(barangay)
+    if (barangayCoords) {
+      setMapCenter([barangayCoords.lat, barangayCoords.lng])
+      setMapZoom(15)
       setApplyKey((v) => v + 1)
-      }
     }
   }
 
@@ -214,11 +331,16 @@ const Heatmap = () => {
   // Convert filtered reports to coordinates for heatmap
   const heatmapData = useMemo(() => {
     const coordinates: Coordinate[] = []
-    const locationCounts = new Map<string, { count: number; type: string }>()
+    const locationCounts = new Map<string, { count: number; types: Set<string>; locationName: string }>()
+    
+    console.log('🔍 Processing filtered reports:', filtered.length)
     
     for (const r of filtered) {
       const loc = r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation
-      if (!loc) continue
+      if (!loc) {
+        console.log('⚠️ Report missing location:', r.type, r.id)
+        continue
+      }
       
       const coord = parseLocation(loc)
       if (coord) {
@@ -226,25 +348,33 @@ const Heatmap = () => {
         const existing = locationCounts.get(key)
         if (existing) {
           existing.count++
-          existing.type = r.type || 'unknown'
+          existing.types.add(r.type || 'unknown')
         } else {
-          locationCounts.set(key, { count: 1, type: r.type || 'unknown' })
+          locationCounts.set(key, { 
+            count: 1, 
+            types: new Set([r.type || 'unknown']),
+            locationName: coord.location
+          })
         }
+        console.log('📍 Added report to location:', coord.location, 'Type:', r.type, 'Total at location:', locationCounts.get(key)?.count)
+      } else {
+        console.log('❌ Could not parse location:', loc)
       }
     }
     
     // Convert to heatmap format
-    locationCounts.forEach(({ count, type }, key) => {
+    locationCounts.forEach(({ count, types, locationName }, key) => {
       const [lat, lng] = key.split(',').map(Number)
       coordinates.push({
         lat,
         lng,
         intensity: count,
-        type,
-        location: key
+        type: Array.from(types).join(', '),
+        location: locationName
       })
     })
     
+    console.log('🗺️ Final heatmap data:', coordinates)
     return coordinates
   }, [filtered])
 
@@ -253,6 +383,121 @@ const Heatmap = () => {
     heatmapData.forEach((coord) => { if (coord.intensity > max) max = coord.intensity })
     return max
   }, [heatmapData])
+
+  // Calculate statistics for selected barangay
+  const selectedBarangayStats = useMemo(() => {
+    if (!selectedBarangay) return null
+    
+    console.log('🏘️ Calculating stats for barangay:', selectedBarangay)
+    console.log('📊 Total filtered reports:', filtered.length)
+    
+    const barangayReports = filtered.filter(report => {
+      const location = report.type === 'lost' ? report.lastSeenLocation : 
+                      report.type === 'found' ? report.foundLocation : 
+                      report.incidentLocation
+      
+      if (!location) return false
+      
+      // More flexible matching - check if any known barangay is in the location
+      const locationLower = location.toLowerCase()
+      const barangayLower = selectedBarangay.toLowerCase()
+      
+      // Direct match
+      if (locationLower.includes(barangayLower)) return true
+      
+      // Check if the location contains any barangay name that matches our selected one
+      const foundBarangay = LIPA_BARANGAYS.find(b => 
+        b.toLowerCase() === barangayLower && locationLower.includes(b.toLowerCase())
+      )
+      
+      return !!foundBarangay
+    })
+    
+    console.log('🎯 Reports found for barangay:', barangayReports.length)
+    console.log('📋 Barangay reports:', barangayReports.map(r => ({
+      type: r.type,
+      location: r.type === 'lost' ? r.lastSeenLocation : r.type === 'found' ? r.foundLocation : r.incidentLocation
+    })))
+    
+    if (barangayReports.length === 0) return null
+    
+    const typeCounts = {
+      lost: 0,
+      found: 0,
+      abuse: 0
+    }
+    
+    barangayReports.forEach(report => {
+      if (report.type === 'lost') typeCounts.lost++
+      else if (report.type === 'found') typeCounts.found++
+      else if (report.type === 'abuse') typeCounts.abuse++
+    })
+    
+    console.log('📈 Type counts:', typeCounts)
+    console.log('🔍 Active filters:', { filterLost, filterFound, filterAbuse })
+    
+    const activeTypes = []
+    if (filterLost && typeCounts.lost > 0) activeTypes.push('Lost')
+    if (filterFound && typeCounts.found > 0) activeTypes.push('Found')
+    if (filterAbuse && typeCounts.abuse > 0) activeTypes.push('Abuse')
+    
+    const totalCases = activeTypes.reduce((sum, type) => {
+      if (type === 'Lost') return sum + typeCounts.lost
+      if (type === 'Found') return sum + typeCounts.found
+      if (type === 'Abuse') return sum + typeCounts.abuse
+      return sum
+    }, 0)
+    
+    console.log('✅ Final stats:', {
+      barangay: selectedBarangay,
+      totalCases,
+      typeString: activeTypes.join(' & '),
+      typeCounts
+    })
+    
+    return {
+      barangay: selectedBarangay,
+      totalCases,
+      typeString: activeTypes.join(' & '),
+      typeCounts
+    }
+  }, [selectedBarangay, filtered, filterLost, filterFound, filterAbuse])
+
+  // Drag functionality for modal
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (modalRef.current) {
+      const rect = modalRef.current.getBoundingClientRect()
+      setIsDragging(true)
+      setDragStart({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      })
+    }
+  }
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      setModalPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, dragStart])
 
   useEffect(() => {
     if (!selectedBarangay && barangays.length > 0) {
@@ -278,13 +523,11 @@ const Heatmap = () => {
 
   // Handle barangay selection and map centering
   const handleApplyFilters = () => {
-    if (selectedBarangay && LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS]) {
-      const barangayData = LIPA_BARANGAYS[selectedBarangay as keyof typeof LIPA_BARANGAYS]
-      // Check if the barangay data has valid coordinates
-      if (barangayData && typeof barangayData === 'object' && 'lat' in barangayData && 'lng' in barangayData && 'zoom' in barangayData) {
-        const coords = barangayData as { lat: number; lng: number; zoom: number }
-        setMapCenter([coords.lat, coords.lng])
-        setMapZoom(coords.zoom)
+    if (selectedBarangay) {
+      const barangayCoords = getBarangayCoordinates(selectedBarangay)
+      if (barangayCoords) {
+        setMapCenter([barangayCoords.lat, barangayCoords.lng])
+        setMapZoom(15)
       }
     }
     setApplyKey((v) => v + 1)
@@ -331,14 +574,14 @@ const Heatmap = () => {
               {heatmapData.map((coord, index) => (
                 <Marker key={index} position={[coord.lat, coord.lng]}>
                   <Popup>
-                    <div className="text-center">
-                      <div className="font-semibold text-gray-900 mb-1">
+                    <div className="text-center p-2">
+                      <div className="font-bold text-gray-900 text-lg mb-2">
                         {coord.location}
                       </div>
-                      <div className="text-orange-600 font-bold text-lg">
+                      <div className="text-orange-600 font-bold text-xl mb-1">
                         {coord.intensity} Cases
                       </div>
-                      <div className="text-xs text-gray-500 capitalize">
+                      <div className="text-sm text-gray-600 capitalize">
                         Type: {coord.type}
                       </div>
                     </div>
@@ -437,30 +680,16 @@ const Heatmap = () => {
             </div>
           </div>
 
-          {/* Statistics */}
-          <div className="border border-orange-200 rounded-md mb-4">
-            <div className="px-3 py-2 bg-orange-100 text-orange-800 font-semibold rounded-t-md">Statistics</div>
-            <div className="px-3 py-3 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-700">Total Reports:</span>
-                <span className="font-semibold text-gray-900">{filtered.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Mapped Locations:</span>
-                <span className="font-semibold text-gray-900">{heatmapData.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-700">Max Cases:</span>
-                <span className="font-semibold text-gray-900">{maxCount}</span>
-              </div>
-              {selectedBarangay && (
-                <div className="flex justify-between">
-                  <span className="text-gray-700">Selected Barangay:</span>
-                  <span className="font-semibold text-gray-900">{selectedBarangay}</span>
-                </div>
-              )}
-            </div>
-          </div>
+           {/* Statistics Button */}
+           <div className="border border-orange-200 rounded-md mb-4">
+             <button
+               onClick={() => setShowStatsModal(true)}
+               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-md transition-colors duration-200"
+             >
+               <BarChart3 className="w-5 h-5" />
+               View Statistics
+             </button>
+           </div>
 
           {/* Legend */}
           <div className="border border-orange-200 rounded-md">
@@ -486,6 +715,92 @@ const Heatmap = () => {
           </div>
         </div>
       </div>
+
+      {/* Draggable Statistics Modal */}
+      {showStatsModal && (
+        <div
+          ref={modalRef}
+          className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 min-w-[300px] max-w-[400px]"
+          style={{
+            left: `${modalPosition.x}px`,
+            top: `${modalPosition.y}px`,
+            cursor: isDragging ? 'grabbing' : 'grab'
+          }}
+          onMouseDown={handleMouseDown}
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-orange-50 rounded-t-lg">
+            <h3 className="text-lg font-semibold text-gray-900">Statistics</h3>
+            <button
+              onClick={() => setShowStatsModal(false)}
+              className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Modal Content */}
+          <div className="p-4 space-y-4">
+            {/* Selected Barangay Stats */}
+            {selectedBarangayStats && (
+              <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
+                <div className="text-center">
+                  <div className="font-bold text-gray-900 text-lg mb-2">
+                    {selectedBarangayStats.barangay}
+                  </div>
+                  <div className="text-orange-600 font-bold text-xl mb-1">
+                    {selectedBarangayStats.totalCases} Cases
+                  </div>
+                  <div className="text-sm text-gray-600 capitalize">
+                    Type: {selectedBarangayStats.typeString}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Basic Stats */}
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-700">Total Reports:</span>
+                <span className="font-semibold text-gray-900">{filtered.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Mapped Locations:</span>
+                <span className="font-semibold text-gray-900">{heatmapData.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-700">Max Cases:</span>
+                <span className="font-semibold text-gray-900">{maxCount}</span>
+              </div>
+              {selectedBarangay && (
+                <div className="flex justify-between">
+                  <span className="text-gray-700">Selected Barangay:</span>
+                  <span className="font-semibold text-gray-900">{selectedBarangay}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Filter Status */}
+            <div className="border-t border-gray-200 pt-4">
+              <h4 className="text-md font-semibold text-gray-900 mb-3">Active Filters</h4>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${filterLost ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
+                  <span className="text-sm text-gray-700">Lost Reports</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${filterFound ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
+                  <span className="text-sm text-gray-700">Found Reports</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${filterAbuse ? 'bg-orange-500' : 'bg-gray-300'}`}></div>
+                  <span className="text-sm text-gray-700">Abuse Reports</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

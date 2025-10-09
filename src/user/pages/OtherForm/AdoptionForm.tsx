@@ -6,7 +6,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { getAnimalById, type AnimalRecord } from '../../../shared/utils/animalsService'
 import { useAuth } from '../../../contexts/AuthContext'
-import LocationPicker from '../../components/LocationPicker'
+import GlobalLocationPicker from '../../components/GlobalLocationPicker'
 
 interface AdoptionFormData {
   // Personal Information
@@ -239,11 +239,11 @@ const AdoptionForm = () => {
               </div>
 
               <div className="md:col-span-2">
-                <LocationPicker
+                <GlobalLocationPicker
                   label="Location"
                   value={selectedLocation.address}
                   onChange={setSelectedLocation}
-                  placeholder="e.g., Barangay 1, Lipa City, Batangas"
+                  placeholder="e.g., Your City, State/Province, Country"
                   required
                   error={errors.barangay?.message}
                 />

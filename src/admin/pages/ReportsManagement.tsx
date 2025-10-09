@@ -505,7 +505,7 @@ const ReportsManagement = () => {
                 onChange={(e) => setTypeFilter(e.target.value as any)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               >
-                <option value="all">All Types</option>
+                <option value="all">All Cases</option>
                 <option value="lost">Lost</option>
                 <option value="found">Found</option>
                 <option value="abuse">Abuse</option>

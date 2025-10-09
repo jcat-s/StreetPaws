@@ -5,7 +5,7 @@ import {
   Users, 
   AlertTriangle, 
   TrendingUp, 
-  Clock,
+
   CheckCircle,
   XCircle,
   MapPin,
@@ -540,6 +540,12 @@ const AdminDashboard = () => {
       { status: 'Investigating', count: recentReports.filter(r => r.status === 'investigating').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.status === 'investigating').length / recentReports.length) * 100 : 0 },
       { status: 'Pending', count: recentReports.filter(r => r.status === 'pending').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.status === 'pending').length / recentReports.length) * 100 : 0 }
     ],
+    reportsByPriority: [
+      { priority: 'Urgent', count: recentReports.filter(r => r.priority === 'urgent').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.priority === 'urgent').length / recentReports.length) * 100 : 0 },
+      { priority: 'High', count: recentReports.filter(r => r.priority === 'high').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.priority === 'high').length / recentReports.length) * 100 : 0 },
+      { priority: 'Medium', count: recentReports.filter(r => r.priority === 'medium').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.priority === 'medium').length / recentReports.length) * 100 : 0 },
+      { priority: 'Normal', count: recentReports.filter(r => r.priority === 'normal').length, percentage: recentReports.length > 0 ? (recentReports.filter(r => r.priority === 'normal').length / recentReports.length) * 100 : 0 }
+    ],
     animalTypes: [
       { type: 'Dogs', count: animals.filter(a => a.type === 'dog').length, percentage: animals.length > 0 ? (animals.filter(a => a.type === 'dog').length / animals.length) * 100 : 0 },
       { type: 'Cats', count: animals.filter(a => a.type === 'cat').length, percentage: animals.length > 0 ? (animals.filter(a => a.type === 'cat').length / animals.length) * 100 : 0 }
@@ -560,137 +566,6 @@ const AdminDashboard = () => {
           <p className="text-gray-600 mt-2">Welcome back! Here's what's happening with StreetPaws today.</p>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-          {/* Reports Stats */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="bg-blue-100 p-3 rounded-full">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Reports</p>
-                <p className="text-2xl font-bold text-gray-900">{reportCounts.total}</p>
-                <p className="text-xs text-gray-500">{reportCounts.pending} pending • {reportCounts.resolved} resolved</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Adoptions Stats */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="bg-green-100 p-3 rounded-full">
-                <Heart className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Adoptions</p>
-                <p className="text-2xl font-bold text-gray-900">{adoptionStats.total}</p>
-                <p className="text-xs text-gray-500">{adoptionStats.pending} pending • {adoptionStats.approved} approved</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Animals Stats */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="bg-purple-100 p-3 rounded-full">
-                <Users className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Animals</p>
-                <p className="text-2xl font-bold text-gray-900">{animalStats.total}</p>
-                <p className="text-xs text-gray-500">{animalStats.dogs} dogs • {animalStats.cats} cats</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Donations Stats */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="bg-orange-100 p-3 rounded-full">
-                <DollarSign className="h-6 w-6 text-orange-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Donations</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(donationStats.totalAmount)}</p>
-                <p className="text-xs text-gray-500">{donationStats.verified} verified • {donationStats.pending} pending</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-              <div className="text-left">
-                <p className="font-medium text-gray-900">Urgent Reports</p>
-                <p className="text-sm text-gray-600">{urgentReportsCount} items need attention</p>
-              </div>
-            </button>
-            <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <Clock className="h-5 w-5 text-yellow-600" />
-              <div className="text-left">
-                <p className="font-medium text-gray-900">Pending Adoptions</p>
-                <p className="text-sm text-gray-600">{adoptionStats.pending} adoption applications</p>
-              </div>
-            </button>
-            <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <User className="h-5 w-5 text-blue-600" />
-              <div className="text-left">
-                <p className="font-medium text-gray-900">Pending Volunteers</p>
-                <p className="text-sm text-gray-600">{volunteerStats.pending} volunteer applications</p>
-              </div>
-            </button>
-            <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <DollarSign className="h-5 w-5 text-green-600" />
-              <div className="text-left">
-                <p className="font-medium text-gray-900">Pending Donations</p>
-                <p className="text-sm text-gray-600">{donationStats.pending} donations to verify</p>
-              </div>
-            </button>
-            <button className="flex items-center space-x-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <Mail className="h-5 w-5 text-pink-600" />
-              <div className="text-left">
-                <p className="font-medium text-gray-900">Unread Messages</p>
-                <p className="text-sm text-gray-600">{messageStats.unread} messages need attention</p>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Recent Activity Summary */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity (Last 7 Days)</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{recentActivity.reports}</div>
-              <div className="text-sm text-gray-600">New Reports</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{recentActivity.adoptions}</div>
-              <div className="text-sm text-gray-600">New Adoptions</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{recentActivity.volunteers}</div>
-              <div className="text-sm text-gray-600">New Volunteers</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{recentActivity.donations}</div>
-              <div className="text-sm text-gray-600">New Donations</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-pink-600">{recentActivity.messages}</div>
-              <div className="text-sm text-gray-600">New Messages</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">{formatCurrency(recentActivity.totalAmount)}</div>
-              <div className="text-sm text-gray-600">Donation Amount</div>
-            </div>
-          </div>
-        </div>
 
         {/* Recent Activity Tabs */}
         <div className="bg-white rounded-lg shadow-sm">
@@ -724,51 +599,129 @@ const AdminDashboard = () => {
             {activeTab === 'overview' && (
               <div className="space-y-8">
                 {/* Overview Summary */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                   <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm font-medium text-blue-600">Total Reports</p>
-                        <p className="text-3xl font-bold text-blue-900">{recentReports.length}</p>
+                        <p className="text-xs text-blue-500">Applications</p>
                       </div>
                       <FileText className="h-8 w-8 text-blue-600" />
                     </div>
+                    <p className="text-3xl font-bold text-blue-900 mb-3">{reportCounts.total}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-blue-700">
+                        <span>Approved</span>
+                        <span>{reportCounts.resolved}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-blue-700">
+                        <span>Pending</span>
+                        <span>{reportCounts.pending}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-blue-700">
+                        <span>Investigating</span>
+                        <span>{recentReports.filter(r => r.status === 'investigating').length}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-blue-700">
+                        <span>Urgent</span>
+                        <span>{recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length}</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-lg">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm font-medium text-green-600">Total Adoptions</p>
-                        <p className="text-3xl font-bold text-green-900">{adoptions.length}</p>
+                        <p className="text-xs text-green-500">Applications</p>
                       </div>
                       <Heart className="h-8 w-8 text-green-600" />
                     </div>
+                    <p className="text-3xl font-bold text-green-900 mb-3">{adoptionStats.total}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-green-700">
+                        <span>Approved</span>
+                        <span>{adoptionStats.approved}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-green-700">
+                        <span>Pending</span>
+                        <span>{adoptionStats.pending}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-green-700">
+                        <span>Rejected</span>
+                        <span>{adoptionStats.rejected}</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-lg">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm font-medium text-purple-600">Total Volunteers</p>
-                        <p className="text-3xl font-bold text-purple-900">{volunteers.length}</p>
+                        <p className="text-xs text-purple-500">Applications</p>
                       </div>
                       <Users className="h-8 w-8 text-purple-600" />
                     </div>
+                    <p className="text-3xl font-bold text-purple-900 mb-3">{volunteerStats.total}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-purple-700">
+                        <span>Approved</span>
+                        <span>{volunteerStats.approved}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-purple-700">
+                        <span>Pending</span>
+                        <span>{volunteerStats.pending}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-purple-700">
+                        <span>Rejected</span>
+                        <span>{volunteerStats.rejected}</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-6 rounded-lg">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm font-medium text-orange-600">Total Donations</p>
-                        <p className="text-3xl font-bold text-orange-900">{formatCurrency(donationStats.totalAmount)}</p>
+                        <p className="text-xs text-orange-500">Amount</p>
                       </div>
                       <DollarSign className="h-8 w-8 text-orange-600" />
                     </div>
+                    <p className="text-3xl font-bold text-orange-900 mb-3">{formatCurrency(donationStats.totalAmount)}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-orange-700">
+                        <span>Verified</span>
+                        <span>{donationStats.verified}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-orange-700">
+                        <span>Pending</span>
+                        <span>{donationStats.pending}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-orange-700">
+                        <span>Rejected</span>
+                        <span>{donationStats.rejected}</span>
+                      </div>
+                    </div>
                   </div>
                   <div className="bg-gradient-to-r from-pink-50 to-pink-100 p-6 rounded-lg">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
                         <p className="text-sm font-medium text-pink-600">Total Messages</p>
-                        <p className="text-3xl font-bold text-pink-900">{messages.length}</p>
-                        <p className="text-xs text-pink-700">{messageStats.unread} unread</p>
+                        <p className="text-xs text-pink-500">Communications</p>
                       </div>
                       <Mail className="h-8 w-8 text-pink-600" />
+                    </div>
+                    <p className="text-3xl font-bold text-pink-900 mb-3">{messages.length}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-pink-700">
+                        <span>Read</span>
+                        <span>{messageStats.read}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-pink-700">
+                        <span>Unread</span>
+                        <span>{messageStats.unread}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-pink-700">
+                        <span>Archived</span>
+                        <span>{messageStats.archived}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -994,7 +947,7 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Visual Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Reports by Type - Pie Chart */}
                   <div className="bg-white p-6 rounded-lg shadow-sm">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Reports by Type</h3>
@@ -1015,6 +968,37 @@ const AdminDashboard = () => {
                                 fill={
                                   entry.type === 'Lost' ? '#3B82F6' :
                                   entry.type === 'Found' ? '#10B981' : '#EF4444'
+                                } 
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Reports by Priority - Pie Chart */}
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Reports by Priority</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={analytics.reportsByPriority}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            dataKey="count"
+                            label={({ priority, percentage }: any) => `${priority}: ${percentage.toFixed(1)}%`}
+                          >
+                            {analytics.reportsByPriority.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={
+                                  entry.priority === 'Urgent' ? '#EF4444' :
+                                  entry.priority === 'High' ? '#F59E0B' :
+                                  entry.priority === 'Medium' ? '#3B82F6' : '#10B981'
                                 } 
                               />
                             ))}
@@ -1077,170 +1061,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {/* Animal Distribution - Pie Chart */}
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Type Distribution</h3>
-                  <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={analytics.animalTypes}
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={80}
-                            dataKey="count"
-                            label={({ type, percentage }: any) => `${type}: ${percentage.toFixed(1)}%`}
-                          >
-                            {analytics.animalTypes.map((entry, index) => (
-                              <Cell 
-                                key={`cell-${index}`} 
-                                fill={entry.type === 'Dogs' ? '#3B82F6' : '#8B5CF6'} 
-                              />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Detailed Analytics Cards */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-8">
-                  {/* Adoption Analytics */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Adoption Analytics</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Total Applications</span>
-                        <span className="text-lg font-bold text-green-600">{adoptions.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Approved</span>
-                        <span className="text-lg font-bold text-blue-600">{adoptions.filter(a => a.status === 'approved').length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Pending</span>
-                        <span className="text-lg font-bold text-yellow-600">{adoptions.filter(a => a.status === 'pending').length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Rejected</span>
-                        <span className="text-lg font-bold text-red-600">{adoptions.filter(a => a.status === 'rejected').length}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Donation Analytics */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Donation Analytics</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Verified Donations</span>
-                        <span className="text-lg font-bold text-green-600">{formatCurrency(donationStats.totalAmount)}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Pending Verification</span>
-                        <span className="text-lg font-bold text-yellow-600">{formatCurrency(donationStats.pendingAmount)}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Average Donation</span>
-                        <span className="text-lg font-bold text-blue-600">{formatCurrency(donationStats.averageAmount)}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Total Donors</span>
-                        <span className="text-lg font-bold text-purple-600">{donations.length}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Volunteer Analytics */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Volunteer Analytics</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Total Applications</span>
-                        <span className="text-lg font-bold text-green-600">{volunteers.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Approved</span>
-                        <span className="text-lg font-bold text-blue-600">{volunteers.filter(v => v.status === 'approved').length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Pending</span>
-                        <span className="text-lg font-bold text-yellow-600">{volunteers.filter(v => v.status === 'pending').length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Rejected</span>
-                        <span className="text-lg font-bold text-red-600">{volunteers.filter(v => v.status === 'rejected').length}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Animal Analytics */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Animal Analytics</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Total Animals</span>
-                        <span className="text-lg font-bold text-green-600">{animals.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Available</span>
-                        <span className="text-lg font-bold text-blue-600">{animals.filter(a => a.status === 'available').length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Adopted</span>
-                        <span className="text-lg font-bold text-purple-600">{animals.filter(a => a.status === 'adopted').length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Pending</span>
-                        <span className="text-lg font-bold text-orange-600">{animals.filter(a => a.status === 'pending').length}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Message Analytics */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Message Analytics</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Total Messages</span>
-                        <span className="text-lg font-bold text-green-600">{messages.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Unread</span>
-                        <span className="text-lg font-bold text-red-600">{messageStats.unread}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Read</span>
-                        <span className="text-lg font-bold text-blue-600">{messageStats.read}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Archived</span>
-                        <span className="text-lg font-bold text-gray-600">{messageStats.archived}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Geographic Summary */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Distribution</h3>
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <div className="text-center">
-                      <p className="text-gray-600 mb-4">Geographic analytics based on report locations</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                          <p className="text-sm font-medium text-gray-900">Reports with Location</p>
-                          <p className="text-2xl font-bold text-blue-600">{recentReports.filter(r => r.location && r.location !== 'Unknown Location').length}</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                          <p className="text-sm font-medium text-gray-900">Total Reports</p>
-                          <p className="text-2xl font-bold text-green-600">{recentReports.length}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 

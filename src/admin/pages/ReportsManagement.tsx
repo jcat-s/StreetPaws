@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { collection, doc, onSnapshot, orderBy, query, updateDoc, deleteDoc, addDoc } from 'firebase/firestore'
+import { collection, doc, onSnapshot, query, updateDoc, deleteDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { createSignedEvidenceUrl } from '../../user/utils/reportService'
+import { supabase } from '../../config/supabase'
 import { 
   Search, 
   CheckCircle, 
@@ -11,11 +12,13 @@ import {
   FileText,
   Download,
   Edit,
-  Trash2
+  Trash2,
+  Eye
 } from 'lucide-react'
 
 type AdminReport = {
   id: string
+  parentId: string // Parent document ID for subcollection structure
   type: 'lost' | 'found' | 'abuse' | string
   // animal info (varies by type)
   animalName?: string
@@ -65,8 +68,7 @@ const ReportsManagement = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [reportToDelete, setReportToDelete] = useState<{id: string, type: string, name: string} | null>(null)
-  const [deletedReports, setDeletedReports] = useState<AdminReport[]>([])
-  const [showUndo, setShowUndo] = useState(false)
+  
   const location = useLocation()
 
   useEffect(() => {
@@ -78,41 +80,48 @@ const ReportsManagement = () => {
   }, [location.pathname])
 
   useEffect(() => {
-    if (!db) return
+    if (!db) {
+      console.error('Firebase not initialized')
+      return
+    }
+    
+    // Query the new simplified collections: reports-lost, reports-found, reports-abuse
+    const lostCollection = collection(db, 'reports-lost')
+    const foundCollection = collection(db, 'reports-found')
+    const abuseCollection = collection(db, 'reports-abuse')
     
     let allReports: AdminReport[] = []
     
-    // Helper function to process documents from any collection
-    const processDocs = (docs: any[], collectionType: string): (AdminReport | null)[] => {
+    // Helper function to process documents
+    const processDocs = (docs: any[], collectionType: string): AdminReport[] => {
       return docs.map((doc) => {
         const d: any = doc.data()
-        const type: string = d?.type || collectionType
         
-        // Handle serverTimestamp properly - it might be pending when first read
+        // Normalize createdAt - prefer Firestore timestamp, fall back to createdAtMs, then submissionId prefix
         let createdAtIso: string
         if (d?.createdAt?.toDate) {
-          // Timestamp is resolved
           createdAtIso = d.createdAt.toDate().toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'string') {
-          // Already a string
-          createdAtIso = d.createdAt
-        } else if (d?.createdAt && d.createdAt.seconds) {
-          // Firestore timestamp with seconds
+        } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
           createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'object' && d.createdAt._methodName === 'serverTimestamp') {
-          // Pending serverTimestamp - use current time as fallback
-          console.log('Pending serverTimestamp detected for report:', doc.id, 'using current time as fallback')
-          createdAtIso = new Date().toISOString()
+        } else if (typeof d?.createdAtMs === 'number') {
+          createdAtIso = new Date(d.createdAtMs).toISOString()
+        } else if (typeof d?.submissionId === 'string' && /^\d+\-/.test(d.submissionId)) {
+          const ms = Number(d.submissionId.split('-')[0])
+          createdAtIso = isNaN(ms) ? 'Invalid Date' : new Date(ms).toISOString()
+        } else if (typeof d?.createdAt === 'string') {
+          const parsed = new Date(d.createdAt)
+          createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
         } else {
-          // No valid timestamp found
           createdAtIso = 'Invalid Date'
-          console.log('Invalid date found for report:', doc.id, 'Raw createdAt:', d?.createdAt, 'Type:', typeof d?.createdAt)
         }
         
-        const status: string = d?.status === 'open' ? 'pending' : (d?.status || 'pending')
+        const rawStatus: string = (d?.status || 'pending').toString().toLowerCase()
+        const status: string = rawStatus === 'open' ? 'pending' : rawStatus
+        
         const base = {
           id: doc.id,
-          type,
+          parentId: doc.id, // For the new structure, parentId is the same as id
+          type: collectionType,
           reporterName: d?.contactName || 'Unknown',
           reporterPhone: d?.contactPhone || '',
           reporterEmail: d?.contactEmail || '',
@@ -124,7 +133,7 @@ const ReportsManagement = () => {
           attachments: [] as string[]
         }
 
-        if (type === 'lost') {
+        if (collectionType === 'lost') {
           return {
             ...base,
             animalName: d?.animalName || 'Unknown',
@@ -137,10 +146,10 @@ const ReportsManagement = () => {
             lastSeenLocation: d?.lastSeenLocation || '',
             lastSeenDate: d?.lastSeenDate || '',
             lastSeenTime: d?.lastSeenTime || '',
-            attachments: d?.uploadObjectKey ? [d.uploadObjectKey] : []
+            attachments: d?.image ? [d.image] : (d?.uploadObjectKey ? [d.uploadObjectKey] : [])
           }
         }
-        if (type === 'found') {
+        if (collectionType === 'found') {
           return {
             ...base,
             animalName: d?.animalName || 'Unknown',
@@ -153,15 +162,16 @@ const ReportsManagement = () => {
             lastSeenLocation: d?.foundLocation || '',
             lastSeenDate: d?.foundDate || '',
             lastSeenTime: d?.foundTime || '',
-            attachments: d?.uploadObjectKey ? [d.uploadObjectKey] : []
+            attachments: d?.image ? [d.image] : (d?.uploadObjectKey ? [d.uploadObjectKey] : [])
           }
         }
-        if (type === 'abuse') {
+        if (collectionType === 'abuse') {
+          console.log('🐕 Processing abuse report:', doc.id, 'evidenceObjects:', d?.evidenceObjects)
           return {
             ...base,
-            // Abuse reports don't have animal info, use incident info instead
-            animalName: 'N/A',
-            animalType: 'N/A',
+            // For abuse reports, display the case title and animal type in the table's "Animal Info" column
+            animalName: d?.caseTitle || 'N/A',
+            animalType: d?.animalType || 'N/A',
             breed: 'N/A',
             age: 'N/A',
             gender: 'N/A',
@@ -170,8 +180,7 @@ const ReportsManagement = () => {
             lastSeenLocation: d?.incidentLocation || '',
             lastSeenDate: d?.incidentDate || '',
             lastSeenTime: d?.incidentTime || '',
-            attachments: Array.isArray(d?.evidenceObjects) ? d.evidenceObjects : [],
-            // Add abuse-specific fields
+            attachments: d?.evidenceObjects || (d?.image ? [d.image] : (d?.uploadObjectKey ? [d.uploadObjectKey] : [])),
             abuseType: d?.abuseType || '',
             animalDescription: d?.animalDescription || '',
             perpetratorDescription: d?.perpetratorDescription || '',
@@ -182,117 +191,37 @@ const ReportsManagement = () => {
       })
     }
     
-    // Query all report collections
-    const reportsQuery = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
-    const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
-    const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
-    
-    const unsubscribeReports = onSnapshot(reportsQuery, async (snap) => {
-      const reportsData = processDocs(snap.docs, 'abuse').filter((report): report is AdminReport => report !== null)
-      
-      // Load images for each report (similar to Lost&FoundManagement)
-      const reportsWithImages = await Promise.all(
-        reportsData.map(async (report) => {
-          const docData = snap.docs.find(d => d.id === report.id)?.data()
-          let imageUrl: string | undefined
-          
-          // Check for direct image URL first (like Lost&FoundManagement does)
-          if (docData?.image) {
-            imageUrl = docData.image
-            console.log('Using direct image URL for abuse report:', report.id, imageUrl)
-          }
-          // Fallback to uploadObjectKey
-          else if (docData?.uploadObjectKey) {
-            try {
-              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-              console.log('Successfully created signed URL for abuse report:', report.id, imageUrl)
-            } catch (error) {
-              console.error('Failed to create signed URL for abuse report:', report.id, error)
-            }
-          } else {
-            console.log('No image or uploadObjectKey found for abuse report:', report.id)
-          }
-          
-          return { ...report, imageUrl }
-        })
-      )
-      
-      allReports = [...reportsWithImages]
+    // Listen to lost reports
+    const unsubscribeLost = onSnapshot(query(lostCollection), (snap) => {
+      const lostData = processDocs(snap.docs, 'lost')
+      allReports = allReports.filter(r => r.type !== 'lost').concat(lostData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+    }, (error) => {
+      console.error('❌ Error listening to lost reports:', error)
     })
     
-    const unsubscribeLost = onSnapshot(lostQuery, async (snap) => {
-      const lostData = processDocs(snap.docs, 'lost').filter((report): report is AdminReport => report !== null)
-      
-      // Load images for each lost report (similar to Lost&FoundManagement)
-      const lostWithImages = await Promise.all(
-        lostData.map(async (report) => {
-          const docData = snap.docs.find(d => d.id === report.id)?.data()
-          let imageUrl: string | undefined
-          
-          // Check for direct image URL first
-          if (docData?.image) {
-            imageUrl = docData.image
-            console.log('Using direct image URL for lost report:', report.id, imageUrl)
-          }
-          // Fallback to uploadObjectKey
-          else if (docData?.uploadObjectKey) {
-            try {
-              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-              console.log('Successfully created signed URL for lost report:', report.id, imageUrl)
-            } catch (error) {
-              console.error('Failed to create signed URL for lost report:', report.id, error)
-            }
-          } else {
-            console.log('No image or uploadObjectKey found for lost report:', report.id)
-          }
-          
-          return { ...report, imageUrl }
-        })
-      )
-      
-      allReports = allReports.filter(r => r.type !== 'lost').concat(lostWithImages)
+    // Listen to found reports
+    const unsubscribeFound = onSnapshot(query(foundCollection), (snap) => {
+      const foundData = processDocs(snap.docs, 'found')
+      allReports = allReports.filter(r => r.type !== 'found').concat(foundData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+    }, (error) => {
+      console.error('❌ Error listening to found reports:', error)
     })
     
-    const unsubscribeFound = onSnapshot(foundQuery, async (snap) => {
-      const foundData = processDocs(snap.docs, 'found').filter((report): report is AdminReport => report !== null)
-      
-      // Load images for each found report (similar to Lost&FoundManagement)
-      const foundWithImages = await Promise.all(
-        foundData.map(async (report) => {
-          const docData = snap.docs.find(d => d.id === report.id)?.data()
-          let imageUrl: string | undefined
-          
-          // Check for direct image URL first
-          if (docData?.image) {
-            imageUrl = docData.image
-            console.log('Using direct image URL for found report:', report.id, imageUrl)
-          }
-          // Fallback to uploadObjectKey
-          else if (docData?.uploadObjectKey) {
-            try {
-              imageUrl = await createSignedEvidenceUrl(docData.uploadObjectKey, 3600)
-              console.log('Successfully created signed URL for found report:', report.id, imageUrl)
-            } catch (error) {
-              console.error('Failed to create signed URL for found report:', report.id, error)
-            }
-          } else {
-            console.log('No image or uploadObjectKey found for found report:', report.id)
-          }
-          
-          return { ...report, imageUrl }
-        })
-      )
-      
-      allReports = allReports.filter(r => r.type !== 'found').concat(foundWithImages)
+    // Listen to abuse reports
+    const unsubscribeAbuse = onSnapshot(query(abuseCollection), (snap) => {
+      const abuseData = processDocs(snap.docs, 'abuse')
+      allReports = allReports.filter(r => r.type !== 'abuse').concat(abuseData)
       setReports([...allReports].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+    }, (error) => {
+      console.error('❌ Error listening to abuse reports:', error)
     })
     
     return () => {
-      unsubscribeReports()
       unsubscribeLost()
       unsubscribeFound()
+      unsubscribeAbuse()
     }
   }, [])
 
@@ -346,50 +275,120 @@ const ReportsManagement = () => {
     }
   }
 
+  const truncateText = (text: string | undefined, maxLength: number): string => {
+    const s = String(text ?? '')
+    if (s.length <= maxLength) return s
+    return s.slice(0, maxLength) + '...'
+  }
+
   const resolveAttachments = async (attachments: string[] | undefined): Promise<string[]> => {
-    if (!attachments || attachments.length === 0) return []
+    console.log('🔧 Resolving attachments:', attachments)
+    console.log('🔧 Admin Supabase check:', {
+      supabaseExists: !!supabase,
+      envUrl: import.meta.env.VITE_SUPABASE_URL,
+      envKey: import.meta.env.VITE_SUPABASE_ANON_KEY ? 'Present' : 'Missing'
+    })
+    
+    if (!attachments || attachments.length === 0) {
+      console.log('❌ No attachments found')
+      return []
+    }
     const urls: string[] = []
     for (const keyOrUrl of attachments) {
+      console.log('🔍 Processing attachment:', keyOrUrl)
       if (typeof keyOrUrl === 'string' && /^https?:\/\//i.test(keyOrUrl)) {
+        console.log('✅ Found direct URL:', keyOrUrl)
+        urls.push(keyOrUrl)
+      } else if (typeof keyOrUrl === 'string' && keyOrUrl.startsWith('data:')) {
+        console.log('✅ Found base64 data URL:', keyOrUrl.substring(0, 50) + '...')
         urls.push(keyOrUrl)
       } else if (typeof keyOrUrl === 'string' && keyOrUrl.length > 0) {
+        console.log('🔑 Creating signed URL for key:', keyOrUrl)
         try {
           const signed = await createSignedEvidenceUrl(keyOrUrl, 3600)
+          console.log('✅ Successfully created signed URL:', signed.substring(0, 100) + '...')
           urls.push(signed)
         } catch (err) {
-          console.error('Failed to create signed URL for attachment', keyOrUrl, err)
+          console.error('❌ Failed to create signed URL for attachment', keyOrUrl, err)
+          console.error('Error details:', {
+            message: err instanceof Error ? err.message : 'Unknown error',
+            stack: err instanceof Error ? err.stack : undefined
+          })
           // ignore errors; no URL added
         }
       }
     }
+    console.log('🎯 Final resolved URLs:', urls)
     return urls
   }
 
 
   const handleViewReport = async (report: AdminReport, edit = false) => {
+    console.log('🔍 Viewing report:', report.type, report.id)
+    console.log('📎 Report attachments:', report.attachments)
+    console.log('📋 Full report data:', report)
     setSelectedReport(report)
     setIsEditing(!!edit)
     setEditStatus((report.status as 'pending' | 'investigating' | 'resolved') || 'pending')
     setEditPriority((report.priority as 'urgent' | 'high' | 'medium' | 'normal') || 'normal')
     setEditAssignedTo(report.assignedTo || '')
     setEditPublished((report as any)?.published === true)
+    
+    if (report.type === 'abuse') {
+      console.log('🐕 Processing abuse report attachments:', report.attachments)
+    }
+    
     const urls = await resolveAttachments(report.attachments)
+    console.log('🖼️ Resolved URLs:', urls)
     setAttachmentUrls(urls)
     setShowReportModal(true)
   }
 
   const handleSave = async () => {
     if (!db || !selectedReport) return
-    // Determine the correct collection based on report type
-    const collectionName = selectedReport.type === 'abuse' ? 'reports' : selectedReport.type
-    const ref = doc(db, collectionName, selectedReport.id)
-    await updateDoc(ref, {
-      status: editStatus === 'pending' ? 'pending' : editStatus,
-      priority: editPriority,
-      assignedTo: editAssignedTo || null,
-      published: editPublished
-    })
-    setShowReportModal(false)
+    
+    try {
+      // For the new simplified structure, update the document directly
+      const collectionName = `reports-${selectedReport.type}`
+      const ref = doc(db, collectionName, selectedReport.id)
+      await updateDoc(ref, {
+        status: editStatus === 'pending' ? 'open' : editStatus,
+        priority: editPriority,
+        assignedTo: editAssignedTo || null,
+        published: editPublished
+      })
+      
+      // Create notification for the reporter when report is published
+      if (editPublished && (selectedReport.reporterEmail || selectedReport.createdBy)) {
+        try {
+          await addDoc(collection(db, 'notifications'), {
+            reportId: selectedReport.id,
+            recipientUid: selectedReport.createdBy || null,
+            recipientEmail: selectedReport.reporterEmail || null,
+            status: 'published',
+            reportType: selectedReport.type,
+            animalName: selectedReport.animalName || 'your reported animal',
+            reason: selectedReport.type === 'lost' 
+              ? `Your lost ${selectedReport.animalType || 'pet'} ${selectedReport.animalName || ''} report has been published and is now visible to the public.`
+              : selectedReport.type === 'found'
+              ? `Your found ${selectedReport.animalType || 'animal'} report has been published and is now visible to the public.`
+              : selectedReport.type === 'abuse'
+              ? `Your abuse report has been published and is now being investigated.`
+              : 'Your report has been published and is now visible to the public.',
+            createdAt: serverTimestamp(),
+            read: false
+          })
+        } catch (notificationError) {
+          console.error('Failed to create notification:', notificationError)
+          // Don't fail the main operation if notification fails
+        }
+      }
+      
+      setShowReportModal(false)
+    } catch (error) {
+      console.error('Error updating report:', error)
+      // You might want to show a toast error here
+    }
   }
 
   const handleDeleteClick = (report: AdminReport) => {
@@ -404,21 +403,14 @@ const ReportsManagement = () => {
   const handleDelete = async () => {
     if (!db || !reportToDelete) return
     
-    // Store the report for potential undo
-    const reportToUndo = reports.find(r => r.id === reportToDelete.id)
-    if (reportToUndo) {
-      setDeletedReports(prev => [...prev, reportToUndo])
-      setShowUndo(true)
-      // Auto-hide undo after 10 seconds
-      setTimeout(() => setShowUndo(false), 10000)
-    }
+    // Proceed with immediate delete (no undo)
     
     setDeletingId(reportToDelete.id)
     setShowDeleteConfirm(false)
     
     try {
-      // Determine the correct collection based on report type
-      const collectionName = reportToDelete.type === 'abuse' ? 'reports' : reportToDelete.type
+      // For the new simplified structure, delete from the collection directly
+      const collectionName = `reports-${reportToDelete.type}`
       const ref = doc(db, collectionName, reportToDelete.id)
       await deleteDoc(ref)
     } finally {
@@ -427,33 +419,7 @@ const ReportsManagement = () => {
     }
   }
 
-  const handleUndoDelete = async () => {
-    if (!db || deletedReports.length === 0) return
-    
-    const lastDeleted = deletedReports[deletedReports.length - 1]
-    
-    try {
-      // Restore the report by adding it back to the appropriate collection
-      const collectionName = lastDeleted.type === 'abuse' ? 'reports' : lastDeleted.type
-      
-      // Create the document with the same data
-      const reportData = {
-        ...lastDeleted,
-        createdAt: new Date(),
-        id: undefined // Let Firestore generate new ID
-      }
-      delete reportData.id
-      
-      // We need to use addDoc since we can't restore with the same ID
-      await addDoc(collection(db, collectionName), reportData)
-      
-      // Remove from deleted reports
-      setDeletedReports(prev => prev.slice(0, -1))
-      setShowUndo(false)
-    } catch (error) {
-      console.error('Failed to undo delete:', error)
-    }
-  }
+  
 
   const handleExportCsv = () => {
     const rows = filteredReports.map(r => ({
@@ -539,7 +505,7 @@ const ReportsManagement = () => {
                 onChange={(e) => setTypeFilter(e.target.value as any)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               >
-                <option value="all">All Types</option>
+                <option value="all">All Cases</option>
                 <option value="lost">Lost</option>
                 <option value="found">Found</option>
                 <option value="abuse">Abuse</option>
@@ -601,19 +567,31 @@ const ReportsManagement = () => {
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900 capitalize">{report.type}</div>
+                          <div className="text-xs text-gray-500">ID: {report.id.slice(0, 8)}...</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {report.imageUrl ? (
-                        <img 
-                          src={report.imageUrl} 
-                          alt="Report attachment" 
-                          className="w-12 h-12 object-cover rounded-lg border border-gray-200"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
+                      {report.attachments && report.attachments.length > 0 ? (
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center overflow-hidden">
+                          {(report.attachments[0] && (report.attachments[0].startsWith('http') || report.attachments[0].startsWith('data:'))) ? (
+                            <img 
+                              src={report.attachments[0]} 
+                              alt="Report attachment" 
+                              className="w-full h-full object-cover rounded-lg"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                                const nextElement = e.currentTarget.nextElementSibling as HTMLElement
+                                if (nextElement) {
+                                  nextElement.style.display = 'flex'
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div className="w-full h-full bg-green-100 rounded-lg flex items-center justify-center" style={{display: (report.attachments[0] && (report.attachments[0].startsWith('http') || report.attachments[0].startsWith('data:'))) ? 'none' : 'flex'}}>
+                            <span className="text-green-600 text-xs font-medium">{report.attachments.length}</span>
+                          </div>
+                        </div>
                       ) : (
                         <div className="w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
                           <span className="text-gray-400 text-xs">No image</span>
@@ -621,8 +599,12 @@ const ReportsManagement = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{report.animalName}</div>
-                      <div className="text-sm text-gray-500 capitalize">{report.animalType} • {report.breed}</div>
+                      <div className="text-sm font-medium text-gray-900" title={report.animalName}>
+                        {truncateText(report.animalName, 8)}
+                      </div>
+                      <div className="text-sm text-gray-500 capitalize" title={report.animalType}>
+                        {truncateText(report.animalType, 8)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{report.reporterName}</div>
@@ -639,19 +621,36 @@ const ReportsManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>{new Date(report.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}</div>
-                      <div className="text-gray-500">{new Date(report.createdAt).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}</div>
+                      <div>{(() => {
+                        const date = new Date(report.createdAt)
+                        if (isNaN(date.getTime())) {
+                          console.log('Invalid date for report:', report.id, 'createdAt:', report.createdAt)
+                          return 'Invalid Date'
+                        }
+                        return date.toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })
+                      })()}</div>
+                      <div className="text-gray-500">{(() => {
+                        const date = new Date(report.createdAt)
+                        if (isNaN(date.getTime())) {
+                          return 'Invalid Time'
+                        }
+                        return date.toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      })()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
-                        <button onClick={() => handleViewReport(report, true)} className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
+                        <button onClick={() => handleViewReport(report)} className="text-blue-600 hover:text-blue-900 flex items-center space-x-1">
+                          <Eye className="h-4 w-4" />
+                          <span>View</span>
+                        </button>
+                        <button onClick={() => handleViewReport(report, true)} className="text-orange-600 hover:text-orange-900 flex items-center space-x-1">
                           <Edit className="h-4 w-4" />
                           <span>Edit</span>
                         </button>
@@ -663,6 +662,13 @@ const ReportsManagement = () => {
                     </td>
                   </tr>
                 ))}
+                {filteredReports.length === 0 && (
+                  <tr>
+                    <td className="px-6 py-12 text-center text-gray-500" colSpan={8}>
+                      {reports.length === 0 ? 'No reports yet.' : 'No reports match your filters.'}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -680,7 +686,7 @@ const ReportsManagement = () => {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 capitalize">{selectedReport.type} Report</h2>
-                    <p className="text-sm text-gray-600">#{selectedReport.id}</p>
+                    <p className="text-sm text-gray-600">ID: {selectedReport.id.slice(0, 12)}...</p>
                   </div>
                 </div>
                 <button
@@ -701,16 +707,37 @@ const ReportsManagement = () => {
                 )}
 
                 {/* Featured Attachment (large preview at top-left) */}
-                {attachmentUrls.length > 0 && (
+                {attachmentUrls.length > 0 ? (
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Attachment</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Attachment ({attachmentUrls.length} files)</h3>
                     <a href={attachmentUrls[0]} target="_blank" rel="noreferrer" className="inline-block">
                       <img
                         src={attachmentUrls[0]}
                         alt="featured-attachment"
                         className="max-w-full max-h-80 w-auto h-auto object-contain rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          console.error('❌ Failed to load attachment image:', attachmentUrls[0])
+                          console.error('Image error:', e)
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Successfully loaded attachment image:', attachmentUrls[0])
+                        }}
                       />
                     </a>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Attachments</h3>
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-yellow-800">
+                        No attachments found. 
+                        {selectedReport.type === 'abuse' ? ' Check if evidence files were uploaded to Supabase.' : ''}
+                      </p>
+                      <p className="text-sm text-yellow-600 mt-2">
+                        Debug info: attachments={JSON.stringify(selectedReport.attachments)}, 
+                        resolved URLs={JSON.stringify(attachmentUrls)}
+                      </p>
+                    </div>
                   </div>
                 )}
                 {/* Animal Information - Only for Lost/Found reports */}
@@ -751,6 +778,14 @@ const ReportsManagement = () => {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Incident Information</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Case Title</label>
+                        <p className="text-sm text-gray-900">{selectedReport.animalName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Animal Type</label>
+                        <p className="text-sm text-gray-900 capitalize">{selectedReport.animalType || 'N/A'}</p>
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Abuse Type</label>
                         <p className="text-sm text-gray-900 capitalize">{selectedReport.abuseType || 'Not specified'}</p>
@@ -933,9 +968,9 @@ const ReportsManagement = () => {
                 <p className="text-gray-700">
                   Are you sure you want to delete this <span className="font-medium">{reportToDelete.type}</span> report for <span className="font-medium">{reportToDelete.name}</span>?
                 </p>
-                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    <strong>Warning:</strong> This will permanently delete the report. This action cannot be undone.
                   </p>
                 </div>
               </div>
@@ -960,38 +995,7 @@ const ReportsManagement = () => {
           </div>
         )}
 
-        {/* Undo Notification */}
-        {showUndo && deletedReports.length > 0 && (
-          <div className="fixed bottom-4 right-4 z-50">
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
-              <div className="flex items-start space-x-3">
-                <div className="p-1 bg-green-100 rounded-full">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">Report deleted</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {deletedReports[deletedReports.length - 1]?.animalName || deletedReports[deletedReports.length - 1]?.type} report has been deleted.
-                  </p>
-                </div>
-                <div className="flex flex-col space-y-1">
-                  <button
-                    onClick={handleUndoDelete}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Undo
-                  </button>
-                  <button
-                    onClick={() => setShowUndo(false)}
-                    className="text-sm text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        
       </div>
     </div>
   )

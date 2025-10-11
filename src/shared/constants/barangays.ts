@@ -103,17 +103,17 @@ export const LIPA_BARANGAY_COORDINATES = {
   'Inosloban': { lat: 13.9828, lng: 121.1706, zoom: 15 },
   'Kayumanggi': { lat: 13.9258, lng: 121.1606, zoom: 15 },
 
-  'Latag': { lat: 13.9334, lng: 121.1722, zoom: 15 }, //c
+  'Latag': { lat: 13.934454, lng: 121.171674, zoom: 15 }, //c
   'Lodlod': { lat: 13.9306, lng: 121.1415, zoom: 15 },//c
   'Lumbang': { lat: 13.9842, lng: 121.2006, zoom: 15 },//c
   'Mabini': { lat: 13.8968125, lng: 121.1491625, zoom: 15 },
   'Malagonlong': { lat: 13.9098930, lng: 121.1562563, zoom: 15 },
   
-  'Malitlit': { lat: 13.9178, lng: 121.2352, zoom: 15 },
-  'Marauoy': { lat: 13.963461, lng: 121.161249, zoom: 15 },
-  'Mataas na Lupa': { lat: 13.8078, lng: 121.0135, zoom: 15 },
-  'Munting Pulo': { lat: 13.9545304, lng: 121.1853557, zoom: 15 },
-  'Pagolingin Bata': { lat: 13.8927, lng: 121.1623, zoom: 15 },
+  'Malitlit': { lat: 13.9178, lng: 121.2352},
+  'Marauoy': { lat: 13.963461, lng: 121.161249},
+  'Mataas na Lupa': { lat: 13.8078, lng: 121.0135},
+  'Munting Pulo': { lat: 13.9545304, lng: 121.1853557},
+  'Pagolingin Bata': { lat: 13.8927, lng: 121.1623},
 
   'Pagolingin East': { /* lat: ?, lng: ?, zoom: 15 */ },
   'Pagolingin West': { /* lat: ?, lng: ?, zoom: 15 */ },

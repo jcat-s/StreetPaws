@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
-import { signOut, User, signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth'
+import { signOut, User, signInWithEmailAndPassword, onAuthStateChanged, getIdTokenResult } from 'firebase/auth'
 import { auth } from '../../config/firebase'
 import { securityService } from '../../shared/utils/securityService'
 import toast from 'react-hot-toast'
@@ -22,40 +22,7 @@ interface AdminAuthContextType {
 
 const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined)
 
-// Admin users configuration - In production, this would be stored in Firebase with proper security rules
-const ADMIN_USERS: Record<string, AdminUser> = {
-  'admin@streetpaws.gov.ph': {
-    uid: 'admin-001',
-    email: 'admin@streetpaws.gov.ph',
-    role: 'admin',
-    name: 'Dr. Maria Santos',
-    department: 'Veterinary Services'
-  },
-  'superadmin@streetpaws.gov.ph': {
-    uid: 'super-admin-001',
-    email: 'superadmin@streetpaws.gov.ph',
-    role: 'super_admin',
-    name: 'Dr. Juan Dela Cruz',
-    department: 'Administration'
-  },
-  'vet@streetpaws.gov.ph': {
-    uid: 'vet-001',
-    email: 'vet@streetpaws.gov.ph',
-    role: 'admin',
-    name: 'Dr. Ana Rodriguez',
-    department: 'Animal Care'
-  }
-}
-
-// Helper function to check if email is admin
-const isAdminEmail = (email: string): boolean => {
-  return email in ADMIN_USERS
-}
-
-// Helper function to get admin user data
-const getAdminUserData = (email: string): AdminUser | null => {
-  return ADMIN_USERS[email] || null
-}
+// We now rely on Firebase custom claims instead of a hardcoded allowlist.
 
 export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null)
@@ -69,15 +36,19 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
-        // Check if the user is an admin
-        if (isAdminEmail(user.email || '')) {
-          const adminData = getAdminUserData(user.email || '')
-          if (adminData) {
-            setAdminUser(adminData)
-            securityService.generateAuditLog('ADMIN_LOGIN_SUCCESS', user.email || '', true)
+        const token = await getIdTokenResult(user)
+        const role = (token?.claims?.role as string) || 'user'
+        if (role === 'admin' || role === 'super_admin') {
+          const adminData: AdminUser = {
+            uid: user.uid,
+            email: user.email || '',
+            role: role as 'admin' | 'super_admin',
+            name: user.displayName || 'Administrator',
+            department: 'Administration'
           }
+          setAdminUser(adminData)
+          securityService.generateAuditLog('ADMIN_LOGIN_SUCCESS', user.email || '', true)
         } else {
-          // User is not an admin, sign them out
           if (auth) {
             await signOut(auth)
           }
@@ -98,12 +69,6 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error('Firebase auth not initialized')
     }
 
-    // Check if email is authorized for admin access
-    if (!isAdminEmail(email)) {
-      securityService.generateAuditLog('ADMIN_LOGIN_UNAUTHORIZED_EMAIL', email, false)
-      throw new Error('Unauthorized admin access attempt')
-    }
-
     // Check rate limiting
     const ipAddress = securityService.getClientIP()
     const rateLimitCheck = securityService.checkRateLimit(ipAddress)
@@ -120,6 +85,17 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // Use Firebase Authentication for admin login
       await signInWithEmailAndPassword(auth, email, password)
+      // Verify admin claim after login
+      const currentUser = auth.currentUser
+      if (currentUser) {
+        const token = await getIdTokenResult(currentUser, true)
+        const role = (token?.claims?.role as string) || 'user'
+        if (!(role === 'admin' || role === 'super_admin')) {
+          await signOut(auth)
+          securityService.generateAuditLog('ADMIN_LOGIN_UNAUTHORIZED_EMAIL', email, false)
+          throw new Error('Unauthorized admin access attempt')
+        }
+      }
       
       // Record successful login
       securityService.recordLoginAttempt(email, true, ipAddress)
@@ -133,6 +109,9 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
       
       // Provide user-friendly error messages
       let errorMessage = 'Invalid admin credentials'
+      if (typeof error?.message === 'string' && error.message.includes('Unauthorized admin access attempt')) {
+        errorMessage = 'Account does not have admin access. Please contact a super admin.'
+      }
       if (error.code === 'auth/user-not-found') {
         errorMessage = 'Admin account not found'
       } else if (error.code === 'auth/wrong-password') {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Search, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, EyeOff } from 'lucide-react'
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
 import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
@@ -58,8 +58,7 @@ const ContentHome = () => {
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [itemToDelete, setItemToDelete] = useState<{id: string, type: string, animalName: string} | null>(null)
-  const [deletedItems, setDeletedItems] = useState<LostFoundItem[]>([])
-  const [showUndo, setShowUndo] = useState(false)
+  
 
   useEffect(() => {
     if (!db) return
@@ -81,66 +80,113 @@ const ContentHome = () => {
       console.warn('Supabase client not available')
     }
     
-    let allItems: LostFoundItem[] = []
+    let isInitialLoad = true
     
-    // Helper function to process documents
-    const processDocs = (docs: any[], collectionType: 'lost' | 'found'): (LostFoundItem | null)[] => {
-      return docs.map((doc) => {
-        const d: any = doc.data()
-        
-        // Handle serverTimestamp properly - it might be pending when first read
-        let createdAtIso: string
-        if (d?.createdAt?.toDate) {
-          // Timestamp is resolved
-          createdAtIso = d.createdAt.toDate().toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'string') {
-          // Already a string
-          createdAtIso = d.createdAt
-        } else if (d?.createdAt && d.createdAt.seconds) {
-          // Firestore timestamp with seconds
-          createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
-        } else if (d?.createdAt && typeof d.createdAt === 'object' && d.createdAt._methodName === 'serverTimestamp') {
-          // Pending serverTimestamp - use current time as fallback
-          console.log('Pending serverTimestamp detected for lost/found item:', doc.id, 'using current time as fallback')
-          createdAtIso = new Date().toISOString()
-        } else {
-          // No valid timestamp found
-          createdAtIso = 'Invalid Date'
-          console.log('Invalid date found for lost/found item:', doc.id, 'Raw createdAt:', d?.createdAt, 'Type:', typeof d?.createdAt)
-        }
-        
-        return {
-          id: doc.id,
-          type: collectionType,
-          animalName: d?.animalName || 'Unknown',
-          animalType: d?.animalType || 'unknown',
-          breed: d?.breed || '',
-          age: d?.age || d?.estimatedAge || '',
-          gender: d?.gender || '',
-          colors: Array.isArray(d?.colors) ? d.colors.join(', ') : (d?.colors || ''),
-          size: d?.size || '',
-          location: collectionType === 'lost' ? (d?.lastSeenLocation || '') : (d?.foundLocation || ''),
-          date: collectionType === 'lost' ? (d?.lastSeenDate || '') : (d?.foundDate || ''),
-          reporterName: d?.contactName || 'Unknown',
-          reporterPhone: d?.contactPhone || '',
-          reporterEmail: d?.contactEmail || '',
-          createdAt: createdAtIso,
-          published: d?.published === true,
-          description: d?.description || '',
-          additionalDetails: d?.additionalDetails || '',
-          imageUrl: undefined
-        }
-      })
+    // Helper function to maintain stable sort order
+    const updateItemsWithStableSort = (newAllItems: LostFoundItem[]) => {
+      console.log('📝 updateItemsWithStableSort called with:', newAllItems.length, 'items')
+      if (isInitialLoad) {
+        // On initial load, sort by creation date with newest first
+        const sortedItems = newAllItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        console.log('🔄 Initial load - setting items:', sortedItems.length, 'items')
+        setItems(sortedItems)
+        isInitialLoad = false
+      } else {
+        // On subsequent updates, maintain existing order but add new items at the top
+        setItems(prevItems => {
+          const existingIds = new Set(prevItems.map(item => item.id))
+          const newItems = newAllItems.filter(item => !existingIds.has(item.id))
+          const existingItems = newAllItems.filter(item => existingIds.has(item.id))
+          
+          // Keep existing items in their current order, update their data
+          const updatedExistingItems = existingItems.map(existingItem => {
+            const currentItem = prevItems.find(prev => prev.id === existingItem.id)
+            return currentItem ? { ...currentItem, ...existingItem } : existingItem
+          })
+          
+          // Sort new items by creation date (newest first) and put them at the top
+          const sortedNewItems = newItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          
+          return [...sortedNewItems, ...updatedExistingItems]
+        })
+      }
     }
     
-    // Query both collections
-    const lostQuery = query(collection(db, 'lost'), orderBy('createdAt', 'desc'))
-    const foundQuery = query(collection(db, 'found'), orderBy('createdAt', 'desc'))
+    // Helper function to process documents (matching ReportsManagement structure)
+    const processDocs = (docs: any[], collectionType: 'lost' | 'found'): LostFoundItem[] => {
+      return docs
+        .filter(() => {
+          // Process all items for Content Management (both published and unpublished)
+          return true
+        })
+        .map((doc) => {
+          const d: any = doc.data()
+          
+          // Handle serverTimestamp properly - matching ReportsManagement logic
+          let createdAtIso: string
+          if (d?.createdAt?.toDate) {
+            createdAtIso = d.createdAt.toDate().toISOString()
+          } else if (d?.createdAt && typeof d.createdAt === 'object' && typeof d.createdAt.seconds === 'number') {
+            createdAtIso = new Date(d.createdAt.seconds * 1000).toISOString()
+          } else if (typeof d?.createdAtMs === 'number') {
+            createdAtIso = new Date(d.createdAtMs).toISOString()
+          } else if (typeof d?.submissionId === 'string' && /^\d+\-/.test(d.submissionId)) {
+            const ms = Number(d.submissionId.split('-')[0])
+            createdAtIso = isNaN(ms) ? 'Invalid Date' : new Date(ms).toISOString()
+          } else if (typeof d?.createdAt === 'string') {
+            const parsed = new Date(d.createdAt)
+            createdAtIso = isNaN(parsed.getTime()) ? 'Invalid Date' : parsed.toISOString()
+          } else {
+            createdAtIso = 'Invalid Date'
+          }
+          
+          return {
+            id: doc.id,
+            type: collectionType,
+            animalName: d?.animalName || 'Unknown',
+            animalType: d?.animalType || 'unknown',
+            breed: d?.breed || '',
+            age: d?.age || d?.estimatedAge || '',
+            gender: d?.gender || '',
+            colors: Array.isArray(d?.colors) ? d.colors.join(', ') : (d?.colors || ''),
+            size: d?.size || '',
+            location: collectionType === 'lost' ? (d?.lastSeenLocation || '') : (d?.foundLocation || ''),
+            date: collectionType === 'lost' ? (d?.lastSeenDate || '') : (d?.foundDate || ''),
+            reporterName: d?.contactName || 'Unknown',
+            reporterPhone: d?.contactPhone || '',
+            reporterEmail: d?.contactEmail || '',
+            createdAt: createdAtIso,
+            published: d?.published !== false, // Default to true if not explicitly false
+            description: d?.description || '',
+            additionalDetails: d?.additionalDetails || '',
+            imageUrl: undefined
+          }
+        })
+    }
+    
+    // Query the correct collections that match ReportsManagement
+    const lostQuery = query(collection(db, 'reports-lost'), orderBy('createdAt', 'desc'))
+    const foundQuery = query(collection(db, 'reports-found'), orderBy('createdAt', 'desc'))
+    
+    let lostItems: LostFoundItem[] = []
+    let foundItems: LostFoundItem[] = []
+    
+    const updateCombinedItems = async () => {
+      const combinedItems = [...lostItems, ...foundItems]
+      console.log('🔄 Updating combined items:', combinedItems.length, 'total items')
+      console.log('📊 Lost items:', lostItems.length, 'Found items:', foundItems.length)
+      updateItemsWithStableSort(combinedItems)
+    }
     
     const unsubscribeLost = onSnapshot(lostQuery, async (snap) => {
-      const lostItems = processDocs(snap.docs, 'lost').filter((item): item is LostFoundItem => item !== null)
-      const lostWithImages = await Promise.all(
-        lostItems.map(async (item) => {
+      console.log('🔍 Lost reports snapshot:', snap.docs.length, 'documents')
+      if (snap.docs.length > 0) {
+        console.log('📄 First lost document:', snap.docs[0].id, snap.docs[0].data())
+      }
+      const processedLostItems = processDocs(snap.docs, 'lost')
+      console.log('✅ Processed lost items:', processedLostItems.length)
+      lostItems = await Promise.all(
+        processedLostItems.map(async (item) => {
           // Get image URL if available
           const docData = snap.docs.find(d => d.id === item.id)?.data()
           let imageUrl: string | undefined
@@ -165,14 +211,18 @@ const ContentHome = () => {
         })
       )
       
-      allItems = [...allItems.filter(item => item.type === 'found'), ...lostWithImages]
-      setItems(allItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+      await updateCombinedItems()
     })
     
     const unsubscribeFound = onSnapshot(foundQuery, async (snap) => {
-      const foundItems = processDocs(snap.docs, 'found').filter((item): item is LostFoundItem => item !== null)
-      const foundWithImages = await Promise.all(
-        foundItems.map(async (item) => {
+      console.log('🔍 Found reports snapshot:', snap.docs.length, 'documents')
+      if (snap.docs.length > 0) {
+        console.log('📄 First found document:', snap.docs[0].id, snap.docs[0].data())
+      }
+      const processedFoundItems = processDocs(snap.docs, 'found')
+      console.log('✅ Processed found items:', processedFoundItems.length)
+      foundItems = await Promise.all(
+        processedFoundItems.map(async (item) => {
           // Get image URL if available
           const docData = snap.docs.find(d => d.id === item.id)?.data()
           let imageUrl: string | undefined
@@ -197,8 +247,7 @@ const ContentHome = () => {
         })
       )
       
-      allItems = [...allItems.filter(item => item.type === 'lost'), ...foundWithImages]
-      setItems(allItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()))
+      await updateCombinedItems()
     })
     
     return () => {
@@ -250,51 +299,20 @@ const ContentHome = () => {
   const handleDelete = async () => {
     if (!db || !itemToDelete) return
     
-    // Store the item for potential undo
-    const itemToUndo = items.find(i => i.id === itemToDelete.id)
-    if (itemToUndo) {
-      setDeletedItems(prev => [...prev, itemToUndo])
-      setShowUndo(true)
-      // Auto-hide undo after 10 seconds
-      setTimeout(() => setShowUndo(false), 10000)
-    }
-    
+    // Proceed with immediate delete (no undo)
     setDeletingId(itemToDelete.id)
     setShowDeleteConfirm(false)
     
     try {
-      await deleteDoc(doc(db, itemToDelete.type, itemToDelete.id))
+      // Delete from the correct collection
+      const collectionName = itemToDelete.type === 'lost' ? 'reports-lost' : 'reports-found'
+      await deleteDoc(doc(db, collectionName, itemToDelete.id))
     } finally {
       setDeletingId(null)
       setItemToDelete(null)
     }
   }
-
-  const handleUndoDelete = async () => {
-    if (!db || deletedItems.length === 0) return
-    
-    const lastDeleted = deletedItems[deletedItems.length - 1]
-    
-    try {
-      // Restore the item by adding it back to the appropriate collection
-      const itemData = {
-        ...lastDeleted,
-        createdAt: serverTimestamp(),
-        id: undefined // Let Firestore generate new ID
-      }
-      delete itemData.id
-      
-      // Determine the correct collection based on item type
-      const collectionName = lastDeleted.type === 'lost' ? 'lost' : 'found'
-      await addDoc(collection(db, collectionName), itemData)
-      
-      // Remove from deleted items
-      setDeletedItems(prev => prev.slice(0, -1))
-      setShowUndo(false)
-    } catch (error) {
-      console.error('Failed to undo delete:', error)
-    }
-  }
+  
 
   const handleAddNew = () => {
     setShowAddModal(true)
@@ -305,7 +323,8 @@ const ContentHome = () => {
   const handleTogglePublish = async (item: LostFoundItem) => {
     if (!db) return
     try {
-      const ref = doc(db, item.type, item.id)
+      const collectionName = item.type === 'lost' ? 'reports-lost' : 'reports-found'
+      const ref = doc(db, collectionName, item.id)
       await updateDoc(ref, {
         published: !item.published
       })
@@ -397,7 +416,6 @@ const ContentHome = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reporter</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Published</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted Date</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
@@ -435,7 +453,9 @@ const ContentHome = () => {
                     <div className="text-sm text-gray-500 capitalize">{item.animalType} • {item.breed}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.location || '—'}</div>
+                    <div className="text-sm text-gray-900">
+                      {item.location ? (item.location.length > 8 ? `${item.location.substring(0, 8)}...` : item.location) : '—'}
+                    </div>
                     <div className="text-sm text-gray-500">{item.date || '—'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -446,17 +466,6 @@ const ContentHome = () => {
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${item.published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                       {item.published ? 'Published' : 'Unpublished'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>{new Date(item.createdAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}</div>
-                    <div className="text-gray-500">{new Date(item.createdAt).toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
@@ -504,7 +513,8 @@ const ContentHome = () => {
                 {editMode && (
                   <button onClick={async () => {
                     if (!editData || !db) return;
-                    await updateDoc(doc(db, editData.type, editData.id), {
+                    const collectionName = editData.type === 'lost' ? 'reports-lost' : 'reports-found'
+                    await updateDoc(doc(db, collectionName, editData.id), {
                       animalName: editData.animalName,
                       breed: editData.breed,
                       colors: editData.colors,
@@ -512,9 +522,9 @@ const ContentHome = () => {
                       gender: editData.gender,
                       ...(editData.type === 'lost' ? { lastSeenDate: editData.date, lastSeenLocation: editData.location } : { foundDate: editData.date, foundLocation: editData.location }),
                       additionalDetails: editData.additionalDetails,
-                      reporterName: editData.reporterName,
-                      reporterPhone: editData.reporterPhone,
-                      reporterEmail: editData.reporterEmail
+                      contactName: editData.reporterName,
+                      contactPhone: editData.reporterPhone,
+                      contactEmail: editData.reporterEmail
                     });
                     setSelectedItem({ ...selectedItem, ...editData });
                     setEditMode(false);
@@ -773,9 +783,9 @@ const ContentHome = () => {
               <p className="text-gray-700">
                 Are you sure you want to delete the {itemToDelete.type} report for <span className="font-medium">{itemToDelete.animalName}</span>?
               </p>
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  <strong>Note:</strong> You'll have 10 seconds to undo this action after deletion.
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <strong>Warning:</strong> This will permanently delete the report. This action cannot be undone.
                 </p>
               </div>
             </div>
@@ -800,41 +810,7 @@ const ContentHome = () => {
         </div>
       )}
 
-      {/* Undo Notification */}
-      {showUndo && deletedItems.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
-            <div className="flex items-start space-x-3">
-              <div className="p-1 bg-green-100 rounded-full">
-                {deletedItems[deletedItems.length - 1]?.type === 'lost' ? 
-                  <AlertTriangle className="h-5 w-5 text-green-600" /> : 
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                }
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">{deletedItems[deletedItems.length - 1]?.type === 'lost' ? 'Lost' : 'Found'} report deleted</p>
-                <p className="text-xs text-gray-600 mt-1">
-                  {deletedItems[deletedItems.length - 1]?.animalName}'s report has been deleted.
-                </p>
-              </div>
-              <div className="flex flex-col space-y-1">
-                <button
-                  onClick={handleUndoDelete}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Undo
-                </button>
-                <button
-                  onClick={() => setShowUndo(false)}
-                  className="text-sm text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   )
 }

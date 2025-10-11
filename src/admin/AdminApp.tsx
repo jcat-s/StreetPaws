@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth'
 // Removed AdminNavbar per requested layout
 import AdminSidebar from './components/AdminSidebar'
@@ -6,12 +7,12 @@ import AdminDashboard from './pages/AdminDashboard'
 import ReportsManagement from './pages/ReportsManagement'
 import AdoptionsManagement from './pages/Forms/AdoptionsManagement'
 import AnimalsManagement from './pages/Content/AnimalsManagement'
-import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import AdminSettings from './pages/AdminSettings'
 import Volunteers from './pages/Forms/VolunteersManagement'
 import Donors from './pages/Forms/DonorsManagement'
 import ContentHome from './pages/Content/Lost&FoundManagement'
 import Heatmap from './pages/Heatmap'
+import MessageManagement from './pages/MessageManagement'
 import AdminLoginModal from './authentication/AdminLoginModal'
 import { useState } from 'react'
 import { Menu, X } from 'lucide-react'
@@ -52,9 +53,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
             </button>
           </div>
         </div>
-        <AdminLoginModal 
-          isOpen={showLoginModal} 
-          onClose={() => setShowLoginModal(false)} 
+        <AdminLoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
         />
       </>
     )
@@ -118,20 +119,20 @@ const AdminAppContent = () => {
     <AdminLayout>
       <Routes>
         <Route path="/" element={<AdminDashboard />} />
-        <Route path="/reports" element={<ReportsManagement />} />
-        <Route path="/adoptions" element={<AdoptionsManagement />} />
-        <Route path="/animals" element={<AnimalsManagement />} />
-        <Route path="/lost" element={<ReportsManagement />} />
-        <Route path="/found" element={<ReportsManagement />} />
-        <Route path="/abuse" element={<ReportsManagement />} />
-        <Route path="/volunteers" element={<Volunteers />} />
-        <Route path="/donors" element={<Donors />} />
-        <Route path="/analytics" element={<AnalyticsDashboard />} />
-        <Route path="/heatmap" element={<Heatmap />} />
-        <Route path="/content" element={<ContentHome />} />
-        <Route path="/content/animals" element={<AnimalsManagement />} />
-        <Route path="/settings" element={<AdminSettings />} />
-        <Route path="*" element={<Navigate to="/admin" replace />} />
+        <Route path="reports" element={<ReportsManagement />} />
+        <Route path="adoptions" element={<AdoptionsManagement />} />
+        <Route path="animals" element={<AnimalsManagement />} />
+        <Route path="lost" element={<ReportsManagement />} />
+        <Route path="found" element={<ReportsManagement />} />
+        <Route path="abuse" element={<ReportsManagement />} />
+        <Route path="volunteers" element={<Volunteers />} />
+        <Route path="donors" element={<Donors />} />
+        <Route path="messages" element={<MessageManagement />} />
+        <Route path="heatmap" element={<Heatmap />} />
+        <Route path="content" element={<ContentHome />} />
+        <Route path="content/animals" element={<AnimalsManagement />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AdminLayout>
   )
@@ -141,9 +142,12 @@ const AdminAppContent = () => {
 const AdminApp = () => {
   return (
     <AdminAuthProvider>
-      <ProtectedRoute>
-        <AdminAppContent />
-      </ProtectedRoute>
+      <>
+        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+        <ProtectedRoute>
+          <AdminAppContent />
+        </ProtectedRoute>
+      </>
     </AdminAuthProvider>
   )
 }

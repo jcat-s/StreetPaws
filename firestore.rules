@@ -8,17 +8,13 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && 
-        request.auth.token.email in [
-          'admin@streetpaws.gov.ph',
-          'superadmin@streetpaws.gov.ph',
-          'vet@streetpaws.gov.ph'
-        ];
+      return isAuthenticated() && (
+        request.auth.token.role == 'admin' || request.auth.token.role == 'super_admin'
+      );
     }
     
     function isSuperAdmin() {
-      return isAuthenticated() && 
-        request.auth.token.email == 'superadmin@streetpaws.gov.ph';
+      return isAuthenticated() && request.auth.token.role == 'super_admin';
     }
     
     function isOwner(userId) {
@@ -30,39 +26,30 @@ service cloud.firestore {
       allow read, write: if isSuperAdmin();
     }
     
-    // Reports collection - admins can read/write, users can create/read their own
-    match /reports/{reportId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if true;
-      allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow delete: if isAdmin();
-    }
+    // Reports collections - new simplified structure
     
     // Lost reports collection - anyone can create, admins can read/write
-    match /lost/{reportId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+    match /reports-lost/{reportId} {
+      allow read: if true; // Temporarily allow all reads for debugging
       allow create: if true;
       allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
       allow delete: if isAdmin();
     }
     
     // Found reports collection - anyone can create, admins can read/write
-    match /found/{reportId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+    match /reports-found/{reportId} {
+      allow read: if true; // Temporarily allow all reads for debugging
       allow create: if true;
       allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
       allow delete: if isAdmin();
     }
     
-    // Reports subcollections for lost, found, abuse
-    match /reports/{mainDocId}/lost/{reportId} {
-      allow read, write: if true;
-    }
-    match /reports/{mainDocId}/found/{reportId} {
-      allow read, write: if true;
-    }
-    match /reports/{mainDocId}/abuse/{reportId} {
-      allow read, write: if true;
+    // Abuse reports collection - anyone can create, admins can read/write
+    match /reports-abuse/{reportId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow create: if true;
+      allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow delete: if isAdmin();
     }
     
     // Animals collection - public can read published, admins can manage
@@ -108,6 +95,21 @@ service cloud.firestore {
     
     match /audit_logs/{logId} {
       allow read, write: if isAdmin();
+    }
+    
+    // Notifications - users can read their own; only admins can write
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        (resource.data.recipientUid != null && resource.data.recipientUid == request.auth.uid) ||
+        (resource.data.recipientEmail != null && request.auth.token.email == resource.data.recipientEmail)
+      );
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Messages (Contact Us) - anyone can create; only admins can read/write after
+    match /messages/{messageId} {
+      allow create: if true; // public submission
+      allow read, update, delete: if isAdmin();
     }
     
     // System settings - only superadmin

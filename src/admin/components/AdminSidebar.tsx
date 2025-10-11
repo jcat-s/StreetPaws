@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutGrid, Users, Heart, FileText, LogOut, Settings, Search, Flame, FolderCog, ChevronDown, ChevronRight } from 'lucide-react'
+import { LayoutGrid, Users, Heart, FileText, LogOut, Settings, Search, Flame, FolderCog, ChevronDown, ChevronRight, Mail } from 'lucide-react'
 import { useState, type FC } from 'react'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 
@@ -51,6 +51,7 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
           <NavItem to="/adoptions" icon={Heart} label="Adoption Management" onNavigate={onNavigate} />
           <NavItem to="/volunteers" icon={Users} label="Volunteers Management" onNavigate={onNavigate} />
           <NavItem to="/donors" icon={Heart} label="Donations Management" onNavigate={onNavigate} />
+          <NavItem to="/messages" icon={Mail} label="Message Management" onNavigate={onNavigate} />
           <NavItem to="/heatmap" icon={Flame} label="Heatmap" onNavigate={onNavigate} />
           
           {/* Content folder */}

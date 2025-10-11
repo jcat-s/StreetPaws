@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { submitReport } from '../../utils/reportService'
-import { LIPA_BARANGAYS } from '../../../shared/constants/barangays'
+import LocationPicker from '../../components/LocationPicker'
 
 interface FoundAnimalFormData {
     animalType: string
@@ -32,8 +32,16 @@ const FoundReport = () => {
     const [isSubmitting, setIsSubmitting] = useState(false)
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<FoundAnimalFormData>()
-    const [isBarangayOpen, setIsBarangayOpen] = useState(false)
-    const selectedBarangay = watch('foundLocation')
+    const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lon: number; address: string }>({
+        lat: 0,
+        lon: 0,
+        address: ''
+    })
+    const today = new Date()
+    const todayStr = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0]
+    const nowTimeStr = new Date().toTimeString().slice(0,5)
+    const selectedDate = watch('foundDate')
+    const maxTime = selectedDate === todayStr ? nowTimeStr : '23:59'
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0]
@@ -59,11 +67,26 @@ const FoundReport = () => {
 
     const removeImage = () => { setUploadedImage(null); setImagePreview(null) }
 
-    const barangays = LIPA_BARANGAYS
-
     const validatePhoneNumber = (value: string) => /^\d+$/.test(value) || 'Please enter numbers only'
+    
+    const validateLipaLocation = (value: string) => {
+        if (!value) return 'Location is required'
+        const locationLower = value.toLowerCase()
+        if (!locationLower.includes('lipa')) {
+            return 'Sorry, the scope of our service is limited to Lipa City only. Please select a location within Lipa City.'
+        }
+        return true
+    }
 
     const onSubmit = async (data: FoundAnimalFormData) => {
+        const locationToValidate = selectedLocation.address || data.foundLocation
+        const locationValidation = validateLipaLocation(locationToValidate)
+        
+        if (locationValidation !== true) {
+            toast.error(locationValidation)
+            return
+        }
+        
         setIsSubmitting(true)
         try {
             await submitReport(
@@ -75,7 +98,7 @@ const FoundReport = () => {
                     colors: data.colors,
                     estimatedAge: data.estimatedAge,
                     gender: data.gender,
-                    foundLocation: data.foundLocation,
+                    foundLocation: locationToValidate,
                     foundDate: data.foundDate,
                     foundTime: data.foundTime,
                     contactName: data.contactName,
@@ -87,7 +110,7 @@ const FoundReport = () => {
                 currentUser ? currentUser.uid : null
             )
             toast.success('Found report submitted')
-            reset(); setUploadedImage(null); setImagePreview(null)
+            reset(); setUploadedImage(null); setImagePreview(null); setSelectedLocation({ lat: 0, lon: 0, address: '' })
             navigate('/lost-and-found?submitted=1')
         } catch (e: any) { 
             console.error('Report submission error:', e)
@@ -144,24 +167,31 @@ const FoundReport = () => {
 
                     <div className="grid md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Found Location *</label>
-                            <input type="hidden" {...register('foundLocation', { required: 'Found location is required' })} />
-                            <div className="relative">
-                                <button type="button" onClick={() => setIsBarangayOpen(!isBarangayOpen)} className="input-field text-left">{selectedBarangay || 'Select barangay'}</button>
-                                {isBarangayOpen && (
-                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">{barangays.map(b => (<button key={b} type="button" onClick={() => { setValue('foundLocation', b, { shouldValidate: true }); setIsBarangayOpen(false); }} className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}>{b}</button>))}</div>
-                                )}
-                            </div>
-                            {errors.foundLocation && <p className="mt-1 text-sm text-red-600">{errors.foundLocation.message}</p>}
+                            <LocationPicker
+                                label="Found Location"
+                                value={selectedLocation.address}
+                                onChange={(location) => {
+                                    setSelectedLocation(location)
+                                    // Trigger validation when location changes
+                                    setValue('foundLocation', location.address, { shouldValidate: true })
+                                }}
+                                placeholder="e.g., Barangay 1, Lipa City, Batangas"
+                                required
+                                error={errors.foundLocation?.message}
+                            />
+                            <input type="hidden" {...register('foundLocation', { 
+                                required: 'Found location is required',
+                                validate: validateLipaLocation
+                            })} />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Found Date *</label>
-                            <input {...register('foundDate', { required: 'Found date is required' })} type="date" className="input-field" />
+                            <input {...register('foundDate', { required: 'Found date is required', validate: (v) => v <= todayStr || 'Date cannot be in the future', onChange: (e) => { const v = (e.target as HTMLInputElement).value; if (v > todayStr) { (e.target as HTMLInputElement).value = todayStr; setValue('foundDate', todayStr, { shouldValidate: true }); toast.error('Date cannot be in the future') } } })} type="date" className="input-field" max={todayStr} />
                             {errors.foundDate && <p className="mt-1 text-sm text-red-600">{errors.foundDate.message}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Found Time *</label>
-                            <input {...register('foundTime', { required: 'Found time is required' })} type="time" className="input-field" />
+                            <input {...register('foundTime', { required: 'Found time is required', validate: (v) => { if (selectedDate === todayStr) { return v <= nowTimeStr || 'Time cannot be in the future' } return true } })} type="time" className="input-field" max={maxTime} />
                             {errors.foundTime && <p className="mt-1 text-sm text-red-600">{errors.foundTime.message}</p>}
                         </div>
                     </div>

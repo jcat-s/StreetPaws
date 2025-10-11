@@ -13,7 +13,6 @@ type Animal = {
   gender?: string
   image: string
   description?: string
-  status?: string
   adoptionFee?: number
 }
 
@@ -41,7 +40,6 @@ export default function OurAnimals() {
           gender: r.gender,
           image: (r.images && r.images[0]) || `https://via.placeholder.com/400x400/ffd6e0/8a2be2?text=${encodeURIComponent(r.name)}`,
           description: r.description,
-          status: r.status,
           adoptionFee: r.adoptionFee
         }))
         setAnimals(mapped)
@@ -134,13 +132,6 @@ export default function OurAnimals() {
                 <div className="p-3 bg-white">
                   <div className="flex items-center justify-between gap-2">
                     <h4 className="text-sm font-medium text-gray-900 truncate">{animal.name}</h4>
-                    {animal.status && (
-                      <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full capitalize ${
-                        animal.status === 'available' ? 'bg-green-100 text-green-800' :
-                        animal.status === 'adopted' ? 'bg-blue-100 text-blue-800' :
-                        animal.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
-                      }`}>{animal.status}</span>
-                    )}
                   </div>
                   
                 </div>

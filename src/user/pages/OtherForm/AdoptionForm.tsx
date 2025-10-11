@@ -6,6 +6,7 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { getAnimalById, type AnimalRecord } from '../../../shared/utils/animalsService'
 import { useAuth } from '../../../contexts/AuthContext'
+import GlobalLocationPicker from '../../components/GlobalLocationPicker'
 
 interface AdoptionFormData {
   // Personal Information
@@ -44,19 +45,21 @@ interface AdoptionFormData {
   consent: boolean
 }
 
-const barangays = [
-  'Adya', 'Anilao', 'Antipolo del Norte', 'Antipolo del Sur', 'Bagong Pook', 'Balintawak', 'Banaybanay', 'Banaybanay I', 'Banaybanay II', 'Bangcal', 'Bolbok', 'Bugtong na Pulo', 'Bulacnin', 'Bulaklakan', 'Calamias', 'Candating', 'Dagatan', 'Dela Paz', 'Dela Paz Proper', 'Halang', 'Inosluban', 'Kayumanggi', 'Latag', 'Lodlod', 'Lumbang', 'Mabini', 'Malagonlong', 'Malitlit', 'Marawoy', 'Munting Pulo', 'Pangao', 'Pinagkawitan', 'Pinagtongulan', 'Plaridel', 'Quiling', 'Rizal', 'Sabang', 'Sampaguita', 'San Benildo', 'San Carlos', 'San Celestino', 'San Francisco', 'San Francisco (Burol)', 'San Guillermo', 'San Jose', 'San Lucas', 'San Salvador', 'San Sebastian', 'San Vicente', 'Sapac', 'Sico 1', 'Sico 2', 'Sto. Niño', 'Tambo', 'Tangob', 'Tanguile', 'Tibig', 'Tico', 'Tipacan', 'Tuyo', 'Barangay 1 (Poblacion)', 'Barangay 2 (Poblacion)', 'Barangay 3 (Poblacion)', 'Barangay 4 (Poblacion)', 'Barangay 5 (Poblacion)', 'Barangay 6 (Poblacion)', 'Barangay 7 (Poblacion)', 'Barangay 8 (Poblacion)', 'Barangay 9 (Poblacion)', 'San Isidro', 'San Nicolas', 'Barangay San Miguel'
-]
+// Removed static barangay list; using free-text location input to support global addresses
 
 const AdoptionForm = () => {
   const { animalId } = useParams()
   const navigate = useNavigate()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isBarangayOpen, setIsBarangayOpen] = useState(false)
   const [selectedAnimal, setSelectedAnimal] = useState<AnimalRecord | null>(null)
   
-  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<AdoptionFormData>()
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<AdoptionFormData>()
   const { currentUser } = useAuth()
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lon: number; address: string }>({
+    lat: 0,
+    lon: 0,
+    address: ''
+  })
   useEffect(() => {
     let mounted = true
     async function loadAnimal() {
@@ -72,15 +75,11 @@ const AdoptionForm = () => {
     return () => { mounted = false }
   }, [animalId])
 
-  const selectedBarangay = watch('barangay')
   const hasYard = watch('hasYard') === 'true'
   const hasOtherPets = watch('hasOtherPets') === 'true'
   const hasChildren = watch('hasChildren') === 'true'
 
   const onSubmit = async (data: AdoptionFormData) => {
-    console.log('Form submission started with data:', data)
-    console.log('Form errors:', errors)
-    console.log('Is form valid?', Object.keys(errors).length === 0)
     
     setIsSubmitting(true)
     try {
@@ -89,8 +88,6 @@ const AdoptionForm = () => {
         throw new Error('Firestore not initialized')
       }
       
-      console.log('Firebase db instance:', db)
-      console.log('Animal ID from params:', animalId)
       
       const adoptionData = {
         userId: currentUser?.uid || null,
@@ -103,6 +100,7 @@ const AdoptionForm = () => {
         applicantOccupation: data.occupation,
         applicantBarangay: data.barangay,
         applicantAddress: data.address,
+        location: selectedLocation,
         // Animal info for admin views
         animalName: selectedAnimal?.name || 'Selected Animal',
         animalType: selectedAnimal?.type || 'unknown',
@@ -137,14 +135,12 @@ const AdoptionForm = () => {
         Object.entries(adoptionData).filter(([, v]) => v !== undefined)
       )
 
-      console.log('Submitting adoption data to Firestore:', payload)
-      console.log('Collection reference:', collection(db, 'adoptions'))
       
-      const docRef = await addDoc(collection(db, 'adoptions'), payload)
-      console.log('Adoption application submitted successfully with ID:', docRef.id)
+      await addDoc(collection(db, 'adoptions'), payload)
       
       toast.success('Adoption application submitted successfully! We will contact you within 3-5 business days.')
       reset()
+      setSelectedLocation({ lat: 0, lon: 0, address: '' })
       navigate('/our-animals')
     } catch (error: any) {
       console.error('Adoption form submission error:', error)
@@ -170,10 +166,7 @@ const AdoptionForm = () => {
           Thank you for your interest in adopting a pet. Please fill out this form completely and honestly.
         </p>
 
-        <form onSubmit={handleSubmit(onSubmit, (errors) => {
-          console.log('Form validation failed:', errors)
-          console.log('Number of validation errors:', Object.keys(errors).length)
-        })} className="space-y-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Personal Information */}
           <div className="bg-white rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Personal Information</h2>
@@ -245,48 +238,18 @@ const AdoptionForm = () => {
                 {errors.occupation && <p className="text-sm text-red-600">{errors.occupation.message}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
-                <input type="hidden" {...register('barangay', { required: 'Barangay is required' })} />
-                <div className="relative">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsBarangayOpen(!isBarangayOpen)} 
-                    className="input-field text-left"
-                  >
-                    {selectedBarangay || 'Select barangay'}
-                  </button>
-                  {isBarangayOpen && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">
-                      {barangays.map(b => (
-                        <button 
-                          key={b} 
-                          type="button" 
-                          onClick={() => { 
-                            setValue('barangay', b, { shouldValidate: true })
-                            setIsBarangayOpen(false)
-                          }} 
-                          className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}
-                        >
-                          {b}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {errors.barangay && <p className="text-sm text-red-600">{errors.barangay.message}</p>}
+              <div className="md:col-span-2">
+                <GlobalLocationPicker
+                  label="Location"
+                  value={selectedLocation.address}
+                  onChange={setSelectedLocation}
+                  placeholder="e.g., Your City, State/Province, Country"
+                  required
+                  error={errors.barangay?.message}
+                />
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Complete Address *</label>
-                <textarea
-                  {...register('address', { required: 'Address is required' })}
-                  className="input-field"
-                  rows={3}
-                  placeholder="House number, street, subdivision, etc."
-                />
-                {errors.address && <p className="text-sm text-red-600">{errors.address.message}</p>}
-              </div>
+         
             </div>
           </div>
 

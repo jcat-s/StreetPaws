@@ -3,6 +3,8 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
+import { useAuth } from '../../../contexts/AuthContext'
+import GlobalLocationPicker from '../../components/GlobalLocationPicker'
 
 interface VolunteerFormData {
     name: string;
@@ -19,15 +21,17 @@ interface VolunteerFormData {
     consent?: boolean;
 }
 
-const barangays = [
-    'Adya', 'Anilao', 'Antipolo del Norte', 'Antipolo del Sur', 'Bagong Pook', 'Balintawak', 'Banaybanay', 'Banaybanay I', 'Banaybanay II', 'Bangcal', 'Bolbok', 'Bugtong na Pulo', 'Bulacnin', 'Bulaklakan', 'Calamias', 'Candating', 'Dagatan', 'Dela Paz', 'Dela Paz Proper', 'Halang', 'Inosluban', 'Kayumanggi', 'Latag', 'Lodlod', 'Lumbang', 'Mabini', 'Malagonlong', 'Malitlit', 'Marawoy', 'Munting Pulo', 'Pangao', 'Pinagkawitan', 'Pinagtongulan', 'Plaridel', 'Quiling', 'Rizal', 'Sabang', 'Sampaguita', 'San Benildo', 'San Carlos', 'San Celestino', 'San Francisco', 'San Francisco (Burol)', 'San Guillermo', 'San Jose', 'San Lucas', 'San Salvador', 'San Sebastian', 'San Vicente', 'Sapac', 'Sico 1', 'Sico 2', 'Sto. Niño', 'Tambo', 'Tangob', 'Tanguile', 'Tibig', 'Tico', 'Tipacan', 'Tuyo', 'Barangay 1 (Poblacion)', 'Barangay 2 (Poblacion)', 'Barangay 3 (Poblacion)', 'Barangay 4 (Poblacion)', 'Barangay 5 (Poblacion)', 'Barangay 6 (Poblacion)', 'Barangay 7 (Poblacion)', 'Barangay 8 (Poblacion)', 'Barangay 9 (Poblacion)', 'San Isidro', 'San Nicolas', 'Barangay San Miguel'
-];
+// Removed static barangay list; using free-text location input to support global addresses
 
 const VolunteerForm = () => {
-    const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<VolunteerFormData>();
-    const [isBarangayOpen, setIsBarangayOpen] = useState(false);
+    const { currentUser } = useAuth()
+    const { register, handleSubmit, formState: { errors }, reset } = useForm<VolunteerFormData>();
     const [otherRole, setOtherRole] = useState('');
-    const selectedBarangay = watch('barangay');
+    const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lon: number; address: string }>({
+        lat: 0,
+        lon: 0,
+        address: ''
+    });
 
     const onSubmit = async (data: VolunteerFormData) => {
         try {
@@ -35,6 +39,8 @@ const VolunteerForm = () => {
             const payload = {
                 ...data,
                 preferredRoles: [...(data.preferredRoles || []), ...(otherRole ? [otherRole] : [])],
+                userId: currentUser?.uid || null, // Capture user ID for notifications
+                location: selectedLocation,
                 createdAt: serverTimestamp(),
                 status: 'pending'
             }
@@ -42,6 +48,7 @@ const VolunteerForm = () => {
             toast.success('Thank you for volunteering!')
             reset()
             setOtherRole('')
+            setSelectedLocation({ lat: 0, lon: 0, address: '' })
         } catch (e) {
             toast.error('Failed to submit volunteer form. Please try again.')
         }
@@ -68,24 +75,15 @@ const VolunteerForm = () => {
                             <input {...register('phone', { required: 'Phone is required', validate: value => /^\d+$/.test(value) || 'Numbers only' })} type="tel" className="input-field" placeholder="e.g., 09123456789" onKeyPress={e => { if (!/[0-9]/.test(e.key)) e.preventDefault(); }} />
                             {errors.phone && <p className="text-sm text-red-600">{errors.phone.message}</p>}
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Barangay *</label>
-                            <input type="hidden" {...register('barangay', { required: 'Barangay is required' })} />
-                            <div className="relative">
-                                <button type="button" onClick={() => setIsBarangayOpen(!isBarangayOpen)} className="w-full text-left px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 bg-white">
-                                    {selectedBarangay || 'Select barangay'}
-                                </button>
-                                {isBarangayOpen && (
-                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow max-h-48 overflow-y-auto">
-                                        {barangays.map((b) => (
-                                            <button type="button" key={b} onClick={() => { setValue('barangay', b, { shouldValidate: true }); setIsBarangayOpen(false); }} className={`w-full text-left px-4 py-2 hover:bg-orange-50 ${selectedBarangay === b ? 'bg-orange-100' : ''}`}>
-                                                {b}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                            {errors.barangay && <p className="text-sm text-red-600">{errors.barangay.message}</p>}
+                        <div className="md:col-span-2">
+                            <GlobalLocationPicker
+                                label="Location"
+                                value={selectedLocation.address}
+                                onChange={setSelectedLocation}
+                                placeholder="e.g., Your City, State/Province, Country"
+                                required
+                                error={errors.barangay?.message}
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>

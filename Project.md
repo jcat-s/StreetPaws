@@ -59,7 +59,7 @@ This document provides a comprehensive status of all features for the Local City
 **Status: ⚠️ PARTIALLY DONE**
 - **Current State**:
   - Admin UI implemented in `src/admin/pages/Content/AnimalsManagement.tsx`
-  - Operates on mock data only (no persistent backend)
+  - Connected to Firebase Firestore for persistent data storage
   - View details modal works; delete is simulated; add/edit are placeholders
 - **What's Missing**:
   - Full CRUD connected to database (create, update, delete)
@@ -86,8 +86,8 @@ This document provides a comprehensive status of all features for the Local City
 **Status: ⚠️ PARTIALLY DONE**
 - **Current State**:
   - UI implemented in `src/user/pages/Main/OurAnimals.tsx`
-  - Uses static mock data for animals (no database connection yet)
-  - Animal profile modal and filters work on mock list
+  - Connected to Firebase Firestore for real animal data
+  - Animal profile modal and filters work with live data
 - **What's Missing**:
   - Connect to real data source (e.g., Firestore/Supabase)
   - Image storage integration and upload pipeline
@@ -316,5 +316,13 @@ This document provides a comprehensive status of all features for the Local City
 ---
 
 
+RUN in Terminal
 
+npm run dev:user
 npm run dev:admin
+
+node scripts/set-admin.js --email new.admin@gmail.com --role admin --key C:\Users\Admin\Desktop\capstone\code\streetpaws2-firebase-adminsdk-fbsvc-01fe40eea7.json
+
+node scripts/set-admin.js --email streetpaws50@gmail.com --role admin --key C:\Users\Admin\Desktop\capstone\code\streetpaws2-firebase-adminsdk-fbsvc-01fe40eea7.json
+
+node scripts/set-admin.js --email superadmin@streetpaws.gov.ph --role admin --key C:\Users\Admin\Desktop\capstone\code\streetpaws2-firebase-adminsdk-fbsvc-01fe40eea7.json

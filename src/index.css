@@ -37,6 +37,27 @@
     @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
   }
   
+  /* Responsive helpers */
+  .container-responsive {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .prose-responsive {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .img-fluid {
+    @apply w-full h-auto object-cover;
+  }
+
+  .table-scroll {
+    @apply w-full overflow-x-auto;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100;
+  }
+
   .modal-overlay {
     @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
   }
@@ -44,5 +65,10 @@
   .modal-content {
     @apply bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto;
   }
+  
+  /* Modal sizes scale up on larger screens */
+  .modal-lg { @apply max-w-2xl; }
+  .modal-xl { @apply max-w-4xl; }
+  .modal-2xl { @apply max-w-6xl; }
   
 } 

@@ -1,4 +1,4 @@
-# Supabase Storage Setup for Abuse Reports
+# Supabase Storage Setup for Reports
 
 ## 1) Environment
 
@@ -11,7 +11,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 ## 2) Storage bucket
 
-- Create a bucket named `abuse-reports` (Private).
+- Create a bucket named `report-uploads` (Private).
 - Max file size is enforced in UI (150MB). Adjust if needed.
 
 ## 3) Security policies (recommended)
@@ -22,12 +22,12 @@ Require authenticated users to upload, keep objects private by default.
 -- In Postgres Policies for storage.objects
 -- Adjust the role/conditions to your needs.
 
--- 3.1 Allow INSERT to authenticated users only into the abuse-reports bucket
-create policy "abuse insert by auth users"
+-- 3.1 Allow INSERT to authenticated users only into the report-uploads bucket
+create policy "reports insert by auth users"
   on storage.objects for insert
   to authenticated
   with check (
-    bucket_id = 'abuse-reports'
+    bucket_id = 'report-uploads'
   );
 
 -- 3.2 Allow SELECT for the object's owner (optional)
@@ -37,11 +37,11 @@ create policy "abuse insert by auth users"
 -- 3.3 Moderators: allow SELECT
 -- Create a 'moderator' Postgres role or use a custom claim
 -- and grant read where appropriate. Example using a custom JWT claim:
-create policy "abuse read by moderators"
+create policy "reports read by moderators"
   on storage.objects for select
   to authenticated
   using (
-    bucket_id = 'abuse-reports'
+    bucket_id = 'report-uploads'
     and (auth.jwt() ->> 'user_role') = 'moderator'
   );
 ```
@@ -52,16 +52,26 @@ Notes:
 
 ## 4) App wiring
 
-- Abuse form uploads now go to `abuse-reports` via Supabase.
-- Report metadata is saved in Firestore `reports` with `type: 'abuse'` and `evidenceObjects` keys.
+- All report uploads (lost, found, abuse) now go to `report-uploads` via Supabase.
+- Report metadata is saved in Firestore with unified structure:
+  - `reports/{parentId}/lost/{reportId}` for lost reports
+  - `reports/{parentId}/found/{reportId}` for found reports  
+  - `reports/{parentId}/abuse/{reportId}` for abuse reports
 - Use a signed URL to view evidence:
 
 ```ts
-import { createSignedEvidenceUrl } from './src/user/utils/abuseReportService'
+import { createSignedEvidenceUrl } from './src/user/utils/reportService'
 const url = await createSignedEvidenceUrl(objectKey) // expires in 1h by default
 ```
 
-## 5) CORS
+## 5) File Organization
+
+Files are organized in the bucket as follows:
+- `lostandfound/lost/{timestamp}-{random}-{filename}` for lost report images
+- `lostandfound/found/{timestamp}-{random}-{filename}` for found report images
+- `{userId}/{timestamp}-{random}.{ext}` for abuse report evidence
+
+## 6) CORS
 
 Supabase Storage works cross-origin with the SDK by default. No extra CORS config is needed for typical SPA usage.
 

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useModalStore } from '../../../stores/modalStore'
+import { useAuth } from '../../../contexts/AuthContext'
 const SPImage = new URL('../../../assets/images/SP.PNG', import.meta.url).href
 import { Heart, MapPin } from 'lucide-react'
 
 const Home = () => {
   const { openLoginModal, openSignUpModal, openReportModal } = useModalStore()
+  const { currentUser } = useAuth()
 
   return (
     <div>
@@ -37,10 +39,12 @@ const Home = () => {
               </div>
 
               {/* Sign up / Login small buttons */}
-              <div className="flex gap-3">
-                <button onClick={openSignUpModal} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2 rounded-md transition-colors duration-200 uppercase tracking-wide">Sign Up</button>
-                <button onClick={openLoginModal} className="border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-semibold px-5 py-2 rounded-md transition-colors duration-200 uppercase tracking-wide">Log In</button>
-              </div>
+              {!currentUser && (
+                <div className="flex gap-3">
+                  <button onClick={openSignUpModal} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-5 py-2 rounded-md transition-colors duration-200 uppercase tracking-wide">Sign Up</button>
+                  <button onClick={openLoginModal} className="border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-semibold px-5 py-2 rounded-md transition-colors duration-200 uppercase tracking-wide">Log In</button>
+                </div>
+              )}
             </div>
 
             {/* Right column: catdog image */}

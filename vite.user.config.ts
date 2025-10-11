@@ -5,6 +5,7 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [react()],
   root: 'src/user',
+  envDir: '../..', // Load environment variables from project root
   build: {
     outDir: '../../dist/user',
     emptyOutDir: true,

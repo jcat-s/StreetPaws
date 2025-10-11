@@ -87,6 +87,21 @@ const AdminDashboard = () => {
   
   // Counts
   const [reportCounts, setReportCounts] = useState({ total: 0, pending: 0, resolved: 0 })
+  
+  // UI states
+  const [expandedBarangays, setExpandedBarangays] = useState<Set<string>>(new Set())
+
+  const toggleBarangayExpansion = (barangay: string) => {
+    setExpandedBarangays(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(barangay)) {
+        newSet.delete(barangay)
+      } else {
+        newSet.add(barangay)
+      }
+      return newSet
+    })
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -167,10 +182,22 @@ const AdminDashboard = () => {
         const rawStatus: string = (d?.status || 'pending').toString().toLowerCase()
         const status: string = rawStatus === 'open' ? 'pending' : rawStatus
 
+        // Get the correct animal name based on report type
+        let animalName = 'Unknown'
+        if (collectionType === 'abuse') {
+          animalName = d?.caseTitle || 'Unknown Case'
+        } else if (collectionType === 'found') {
+          animalName = d?.breed || 'Unknown'
+        } else if (collectionType === 'lost') {
+          animalName = d?.animalName || 'Unknown'
+        } else {
+          animalName = d?.animalName || d?.name || 'Unknown Animal'
+        }
+
         return {
           id: doc.id,
           type: collectionType,
-          animalName: d?.animalName || d?.name || 'Unknown Animal',
+          animalName,
           animalType: d?.animalType || d?.type || 'unknown',
           location: d?.lastSeenLocation || d?.foundLocation || d?.incidentLocation || d?.location || 'Unknown Location',
           reporter: d?.contactName || d?.reporterName || d?.name || 'Anonymous',
@@ -268,16 +295,14 @@ const AdminDashboard = () => {
     const volunteersQuery = query(collection(db, 'volunteers'), orderBy('createdAt', 'desc'))
     const messagesQuery = query(collection(db, 'messages'), orderBy('createdAt', 'desc'))
     
-    // Function to update reports without duplicates
+
     const updateReports = () => {
       allReports = [...reportsByType.lost, ...reportsByType.found, ...reportsByType.abuse]
-      // Remove duplicates based on ID
       const uniqueReports = allReports.reduce((acc, current) => {
         const existingIndex = acc.findIndex(item => item.id === current.id)
         if (existingIndex === -1) {
           acc.push(current)
         } else {
-          // Keep the most recent version
           if (new Date(current.date) > new Date(acc[existingIndex].date)) {
             acc[existingIndex] = current
           }
@@ -312,7 +337,6 @@ const AdminDashboard = () => {
 
     const unsubscribeAdoptions = onSnapshot(adoptionsQuery, (snap) => {
       const adoptionData = processAdoptionDocs(snap.docs)
-      // Remove duplicates
       const uniqueAdoptions = adoptionData.reduce((acc, current) => {
         const existingIndex = acc.findIndex(item => item.id === current.id)
         if (existingIndex === -1) {
@@ -325,7 +349,6 @@ const AdminDashboard = () => {
 
     const unsubscribeDonations = onSnapshot(donationsQuery, (snap) => {
       const donationData = processDonationDocs(snap.docs)
-      // Remove duplicates
       const uniqueDonations = donationData.reduce((acc, current) => {
         const existingIndex = acc.findIndex(item => item.id === current.id)
         if (existingIndex === -1) {
@@ -368,7 +391,6 @@ const AdminDashboard = () => {
       const animalsQuery = query(collection(db, 'animals'), orderBy('createdAt', 'desc'))
       unsubscribeAnimals = onSnapshot(animalsQuery, (snap) => {
         const animalData = processAnimalDocs(snap.docs)
-        // Remove duplicates
         const uniqueAnimals = animalData.reduce((acc, current) => {
           const existingIndex = acc.findIndex(item => item.id === current.id)
           if (existingIndex === -1) {
@@ -395,9 +417,7 @@ const AdminDashboard = () => {
     }
   }, [])
 
-  // Calculated metrics
-  // const urgentReportsCount = useMemo(() => recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length, [recentReports])
-  
+
   // Message metrics
   const messageStats = useMemo(() => ({
     total: messages.length,
@@ -407,25 +427,6 @@ const AdminDashboard = () => {
   }), [messages])
 
   // Recent activity for the last 7 days
-  // const recentActivity = useMemo(() => {
-  //   const weekAgo = new Date()
-  //   weekAgo.setDate(weekAgo.getDate() - 7)
-  //   
-  //   const recentAdoptions = adoptions.filter(a => new Date(a.submittedAt) >= weekAgo)
-  //   const recentDonations = donations.filter(d => new Date(d.createdAt) >= weekAgo)
-  //   const recentVolunteers = volunteers.filter(v => new Date(v.createdAt) >= weekAgo)
-  //   const recentReportsActivity = recentReports.filter(r => new Date(r.date) >= weekAgo)
-  //   const recentMessages = messages.filter(m => new Date(m.createdAt) >= weekAgo)
-  //   
-  //   return {
-  //     adoptions: recentAdoptions.length,
-  //     donations: recentDonations.length,
-  //     volunteers: recentVolunteers.length,
-  //     reports: recentReportsActivity.length,
-  //     messages: recentMessages.length,
-  //     totalAmount: recentDonations.filter(d => d.status === 'verified').reduce((sum, d) => sum + d.amount, 0)
-  //   }
-  // }, [adoptions, donations, volunteers, recentReports, messages])
   
   // Adoption metrics
   const adoptionStats = useMemo(() => ({
@@ -463,14 +464,6 @@ const AdminDashboard = () => {
   }), [volunteers])
 
   // Animal metrics
-  // const animalStats = useMemo(() => ({
-  //   total: animals.length,
-  //   available: animals.filter(a => a.status === 'available').length,
-  //   adopted: animals.filter(a => a.status === 'adopted').length,
-  //   pending: animals.filter(a => a.status === 'pending').length,
-  //   dogs: animals.filter(a => a.type === 'dog').length,
-  //   cats: animals.filter(a => a.type === 'cat').length
-  // }), [animals])
 
   // Monthly trends (last 6 months)
   const monthlyTrends = useMemo(() => {
@@ -1363,34 +1356,122 @@ const AdminDashboard = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {geographicAnalytics.barangayData.slice(0, 15).map((barangay) => (
-                          <tr key={barangay.barangay} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {barangay.barangay}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                barangay.total >= 7 ? 'bg-red-100 text-red-800' :
-                                barangay.total >= 3 ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-green-100 text-green-800'
-                              }`}>
-                                {barangay.total}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.lost}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.found}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.abuse}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.pending}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.resolved}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {barangay.urgent > 0 && (
-                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                                  {barangay.urgent}
-                                </span>
+                        {geographicAnalytics.barangayData.slice(0, 15).map((barangay) => {
+                          // Get submissions for this barangay
+                          const barangaySubmissions = recentReports.filter(report => {
+                            if (!report.location || report.location === 'Unknown Location') return false
+                            const location = report.location.toLowerCase()
+                            const barangayLower = barangay.barangay.toLowerCase()
+                            
+                            if (location === barangayLower) return true
+                            if (location.includes(barangayLower)) return true
+                            if (barangayLower.includes(location)) return true
+                            
+                            if (barangayLower.includes('poblacion') && location.includes('poblacion')) return true
+                            if (barangayLower.includes('barangay') && location.includes('barangay')) {
+                              const locationNumber = location.match(/\d+/)?.[0]
+                              const barangayNumber = barangayLower.match(/\d+/)?.[0]
+                              if (locationNumber && barangayNumber && locationNumber === barangayNumber) return true
+                            }
+                            
+                            return false
+                          }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+                          const isExpanded = expandedBarangays.has(barangay.barangay)
+
+                          return (
+                            <>
+                              <tr 
+                                key={barangay.barangay} 
+                                className="hover:bg-gray-50 cursor-pointer"
+                                onClick={() => toggleBarangayExpansion(barangay.barangay)}
+                              >
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {barangay.barangay}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    barangay.total >= 7 ? 'bg-red-100 text-red-800' :
+                                    barangay.total >= 3 ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-green-100 text-green-800'
+                                  }`}>
+                                    {barangay.total}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.lost}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.found}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.abuse}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.pending}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.resolved}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {barangay.urgent > 0 && (
+                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                                      {barangay.urgent}
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                              {isExpanded && barangaySubmissions.length > 0 && (
+                                <tr>
+                                  <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                                    <div className="space-y-3">
+                                      <h4 className="font-medium text-gray-900 text-sm mb-3">Recent Submissions:</h4>
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full">
+                                          <thead>
+                                            <tr className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                              <th className="text-left py-2 pr-4">Type</th>
+                                              <th className="text-left py-2 pr-4">Animal</th>
+                                              <th className="text-left py-2 pr-4">Status</th>
+                                              <th className="text-left py-2 pr-4">Priority</th>
+                                              <th className="text-left py-2">Date</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-gray-200">
+                                            {barangaySubmissions.map((submission, index) => (
+                                              <tr key={`${submission.id}-${index}`} className="text-sm">
+                                                <td className="py-2 pr-4">
+                                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                    submission.type === 'lost' ? 'bg-blue-100 text-blue-800' :
+                                                    submission.type === 'found' ? 'bg-green-100 text-green-800' :
+                                                    'bg-red-100 text-red-800'
+                                                  }`}>
+                                                    {submission.type}
+                                                  </span>
+                                                </td>
+                                                <td className="py-2 pr-4 font-medium text-gray-900">
+                                                  {submission.animalName}
+                                                </td>
+                                                <td className="py-2 pr-4">
+                                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(submission.status)}`}>
+                                                    {submission.status}
+                                                  </span>
+                                                </td>
+                                                <td className="py-2 pr-4">
+                                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                    submission.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                                    submission.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                                    submission.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-green-100 text-green-800'
+                                                  }`}>
+                                                    {submission.priority}
+                                                  </span>
+                                                </td>
+                                                <td className="py-2 text-gray-600">
+                                                  {new Date(submission.date).toLocaleDateString()}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
                               )}
-                            </td>
-                          </tr>
-                        ))}
+                            </>
+                          )
+                        })}
                       </tbody>
                     </table>
                             </div>
@@ -1454,6 +1535,7 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
+              
                 {/* Interactive Map Integration */}
                 <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-6">
                   <div className="flex items-center space-x-3">

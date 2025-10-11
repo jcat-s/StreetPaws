@@ -1,5 +1,6 @@
 import { MapPin, Phone, Mail, Facebook } from 'lucide-react'
 import { useState } from 'react'
+import toast from 'react-hot-toast'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 
@@ -9,14 +10,10 @@ const ContactUs = () => {
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
-    setSuccess(null)
-    setError(null)
     try {
       if (!db) throw new Error('Firestore not initialized')
       await addDoc(collection(db, 'messages'), {
@@ -29,13 +26,13 @@ const ContactUs = () => {
         archived: false,
         status: 'new'
       })
-      setSuccess('Your message has been sent. We will get back to you soon!')
+      toast.success('Your message has been sent. We will get back to you soon!')
       setName('')
       setEmail('')
       setSubject('')
       setMessage('')
     } catch (e: any) {
-      setError(e?.message || 'Failed to send message. Please try again.')
+      toast.error(e?.message || 'Failed to send message. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -109,8 +106,6 @@ const ContactUs = () => {
           {/* Right: Message Form */}
           <div className="bg-white rounded-lg shadow-sm p-8">
             <h2 className="text-2xl font-bold text-orange-600 mb-6">Send a Message</h2>
-            {success && <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800">{success}</div>}
-            {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</div>}
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>

@@ -97,13 +97,17 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
     
-    // Notifications - users can read their own; only admins can write
+    // Notifications - users can read and update their own; only admins can create/delete
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && (
         (resource.data.recipientUid != null && resource.data.recipientUid == request.auth.uid) ||
         (resource.data.recipientEmail != null && request.auth.token.email == resource.data.recipientEmail)
       );
-      allow create, update, delete: if isAdmin();
+      allow update: if isAuthenticated() && (
+        (resource.data.recipientUid != null && resource.data.recipientUid == request.auth.uid) ||
+        (resource.data.recipientEmail != null && request.auth.token.email == resource.data.recipientEmail)
+      ) && request.resource.data.read == true && request.resource.data.readAt != null;
+      allow create, delete: if isAdmin();
     }
     
     // Messages (Contact Us) - anyone can create; only admins can read/write after

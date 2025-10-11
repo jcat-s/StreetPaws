@@ -5,7 +5,6 @@ import {
   Search, 
   XCircle, 
   DollarSign,
-  Download,
   Edit,
   Trash2,
   Eye
@@ -198,33 +197,6 @@ const Donors = () => {
     }
   }
 
-  const handleExportCsv = () => {
-    const rows = filteredDonations.map(d => ({
-      id: d.id,
-      name: d.name,
-      email: d.email,
-      phone: d.phone || '',
-      amount: d.amount,
-      paymentMethod: d.paymentMethod,
-      reference: d.reference || '',
-      message: d.message || '',
-      status: d.status,
-      createdAt: d.createdAt
-    }))
-    const header = Object.keys(rows[0] || { id: 'id' }).join(',')
-    const body = rows.map(obj => Object.values(obj).map(v => {
-      const s = String(v ?? '')
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-    }).join(',')).join('\n')
-    const csv = [header, body].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `donations_${new Date().toISOString()}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -289,10 +261,6 @@ const Donors = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Donations ({filteredDonations.length})
               </h2>
-              <button onClick={handleExportCsv} className="flex items-center space-x-2 text-orange-600 hover:text-orange-700">
-                <Download className="h-4 w-4" />
-                <span>Export</span>
-              </button>
             </div>
           </div>
 

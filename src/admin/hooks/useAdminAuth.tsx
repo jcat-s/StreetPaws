@@ -43,7 +43,7 @@ export const AdminAuthProvider = ({ children }: { children: ReactNode }) => {
             uid: user.uid,
             email: user.email || '',
             role: role as 'admin' | 'super_admin',
-            name: user.displayName || 'Administrator',
+            name: user.displayName || 'Admin',
             department: 'Administration'
           }
           setAdminUser(adminData)

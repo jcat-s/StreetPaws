@@ -861,14 +861,6 @@ const ReportsManagement = () => {
                           <option value="normal">Normal</option>
                         </select>
                       </div>
-                      {selectedReport.type !== 'abuse' && (
-                        <div className="md:col-span-3">
-                          <label className="inline-flex items-center space-x-2">
-                            <input type="checkbox" checked={editPublished} onChange={(e) => setEditPublished(e.target.checked)} />
-                            <span className="text-sm text-gray-700">Approve for website (publish to Content Management)</span>
-                          </label>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>

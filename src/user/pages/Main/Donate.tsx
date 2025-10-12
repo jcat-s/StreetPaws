@@ -22,9 +22,7 @@ L.Marker.prototype.options.icon = DefaultIcon
 const RESCUE_CENTER = {
   coords: [13.9411, 121.1624] as [number, number],
   address: "Marawoy, Lipa City, Batangas, Philippines",
-  fullAddress: "StreetPaws Animal Rescue Center, Marawoy, Lipa City, Batangas 4217, Philippines",
-  phone: "+63 917 123 4567",
-  email: "info@streetpaws.org",
+  fullAddress: "Lipa City Veterinary Office, Marawoy, Lipa City, Batangas 4217, Philippines",
   operatingHours: "Monday - Sunday: 8:00 AM - 6:00 PM"
 }
 
@@ -261,7 +259,7 @@ const Donate = () => {
             </h2>
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="font-semibold text-green-800 mb-2">Marawoy, Lipa City, Batangas</p>
-              <p className="text-sm text-green-700 mb-2">StreetPaws Animal Rescue Center</p>
+              <p className="text-sm text-green-700 mb-2">Lipa City Veterinary Office</p>
               <p className="text-sm text-green-700">
                 Operating Hours: {RESCUE_CENTER.operatingHours}
               </p>

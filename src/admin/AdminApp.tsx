@@ -7,7 +7,6 @@ import AdminDashboard from './pages/AdminDashboard'
 import ReportsManagement from './pages/ReportsManagement'
 import AdoptionsManagement from './pages/Forms/AdoptionsManagement'
 import AnimalsManagement from './pages/Content/AnimalsManagement'
-import AdminSettings from './pages/AdminSettings'
 import Volunteers from './pages/Forms/VolunteersManagement'
 import Donors from './pages/Forms/DonorsManagement'
 import ContentHome from './pages/Content/Lost&FoundManagement'
@@ -131,7 +130,6 @@ const AdminAppContent = () => {
         <Route path="heatmap" element={<Heatmap />} />
         <Route path="content" element={<ContentHome />} />
         <Route path="content/animals" element={<AnimalsManagement />} />
-        <Route path="settings" element={<AdminSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AdminLayout>

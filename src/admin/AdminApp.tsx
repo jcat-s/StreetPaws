@@ -9,6 +9,7 @@ import AdoptionsManagement from './pages/Forms/AdoptionsManagement'
 import AnimalsManagement from './pages/Content/AnimalsManagement'
 import Volunteers from './pages/Forms/VolunteersManagement'
 import Donors from './pages/Forms/DonorsManagement'
+import ExpenseManagement from './pages/Content/ExpenseManagement'
 import ContentHome from './pages/Content/Lost&FoundManagement'
 import Heatmap from './pages/Heatmap'
 import MessageManagement from './pages/MessageManagement'
@@ -130,6 +131,7 @@ const AdminAppContent = () => {
         <Route path="heatmap" element={<Heatmap />} />
         <Route path="content" element={<ContentHome />} />
         <Route path="content/animals" element={<AnimalsManagement />} />
+        <Route path="content/expenses" element={<ExpenseManagement />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AdminLayout>

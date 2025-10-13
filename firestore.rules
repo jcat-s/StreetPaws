@@ -46,7 +46,7 @@ service cloud.firestore {
     
     // Abuse reports collection - anyone can create, admins can read/write
     match /reports-abuse/{reportId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
+      allow read: if true; // Allow public read for transparency dashboard
       allow create: if true;
       allow update: if isAdmin() || (isAuthenticated() && resource.data.createdBy == request.auth.uid) || (!isAuthenticated() && resource.data.createdBy == null);
       allow delete: if isAdmin();
@@ -60,7 +60,7 @@ service cloud.firestore {
     
     // Adoptions collection - admins can manage, anyone can create (for adoption forms)
     match /adoptions/{adoptionId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Allow public read for transparency dashboard
       allow create: if true; // Allow anonymous users to submit adoption applications
       allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
@@ -68,7 +68,7 @@ service cloud.firestore {
     
     // Donations collection - admins can manage, anyone can create (for donation forms)
     match /donations/{donationId} {
-      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow read: if true; // Allow public read for transparency dashboard
       allow create: if true; // Allow anonymous users to submit donations
       allow update: if isAdmin();
       allow delete: if isAdmin();
@@ -80,6 +80,12 @@ service cloud.firestore {
       allow create: if true; // Allow anonymous users to submit volunteer applications
       allow update: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
+    }
+    
+    // Expenses collection - admins can manage, public can read for transparency
+    match /expenses/{expenseId} {
+      allow read: if true; // Allow public read for transparency dashboard
+      allow create, update, delete: if isAdmin();
     }
     
     // User profiles - users can manage their own, admins can read

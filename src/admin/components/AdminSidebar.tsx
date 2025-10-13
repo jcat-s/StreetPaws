@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutGrid, Users, Heart, FileText, LogOut, Search, Flame, FolderCog, ChevronDown, ChevronRight, Mail, User } from 'lucide-react'
+import { LayoutGrid, Users, Heart, FileText, LogOut, Search, Flame, FolderCog, ChevronDown, ChevronRight, Mail, User, DollarSign } from 'lucide-react'
 import { useState, type FC } from 'react'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 
@@ -69,6 +69,7 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
             <div className="ml-4 space-y-1 mt-1">
               <NavItem to="/content" icon={Search} label="Lost & Found Management" onNavigate={onNavigate} />
               <NavItem to="/content/animals" icon={Users} label="Our Animals Management" onNavigate={onNavigate} />
+              <NavItem to="/content/expenses" icon={DollarSign} label="Expense Management" onNavigate={onNavigate} />
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Search, Trash2, Plus, AlertTriangle, CheckCircle, Download, Eye, EyeOff } from 'lucide-react'
+import { Search, Trash2, Plus, AlertTriangle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
 import { createSignedEvidenceUrl, submitReport } from '../../../user/utils/reportService'
@@ -397,10 +397,6 @@ const ContentHome = () => {
               <button onClick={handleAddNew} className="flex items-center space-x-2 text-orange-600 hover:text-orange-700">
                 <Plus className="h-4 w-4" />
                 <span>Add New</span>
-              </button>
-              <button className="flex items-center space-x-2 text-orange-600 hover:text-orange-700">
-                <Download className="h-4 w-4" />
-                <span>Export</span>
               </button>
             </div>
           </div>

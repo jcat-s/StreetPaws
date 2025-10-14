@@ -10,7 +10,6 @@ import {
   XCircle, 
   AlertTriangle,
   FileText,
-  Download,
   Edit,
   Trash2,
   Eye
@@ -41,7 +40,6 @@ type AdminReport = {
   status: string
   priority: 'urgent' | 'high' | 'medium' | 'normal'
   createdAt: string
-  assignedTo?: string | null
   attachments?: string[]
   imageUrl?: string
   // abuse-specific fields
@@ -62,7 +60,6 @@ const ReportsManagement = () => {
   const [isEditing, setIsEditing] = useState(false)
   const [editStatus, setEditStatus] = useState<'pending' | 'investigating' | 'resolved'>('pending')
   const [editPriority, setEditPriority] = useState<'urgent' | 'high' | 'medium' | 'normal'>('normal')
-  const [editAssignedTo, setEditAssignedTo] = useState<string>('')
   const [editPublished, setEditPublished] = useState<boolean>(false)
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([])
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -129,7 +126,6 @@ const ReportsManagement = () => {
           status,
           priority: (d?.priority || 'normal') as AdminReport['priority'],
           createdAt: createdAtIso,
-          assignedTo: d?.assignedTo || null,
           attachments: [] as string[]
         }
 
@@ -331,7 +327,6 @@ const ReportsManagement = () => {
     setIsEditing(!!edit)
     setEditStatus((report.status as 'pending' | 'investigating' | 'resolved') || 'pending')
     setEditPriority((report.priority as 'urgent' | 'high' | 'medium' | 'normal') || 'normal')
-    setEditAssignedTo(report.assignedTo || '')
     setEditPublished((report as any)?.published === true)
     
     if (report.type === 'abuse') {
@@ -354,7 +349,6 @@ const ReportsManagement = () => {
       await updateDoc(ref, {
         status: editStatus === 'pending' ? 'open' : editStatus,
         priority: editPriority,
-        assignedTo: editAssignedTo || null,
         published: editPublished
       })
       
@@ -421,42 +415,6 @@ const ReportsManagement = () => {
 
   
 
-  const handleExportCsv = () => {
-    const rows = filteredReports.map(r => ({
-      id: r.id,
-      type: r.type,
-      animalName: r.animalName || '',
-      animalType: r.animalType || '',
-      breed: r.breed || '',
-      age: r.age || '',
-      gender: r.gender || '',
-      colors: r.colors || '',
-      size: r.size || '',
-      location: r.lastSeenLocation || '',
-      date: r.lastSeenDate || '',
-      time: r.lastSeenTime || '',
-      reporterName: r.reporterName || '',
-      reporterPhone: r.reporterPhone || '',
-      reporterEmail: r.reporterEmail || '',
-      status: r.status,
-      priority: r.priority,
-      createdAt: r.createdAt,
-      assignedTo: r.assignedTo || ''
-    }))
-    const header = Object.keys(rows[0] || { id: 'id' }).join(',')
-    const body = rows.map(obj => Object.values(obj).map(v => {
-      const s = String(v ?? '')
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-    }).join(',')).join('\n')
-    const csv = [header, body].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `reports_${new Date().toISOString()}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -536,10 +494,6 @@ const ReportsManagement = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Reports ({filteredReports.length})
               </h2>
-              <button onClick={handleExportCsv} className="flex items-center space-x-2 text-orange-600 hover:text-orange-700">
-                <Download className="h-4 w-4" />
-                <span>Export</span>
-              </button>
             </div>
           </div>
 
@@ -887,13 +841,9 @@ const ReportsManagement = () => {
                         {selectedReport.priority}
                       </span>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
-                      <p className="text-sm text-gray-900">{selectedReport.assignedTo || 'Unassigned'}</p>
-                    </div>
                   </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                         <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as any)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
@@ -911,18 +861,6 @@ const ReportsManagement = () => {
                           <option value="normal">Normal</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Assigned To</label>
-                        <input value={editAssignedTo} onChange={(e) => setEditAssignedTo(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500" placeholder="Name or team" />
-                      </div>
-                      {selectedReport.type !== 'abuse' && (
-                        <div className="md:col-span-3">
-                          <label className="inline-flex items-center space-x-2">
-                            <input type="checkbox" checked={editPublished} onChange={(e) => setEditPublished(e.target.checked)} />
-                            <span className="text-sm text-gray-700">Approve for website (publish to Content Management)</span>
-                          </label>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>

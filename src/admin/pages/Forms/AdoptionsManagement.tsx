@@ -5,7 +5,6 @@ import {
   CheckCircle, 
   XCircle, 
   Heart,
-  Download,
   Trash2
 } from 'lucide-react'
 
@@ -260,10 +259,6 @@ const AdoptionsManagement = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 Adoption Applications ({filteredAdoptions.length})
               </h2>
-              <button className="flex items-center space-x-2 text-orange-600 hover:text-orange-700">
-                <Download className="h-4 w-4" />
-                <span>Export</span>
-              </button>
             </div>
           </div>
 

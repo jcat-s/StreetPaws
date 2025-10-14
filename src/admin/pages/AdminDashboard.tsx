@@ -15,6 +15,7 @@ import {
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../../config/firebase'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import { LIPA_BARANGAYS } from '../../shared/constants/barangays'
 
 // Dashboard data types
 type DashboardReport = {
@@ -86,6 +87,21 @@ const AdminDashboard = () => {
   
   // Counts
   const [reportCounts, setReportCounts] = useState({ total: 0, pending: 0, resolved: 0 })
+  
+  // UI states
+  const [expandedBarangays, setExpandedBarangays] = useState<Set<string>>(new Set())
+
+  const toggleBarangayExpansion = (barangay: string) => {
+    setExpandedBarangays(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(barangay)) {
+        newSet.delete(barangay)
+      } else {
+        newSet.add(barangay)
+      }
+      return newSet
+    })
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -166,10 +182,22 @@ const AdminDashboard = () => {
         const rawStatus: string = (d?.status || 'pending').toString().toLowerCase()
         const status: string = rawStatus === 'open' ? 'pending' : rawStatus
 
+        // Get the correct animal name based on report type
+        let animalName = 'Unknown'
+        if (collectionType === 'abuse') {
+          animalName = d?.caseTitle || 'Unknown Case'
+        } else if (collectionType === 'found') {
+          animalName = d?.breed || 'Unknown'
+        } else if (collectionType === 'lost') {
+          animalName = d?.animalName || 'Unknown'
+        } else {
+          animalName = d?.animalName || d?.name || 'Unknown Animal'
+        }
+
         return {
           id: doc.id,
           type: collectionType,
-          animalName: d?.animalName || d?.name || 'Unknown Animal',
+          animalName,
           animalType: d?.animalType || d?.type || 'unknown',
           location: d?.lastSeenLocation || d?.foundLocation || d?.incidentLocation || d?.location || 'Unknown Location',
           reporter: d?.contactName || d?.reporterName || d?.name || 'Anonymous',
@@ -267,16 +295,14 @@ const AdminDashboard = () => {
     const volunteersQuery = query(collection(db, 'volunteers'), orderBy('createdAt', 'desc'))
     const messagesQuery = query(collection(db, 'messages'), orderBy('createdAt', 'desc'))
     
-    // Function to update reports without duplicates
+
     const updateReports = () => {
       allReports = [...reportsByType.lost, ...reportsByType.found, ...reportsByType.abuse]
-      // Remove duplicates based on ID
       const uniqueReports = allReports.reduce((acc, current) => {
         const existingIndex = acc.findIndex(item => item.id === current.id)
         if (existingIndex === -1) {
           acc.push(current)
         } else {
-          // Keep the most recent version
           if (new Date(current.date) > new Date(acc[existingIndex].date)) {
             acc[existingIndex] = current
           }
@@ -311,7 +337,6 @@ const AdminDashboard = () => {
 
     const unsubscribeAdoptions = onSnapshot(adoptionsQuery, (snap) => {
       const adoptionData = processAdoptionDocs(snap.docs)
-      // Remove duplicates
       const uniqueAdoptions = adoptionData.reduce((acc, current) => {
         const existingIndex = acc.findIndex(item => item.id === current.id)
         if (existingIndex === -1) {
@@ -324,7 +349,6 @@ const AdminDashboard = () => {
 
     const unsubscribeDonations = onSnapshot(donationsQuery, (snap) => {
       const donationData = processDonationDocs(snap.docs)
-      // Remove duplicates
       const uniqueDonations = donationData.reduce((acc, current) => {
         const existingIndex = acc.findIndex(item => item.id === current.id)
         if (existingIndex === -1) {
@@ -367,7 +391,6 @@ const AdminDashboard = () => {
       const animalsQuery = query(collection(db, 'animals'), orderBy('createdAt', 'desc'))
       unsubscribeAnimals = onSnapshot(animalsQuery, (snap) => {
         const animalData = processAnimalDocs(snap.docs)
-        // Remove duplicates
         const uniqueAnimals = animalData.reduce((acc, current) => {
           const existingIndex = acc.findIndex(item => item.id === current.id)
           if (existingIndex === -1) {
@@ -394,9 +417,7 @@ const AdminDashboard = () => {
     }
   }, [])
 
-  // Calculated metrics
-  // const urgentReportsCount = useMemo(() => recentReports.filter(r => r.priority === 'urgent' || r.priority === 'high').length, [recentReports])
-  
+
   // Message metrics
   const messageStats = useMemo(() => ({
     total: messages.length,
@@ -406,25 +427,6 @@ const AdminDashboard = () => {
   }), [messages])
 
   // Recent activity for the last 7 days
-  // const recentActivity = useMemo(() => {
-  //   const weekAgo = new Date()
-  //   weekAgo.setDate(weekAgo.getDate() - 7)
-  //   
-  //   const recentAdoptions = adoptions.filter(a => new Date(a.submittedAt) >= weekAgo)
-  //   const recentDonations = donations.filter(d => new Date(d.createdAt) >= weekAgo)
-  //   const recentVolunteers = volunteers.filter(v => new Date(v.createdAt) >= weekAgo)
-  //   const recentReportsActivity = recentReports.filter(r => new Date(r.date) >= weekAgo)
-  //   const recentMessages = messages.filter(m => new Date(m.createdAt) >= weekAgo)
-  //   
-  //   return {
-  //     adoptions: recentAdoptions.length,
-  //     donations: recentDonations.length,
-  //     volunteers: recentVolunteers.length,
-  //     reports: recentReportsActivity.length,
-  //     messages: recentMessages.length,
-  //     totalAmount: recentDonations.filter(d => d.status === 'verified').reduce((sum, d) => sum + d.amount, 0)
-  //   }
-  // }, [adoptions, donations, volunteers, recentReports, messages])
   
   // Adoption metrics
   const adoptionStats = useMemo(() => ({
@@ -462,14 +464,6 @@ const AdminDashboard = () => {
   }), [volunteers])
 
   // Animal metrics
-  // const animalStats = useMemo(() => ({
-  //   total: animals.length,
-  //   available: animals.filter(a => a.status === 'available').length,
-  //   adopted: animals.filter(a => a.status === 'adopted').length,
-  //   pending: animals.filter(a => a.status === 'pending').length,
-  //   dogs: animals.filter(a => a.type === 'dog').length,
-  //   cats: animals.filter(a => a.type === 'cat').length
-  // }), [animals])
 
   // Monthly trends (last 6 months)
   const monthlyTrends = useMemo(() => {
@@ -517,6 +511,125 @@ const AdminDashboard = () => {
     
     return months
   }, [recentReports, adoptions, volunteers, donations, messages])
+
+  // Geographic analytics calculations
+  const geographicAnalytics = useMemo(() => {
+    // Group reports by barangay
+    const reportsByBarangay = new Map<string, {
+      barangay: string
+      total: number
+      lost: number
+      found: number
+      abuse: number
+      pending: number
+      resolved: number
+      investigating: number
+      urgent: number
+      high: number
+      medium: number
+      normal: number
+    }>()
+
+    // Initialize all barangays with zero counts
+    LIPA_BARANGAYS.forEach(barangay => {
+      reportsByBarangay.set(barangay, {
+        barangay,
+        total: 0,
+        lost: 0,
+        found: 0,
+        abuse: 0,
+        pending: 0,
+        resolved: 0,
+        investigating: 0,
+        urgent: 0,
+        high: 0,
+        medium: 0,
+        normal: 0
+      })
+    })
+
+    // Count reports by barangay
+    recentReports.forEach(report => {
+      if (report.location && report.location !== 'Unknown Location') {
+        const location = report.location.toLowerCase()
+        
+        // Improved matching algorithm
+        const matchingBarangay = LIPA_BARANGAYS.find(barangay => {
+          const barangayLower = barangay.toLowerCase()
+          
+          // Direct match
+          if (location === barangayLower) return true
+          
+          // Partial match (location contains barangay name)
+          if (location.includes(barangayLower)) return true
+          
+          // Barangay contains location (for shorter location strings)
+          if (barangayLower.includes(location)) return true
+          
+          // Special cases for common variations
+          if (barangayLower.includes('poblacion') && location.includes('poblacion')) return true
+          if (barangayLower.includes('barangay') && location.includes('barangay')) {
+            // Extract number from location and match with barangay
+            const locationNumber = location.match(/\d+/)?.[0]
+            const barangayNumber = barangayLower.match(/\d+/)?.[0]
+            if (locationNumber && barangayNumber && locationNumber === barangayNumber) return true
+          }
+          
+          return false
+        })
+
+        if (matchingBarangay) {
+          const data = reportsByBarangay.get(matchingBarangay)!
+          data.total++
+          
+          // Count by type
+          if (report.type === 'lost') data.lost++
+          else if (report.type === 'found') data.found++
+          else if (report.type === 'abuse') data.abuse++
+          
+          // Count by status
+          if (report.status === 'pending') data.pending++
+          else if (report.status === 'resolved') data.resolved++
+          else if (report.status === 'investigating') data.investigating++
+          
+          // Count by priority
+          if (report.priority === 'urgent') data.urgent++
+          else if (report.priority === 'high') data.high++
+          else if (report.priority === 'medium') data.medium++
+          else if (report.priority === 'normal') data.normal++
+        }
+      }
+    })
+
+    // Convert to arrays and sort by total reports
+    const barangayData = Array.from(reportsByBarangay.values())
+      .filter(data => data.total > 0)
+      .sort((a, b) => b.total - a.total)
+
+    const topBarangays = barangayData.slice(0, 10)
+    const allBarangaysWithData = Array.from(reportsByBarangay.values())
+
+    // Calculate geographic distribution (all reports should have location)
+    const totalReportsWithLocation = recentReports.length
+
+    // Calculate concentration levels (matching heatmap legend)
+    const concentrationLevels = {
+      high: barangayData.filter(b => b.total >= 7).length,
+      medium: barangayData.filter(b => b.total >= 3 && b.total < 7).length,
+      low: barangayData.filter(b => b.total >= 1 && b.total < 3).length,
+      none: allBarangaysWithData.filter(b => b.total === 0).length
+    }
+
+    return {
+      barangayData,
+      topBarangays,
+      allBarangaysWithData,
+      totalReportsWithLocation,
+      concentrationLevels,
+      totalBarangays: LIPA_BARANGAYS.length,
+      barangaysWithReports: barangayData.length
+    }
+  }, [recentReports])
 
   // Analytics calculations
   const analytics = useMemo(() => ({
@@ -1107,93 +1220,341 @@ const AdminDashboard = () => {
 
             {activeTab === 'geographic' && (
               <div className="space-y-8">
-                {/* Geographic Distribution */}
+                {/* Geographic Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Distribution</h3>
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <div className="text-center">
-                      <p className="text-gray-600 mb-4">Geographic analytics based on report locations</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                          <p className="text-sm font-medium text-gray-900">Reports with Location</p>
-                          <p className="text-2xl font-bold text-blue-600">{recentReports.filter(r => r.location && r.location !== 'Unknown Location').length}</p>
+                        <p className="text-sm font-medium text-blue-600">Total Barangays</p>
+                        <p className="text-xs text-blue-500">Coverage</p>
                         </div>
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                          <p className="text-sm font-medium text-gray-900">Total Reports</p>
-                          <p className="text-2xl font-bold text-green-600">{recentReports.length}</p>
+                      <MapPin className="h-8 w-8 text-blue-600" />
                         </div>
+                    <p className="text-3xl font-bold text-blue-900 mb-3">{geographicAnalytics.totalBarangays}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-blue-700">
+                        <span>With Reports</span>
+                        <span>{geographicAnalytics.barangaysWithReports}</span>
                       </div>
+                      <div className="flex justify-between text-xs text-blue-700">
+                        <span>Coverage</span>
+                        <span>{formatPercentage(geographicAnalytics.barangaysWithReports / geographicAnalytics.totalBarangays * 100)}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Location-based Analytics */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Reports by Location */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Reports by Location</h3>
-                    <div className="space-y-3">
-                      {recentReports.length === 0 ? (
-                        <p className="text-center text-gray-500">No reports with location data.</p>
-                      ) : (
-                        recentReports
-                          .filter(r => r.location && r.location !== 'Unknown Location')
-                          .slice(0, 5)
-                          .map((report) => (
-                            <div key={report.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-4 h-4 bg-orange-500 rounded-full"></div>
+
+                  <div className="bg-gradient-to-r from-orange-50 to-orange-100 p-6 rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
                                 <div>
-                                  <p className="text-sm font-medium text-gray-900">{report.location}</p>
-                                  <p className="text-xs text-gray-500">{report.type} • {report.animalType}</p>
+                        <p className="text-sm font-medium text-orange-600">High Concentration</p>
+                        <p className="text-xs text-orange-500">7+ Reports</p>
                                 </div>
+                      <AlertTriangle className="h-8 w-8 text-orange-600" />
                               </div>
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(report.status)}`}>
-                                {report.status}
-                              </span>
-                            </div>
-                          ))
-                      )}
+                    <p className="text-3xl font-bold text-orange-900 mb-3">{geographicAnalytics.concentrationLevels.high}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-orange-700">
+                        <span>Medium (3-6)</span>
+                        <span>{geographicAnalytics.concentrationLevels.medium}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-orange-700">
+                        <span>Low (1-2)</span>
+                        <span>{geographicAnalytics.concentrationLevels.low}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Location Statistics */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Location Statistics</h3>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Reports with Valid Location</span>
-                        <span className="text-lg font-bold text-blue-600">
-                          {recentReports.filter(r => r.location && r.location !== 'Unknown Location').length}
-                        </span>
+                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-lg">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-sm font-medium text-purple-600">No Reports</p>
+                        <p className="text-xs text-purple-500">Quiet Areas</p>
                       </div>
-                      <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Reports without Location</span>
-                        <span className="text-lg font-bold text-yellow-600">
-                          {recentReports.filter(r => !r.location || r.location === 'Unknown Location').length}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                        <span className="text-sm font-medium text-gray-700">Location Coverage</span>
-                        <span className="text-lg font-bold text-green-600">
-                          {recentReports.length > 0 
-                            ? Math.round((recentReports.filter(r => r.location && r.location !== 'Unknown Location').length / recentReports.length) * 100)
-                            : 0}%
-                        </span>
+                      <XCircle className="h-8 w-8 text-purple-600" />
+                    </div>
+                    <p className="text-3xl font-bold text-purple-900 mb-3">{geographicAnalytics.concentrationLevels.none}</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-purple-700">
+                        <span>Potential Focus</span>
+                        <span>Areas</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Map Integration Note */}
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="h-6 w-6 text-orange-600" />
-                    <div>
-                      <h3 className="text-lg font-semibold text-orange-900">Interactive Map</h3>
-                      <p className="text-orange-700 mt-1">
-                        For detailed geographic visualization and heatmap analysis, visit the dedicated Heatmap section in the sidebar.
+                {/* Concentration Distribution Chart */}
+                <div className="grid grid-cols-1 gap-8">
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Concentration Distribution</h3>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'High (7+)', value: geographicAnalytics.concentrationLevels.high, color: '#EF4444' },
+                              { name: 'Medium (3-6)', value: geographicAnalytics.concentrationLevels.medium, color: '#EAB308' },
+                              { name: 'Low (1-2)', value: geographicAnalytics.concentrationLevels.low, color: '#22C55E' },
+                              { name: 'None (0)', value: geographicAnalytics.concentrationLevels.none, color: '#6B7280' }
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            dataKey="value"
+                            label={({ name, value, percent }: any) => value > 0 ? `${name}: ${value} (${(percent * 100).toFixed(1)}%)` : ''}
+                          >
+                            {[
+                              { name: 'High (7+)', value: geographicAnalytics.concentrationLevels.high, color: '#EF4444' },
+                              { name: 'Medium (3-6)', value: geographicAnalytics.concentrationLevels.medium, color: '#EAB308' },
+                              { name: 'Low (1-2)', value: geographicAnalytics.concentrationLevels.low, color: '#22C55E' },
+                              { name: 'None (0)', value: geographicAnalytics.concentrationLevels.none, color: '#6B7280' }
+                            ].map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value, name) => [value, name]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {/* Legend */}
+                    <div className="flex justify-center mt-4 space-x-4 text-xs">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
+                        <span>High (7+)</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full mr-1"></div>
+                        <span>Medium (3-6)</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-green-500 rounded-full mr-1"></div>
+                        <span>Low (1-2)</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 bg-gray-500 rounded-full mr-1"></div>
+                        <span>None (0)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detailed Barangay Analysis */}
+                <div className="bg-white p-6 rounded-lg shadow-sm">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Detailed Barangay Analysis</h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Barangay</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lost</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Found</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Abuse</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pending</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Resolved</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Urgent</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {geographicAnalytics.barangayData.slice(0, 15).map((barangay) => {
+                          // Get submissions for this barangay
+                          const barangaySubmissions = recentReports.filter(report => {
+                            if (!report.location || report.location === 'Unknown Location') return false
+                            const location = report.location.toLowerCase()
+                            const barangayLower = barangay.barangay.toLowerCase()
+                            
+                            if (location === barangayLower) return true
+                            if (location.includes(barangayLower)) return true
+                            if (barangayLower.includes(location)) return true
+                            
+                            if (barangayLower.includes('poblacion') && location.includes('poblacion')) return true
+                            if (barangayLower.includes('barangay') && location.includes('barangay')) {
+                              const locationNumber = location.match(/\d+/)?.[0]
+                              const barangayNumber = barangayLower.match(/\d+/)?.[0]
+                              if (locationNumber && barangayNumber && locationNumber === barangayNumber) return true
+                            }
+                            
+                            return false
+                          }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+                          const isExpanded = expandedBarangays.has(barangay.barangay)
+
+                          return (
+                            <>
+                              <tr 
+                                key={barangay.barangay} 
+                                className="hover:bg-gray-50 cursor-pointer"
+                                onClick={() => toggleBarangayExpansion(barangay.barangay)}
+                              >
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {barangay.barangay}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                    barangay.total >= 7 ? 'bg-red-100 text-red-800' :
+                                    barangay.total >= 3 ? 'bg-yellow-100 text-yellow-800' :
+                                    'bg-green-100 text-green-800'
+                                  }`}>
+                                    {barangay.total}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.lost}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.found}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.abuse}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.pending}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{barangay.resolved}</td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                  {barangay.urgent > 0 && (
+                                    <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+                                      {barangay.urgent}
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                              {isExpanded && barangaySubmissions.length > 0 && (
+                                <tr>
+                                  <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                                    <div className="space-y-3">
+                                      <h4 className="font-medium text-gray-900 text-sm mb-3">Recent Submissions:</h4>
+                                      <div className="overflow-x-auto">
+                                        <table className="min-w-full">
+                                          <thead>
+                                            <tr className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                              <th className="text-left py-2 pr-4">Type</th>
+                                              <th className="text-left py-2 pr-4">Animal</th>
+                                              <th className="text-left py-2 pr-4">Status</th>
+                                              <th className="text-left py-2 pr-4">Priority</th>
+                                              <th className="text-left py-2">Date</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-gray-200">
+                                            {barangaySubmissions.map((submission, index) => (
+                                              <tr key={`${submission.id}-${index}`} className="text-sm">
+                                                <td className="py-2 pr-4">
+                                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                    submission.type === 'lost' ? 'bg-blue-100 text-blue-800' :
+                                                    submission.type === 'found' ? 'bg-green-100 text-green-800' :
+                                                    'bg-red-100 text-red-800'
+                                                  }`}>
+                                                    {submission.type}
+                                                  </span>
+                                                </td>
+                                                <td className="py-2 pr-4 font-medium text-gray-900">
+                                                  {submission.animalName}
+                                                </td>
+                                                <td className="py-2 pr-4">
+                                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(submission.status)}`}>
+                                                    {submission.status}
+                                                  </span>
+                                                </td>
+                                                <td className="py-2 pr-4">
+                                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                    submission.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                                    submission.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                                    submission.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-green-100 text-green-800'
+                                                  }`}>
+                                                    {submission.priority}
+                                                  </span>
+                                                </td>
+                                                <td className="py-2 text-gray-600">
+                                                  {new Date(submission.date).toLocaleDateString()}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                            </div>
+                  {geographicAnalytics.barangayData.length > 15 && (
+                    <div className="mt-4 text-center">
+                      <p className="text-sm text-gray-500">
+                        Showing top 15 barangays. {geographicAnalytics.barangayData.length - 15} more barangays with reports.
                       </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Geographic Insights */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Insights</h3>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-medium text-blue-900 mb-2">📍 Coverage Analysis</h4>
+                        <p className="text-sm text-blue-700">
+                          {geographicAnalytics.barangaysWithReports} out of {geographicAnalytics.totalBarangays} barangays ({formatPercentage(geographicAnalytics.barangaysWithReports / geographicAnalytics.totalBarangays * 100)}) have reported cases.
+                        </p>
+                      </div>
+                      <div className="p-4 bg-orange-50 rounded-lg">
+                        <h4 className="font-medium text-orange-900 mb-2">⚠️ Priority Areas</h4>
+                        <p className="text-sm text-orange-700">
+                          {geographicAnalytics.concentrationLevels.high} barangays have high case concentrations (7+ reports) requiring immediate attention.
+                        </p>
+                      </div>
+                      <div className="p-4 bg-green-50 rounded-lg">
+                        <h4 className="font-medium text-green-900 mb-2">✅ Data Quality</h4>
+                        <p className="text-sm text-green-700">
+                          All reports include location data, enabling comprehensive geographic analysis across {geographicAnalytics.totalReportsWithLocation} cases.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Strategic Recommendations</h3>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-red-50 rounded-lg">
+                        <h4 className="font-medium text-red-900 mb-2">🔴 Immediate Action Required</h4>
+                        <p className="text-sm text-red-700">
+                          Focus resources on {geographicAnalytics.concentrationLevels.high} high-concentration barangays with 7+ cases.
+                        </p>
+                      </div>
+                      <div className="p-4 bg-yellow-50 rounded-lg">
+                        <h4 className="font-medium text-yellow-900 mb-2">🟡 Monitor Closely</h4>
+                        <p className="text-sm text-yellow-700">
+                          Keep watch on {geographicAnalytics.concentrationLevels.medium} medium-concentration areas (3-6 cases) to prevent escalation.
+                        </p>
+                      </div>
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-medium text-blue-900 mb-2">🔵 Expand Coverage</h4>
+                        <p className="text-sm text-blue-700">
+                          Consider outreach programs in {geographicAnalytics.concentrationLevels.none} barangays with no reports to improve awareness.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              
+                {/* Interactive Map Integration */}
+                <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-6">
+                  <div className="flex items-center space-x-3">
+                    <MapPin className="h-8 w-8 text-orange-600" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-orange-900">Interactive Geographic Visualization</h3>
+                      <p className="text-orange-700 mt-1">
+                        For detailed heatmap analysis, real-time filtering, and interactive geographic exploration, 
+                        visit the dedicated <strong>Heatmap section</strong> in the admin sidebar. 
+                        Access advanced mapping tools with barangay-specific filtering and concentration visualization.
+                      </p>
+                      <div className="mt-3 space-y-2">
+                        
+                        <div className="mt-2">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-200 text-orange-800">
+                            🗺️ Enhanced Mapping Available
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
-// Toaster removed; notifications are handled in navbar dropdown
+import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from './contexts/AuthContext'
 import Navbar from './user/modal/Navbar'
 import Home from './user/pages/Main/Home'
@@ -60,7 +60,7 @@ function AppLayout() {
           <Footer />
         </>
       )}
-      {/* Toaster removed */}
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
     </div>
   )
 }

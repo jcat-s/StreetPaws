@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutGrid, Users, Heart, FileText, LogOut, Settings, Search, Flame, FolderCog, ChevronDown, ChevronRight, Mail } from 'lucide-react'
+import { LayoutGrid, Users, Heart, FileText, LogOut, Search, Flame, FolderCog, ChevronDown, ChevronRight, Mail, User, DollarSign } from 'lucide-react'
 import { useState, type FC } from 'react'
 import { useAdminAuth } from '../hooks/useAdminAuth'
 
@@ -30,7 +30,7 @@ type AdminSidebarProps = {
 }
 
 const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => {
-  const { logout } = useAdminAuth()
+  const { logout, adminUser } = useAdminAuth()
   const location = useLocation()
   const contentInitiallyOpen = location.pathname.includes('/content')
   const [contentOpen, setContentOpen] = useState<boolean>(contentInitiallyOpen)
@@ -69,13 +69,29 @@ const AdminSidebar: FC<AdminSidebarProps> = ({ isOpen = false, onNavigate }) => 
             <div className="ml-4 space-y-1 mt-1">
               <NavItem to="/content" icon={Search} label="Lost & Found Management" onNavigate={onNavigate} />
               <NavItem to="/content/animals" icon={Users} label="Our Animals Management" onNavigate={onNavigate} />
+              <NavItem to="/content/expenses" icon={DollarSign} label="Expense Management" onNavigate={onNavigate} />
             </div>
           )}
         </div>
         
         {/* Fixed footer */}
-        <div className="flex-shrink-0 p-4 pt-3 space-y-2 border-t border-gray-100 bg-gray-50/50">
-          <NavItem to="/settings" icon={Settings} label="Admin Settings" onNavigate={onNavigate} />
+        <div className="flex-shrink-0 p-4 pt-3 space-y-3 border-t border-gray-100 bg-gray-50/50">
+          {/* Admin Profile */}
+          {adminUser && (
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <div className="flex items-center space-x-3">
+                <div className="bg-gradient-to-br from-orange-400 to-orange-500 p-3 rounded-full shadow-md">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{adminUser.name}</p>
+                  <p className="text-xs text-gray-600 truncate">{adminUser.email}</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Logout Button */}
           <button onClick={logout} className="w-full flex items-center h-11 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all duration-200 hover:shadow-sm border border-red-200">
             <div className="h-full w-11 flex items-center justify-center text-red-600">
               <LogOut className="h-5 w-5" />

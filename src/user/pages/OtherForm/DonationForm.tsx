@@ -17,29 +17,33 @@ interface DonationData {
   reference?: string
   message?: string
   consent?: boolean
+  isAnonymous?: boolean
 }
 
 const DonationForm = () => {
   const { currentUser } = useAuth()
-  const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<DonationData>({
+  const { register, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm<DonationData>({
     defaultValues: {
       paymentMethod: "", // 👈 force dropdown to start empty
+      isAnonymous: false,
     }
   })
 
   const paymentMethod = watch('paymentMethod')
+  const isAnonymous = watch('isAnonymous')
 
   const onSubmit = async (data: DonationData) => {
     try {
       if (!db) throw new Error('Firestore not initialized')
       await addDoc(collection(db, 'donations'), {
-        name: data.name,
+        name: data.isAnonymous ? 'Anonymous' : data.name,
         email: data.email,
         phone: data.phone || null,
         amount: Number(data.amount),
         paymentMethod: data.paymentMethod,
         reference: data.reference || null,
         message: data.message || null,
+        isAnonymous: !!data.isAnonymous,
         consent: !!data.consent,
         status: 'pending',
         userId: currentUser?.uid || null, // Capture user ID for notifications
@@ -64,14 +68,15 @@ const DonationForm = () => {
           {/* Donor Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name {isAnonymous ? '' : '*'}</label>
               <input
-                {...register('name', { required: 'Name is required' })}
+                {...register('name', { required: isAnonymous ? false : 'Name is required' })}
                 type="text"
                 className="input-field"
-                placeholder="e.g., Maria Santos"
+                placeholder={isAnonymous ? 'Anonymous' : 'e.g., Maria Santos'}
+                disabled={isAnonymous}
               />
-              {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
+              {!isAnonymous && errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
             </div>
 
             <div>
@@ -146,6 +151,24 @@ const DonationForm = () => {
             {errors.paymentMethod && (
               <p className="text-sm text-red-600">{errors.paymentMethod.message}</p>
             )}
+          </div>
+
+          {/* Donate Anonymously */}
+          <div className="flex items-start space-x-2">
+            <input
+              type="checkbox"
+              {...register('isAnonymous')}
+              onChange={(e) => {
+                const checked = e.target.checked
+                setValue('isAnonymous', checked)
+                if (checked) {
+                  setValue('name', 'Anonymous')
+                } else {
+                  setValue('name', '')
+                }
+              }}
+            />
+            <label className="text-sm">Donate anonymously (your name will appear as "Anonymous").</label>
           </div>
 
           {/* QR Codes */}

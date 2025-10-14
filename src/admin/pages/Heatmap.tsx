@@ -448,11 +448,6 @@ const Heatmap = () => {
               ❌ No reports found
             </div>
           )}
-          {(dateFrom || dateTo) && (
-            <div className="mt-2 text-blue-600 text-sm">
-              🔍 Date filter active: {dateFrom || 'no start'} to {dateTo || 'no end'} - Check console for debugging info
-            </div>
-          )}
         </div>
       </div>
 
@@ -480,12 +475,9 @@ const Heatmap = () => {
                   max={Math.max(maxCount, 1)}
                   minOpacity={0.4}
                   gradient={{
-                    0.1: '#22c55e', // green - 1-2 cases
-                    0.3: '#84cc16', // lime green - 3-4 cases  
-                    0.5: '#eab308', // yellow - 5-6 cases
-                    0.7: '#f97316', // orange - 7-8 cases
-                    0.9: '#ef4444', // red - 9-10 cases
-                    1.0: '#dc2626'  // dark red - 10+ cases
+                    0.33: '#22c55e', // green - Low (1-2 cases)
+                    0.66: '#eab308', // yellow - Medium (3-6 cases)
+                    1.0: '#ef4444'  // red - High (7+ cases)
                   }}
                 />
               )}
@@ -494,11 +486,8 @@ const Heatmap = () => {
               {heatmapData.map((coord, index) => {
                 // Determine color based on intensity
                 let markerColor = '#22c55e' // green for low (1-2 cases)
-                if (coord.intensity >= 10) markerColor = '#dc2626' // dark red for severe (10+ cases)
-                else if (coord.intensity >= 9) markerColor = '#ef4444' // red for critical (9-10 cases)
-                else if (coord.intensity >= 7) markerColor = '#f97316' // orange for very high (7-8 cases)
-                else if (coord.intensity >= 5) markerColor = '#eab308' // yellow for high (5-6 cases)
-                else if (coord.intensity >= 3) markerColor = '#84cc16' // lime green for medium (3-4 cases)
+                if (coord.intensity >= 7) markerColor = '#ef4444' // red for high (7+ cases)
+                else if (coord.intensity >= 3) markerColor = '#eab308' // yellow for medium (3-6 cases)
                 
                 // Create custom icon with color
                 const customIcon = L.divIcon({
@@ -530,18 +519,15 @@ const Heatmap = () => {
                         </div>
                         <div className="flex items-center justify-center mb-2">
                           <div className={`inline-flex items-center px-3 py-1 rounded-full text-white font-bold text-lg ${
-                            coord.intensity >= 10 ? 'bg-red-700' : 
-                            coord.intensity >= 9 ? 'bg-red-500' : 
-                            coord.intensity >= 7 ? 'bg-orange-500' : 
-                            coord.intensity >= 5 ? 'bg-yellow-500' : 
-                            coord.intensity >= 3 ? 'bg-lime-500' : 'bg-green-500'
+                            coord.intensity >= 7 ? 'bg-red-500' : 
+                            coord.intensity >= 3 ? 'bg-yellow-500' : 'bg-green-500'
                           }`}>
                             {coord.intensity} {coord.intensity === 1 ? 'Case' : 'Cases'}
                       </div>
                       </div>
                       <div className="text-sm text-gray-600 capitalize">
                           <span className="font-semibold">Types:</span> {coord.type}
-                        </div>
+                      </div>
                         <div className="text-xs text-gray-500 mt-2">
                           Click to view more details
                       </div>
@@ -701,24 +687,12 @@ const Heatmap = () => {
                 <span className="text-gray-800 text-sm">Low (1-2 cases)</span>
               </div>
               <div className="flex items-center space-x-3">
-                <span className="inline-block w-5 h-5 rounded bg-lime-500 border border-lime-600" />
-                <span className="text-gray-800 text-sm">Medium (3-4 cases)</span>
-              </div>
-              <div className="flex items-center space-x-3">
                 <span className="inline-block w-5 h-5 rounded bg-yellow-500 border border-yellow-600" />
-                <span className="text-gray-800 text-sm">High (5-6 cases)</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="inline-block w-5 h-5 rounded bg-orange-500 border border-orange-600" />
-                <span className="text-gray-800 text-sm">Very High (7-8 cases)</span>
+                <span className="text-gray-800 text-sm">Medium (3-6 cases)</span>
               </div>
               <div className="flex items-center space-x-3">
                 <span className="inline-block w-5 h-5 rounded bg-red-500 border border-red-600" />
-                <span className="text-gray-800 text-sm">Critical (9-10 cases)</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className="inline-block w-5 h-5 rounded bg-red-700 border border-red-800" />
-                <span className="text-gray-800 text-sm">Severe (10+ cases)</span>
+                <span className="text-gray-800 text-sm">High (7+ cases)</span>
               </div>
             </div>
           </div>

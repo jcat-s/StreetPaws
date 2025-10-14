@@ -527,7 +527,7 @@ const Heatmap = () => {
                       </div>
                       <div className="text-sm text-gray-600 capitalize">
                           <span className="font-semibold">Types:</span> {coord.type}
-                        </div>
+                      </div>
                         <div className="text-xs text-gray-500 mt-2">
                           Click to view more details
                       </div>

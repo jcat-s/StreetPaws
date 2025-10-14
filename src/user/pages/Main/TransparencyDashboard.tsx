@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
-import { DollarSign, TrendingUp, Calendar, BarChart3 } from 'lucide-react'
+import { DollarSign, Calendar, Home, Truck, Utensils, Stethoscope, FileText } from 'lucide-react'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '../../../config/firebase'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts'
+import { ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 
 interface DonationData {
   id: string
@@ -204,39 +204,33 @@ const TransparencyDashboard = () => {
     const foundReports = reports.filter(r => r.type === 'found').length
     const animalsHelped = successfulAdoptions.length + foundReports
     
-    // Group donations by month
-    const monthlyDonations = verifiedDonations.reduce((acc, donation) => {
-      const date = donation.createdAt?.toDate ? donation.createdAt.toDate() : new Date(donation.createdAt)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      
-      if (!acc[monthKey]) {
-        acc[monthKey] = { month: monthKey, amount: 0, count: 0 }
+    // Build recent expenses list (non-rejected) with icons
+    const getCategoryIcon = (cat: string) => {
+      switch (cat) {
+        case 'veterinary': return 'Stethoscope'
+        case 'shelter': return 'Home'
+        case 'food': return 'Utensils'
+        case 'transport': return 'Truck'
+        case 'medical_supplies': return 'FileText'
+        default: return 'DollarSign'
       }
-      acc[monthKey].amount += donation.amount
-      acc[monthKey].count += 1
-      
-      return acc
-    }, {} as Record<string, { month: string; amount: number; count: number }>)
+    }
 
-    // Group expenses by month (using non-rejected)
-    const monthlyExpenses = nonRejectedExpenses.reduce((acc, expense) => {
-      const date = new Date(expense.date)
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      if (!acc[monthKey]) {
-        acc[monthKey] = { month: monthKey, amount: 0 }
-      }
-      acc[monthKey].amount += expense.amount
-      return acc
-    }, {} as Record<string, { month: string; amount: number }>)
-
-    // Convert to array and sort by month
-    const monthlyData = Object.values(monthlyDonations)
-      .sort((a, b) => a.month.localeCompare(b.month))
-      .slice(-6) // Last 6 months
-      .map(item => ({
-        month: new Date(item.month + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        donations: item.amount,
-        count: item.count
+    const recentExpenses = [...nonRejectedExpenses]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5)
+      .map(exp => ({
+        id: exp.id,
+        category: exp.category === 'veterinary' ? 'Veterinary Care' :
+                  exp.category === 'shelter' ? 'Shelter & Housing' :
+                  exp.category === 'food' ? 'Food & Supplies' :
+                  exp.category === 'transport' ? 'Transportation' :
+                  exp.category === 'medical_supplies' ? 'Medical Supplies' :
+                  exp.category === 'admin' ? 'Administrative' : 'Other',
+        icon: getCategoryIcon(exp.category),
+        amount: exp.amount,
+        date: new Date(exp.date).toLocaleDateString(),
+        description: exp.description
       }))
 
     // Payment method breakdown
@@ -345,17 +339,17 @@ const TransparencyDashboard = () => {
       netFunds,
       totalAnimals: animalsHelped,
       totalAdoptions: successfulAdoptions.length,
-      monthlyData,
       paymentMethodData,
       recentDonations,
       verifiedDonations,
       fundUsageBreakdown,
       impactMetrics,
-      runningBalanceData
+      runningBalanceData,
+      recentExpenses
     }
   }, [donations, adoptions, reports, expenses])
 
-  const COLORS = ['#f97316', '#ef4444', '#22c55e', '#3b82f6', '#a855f7']
+  // Removed COLORS since pie/bar charts are removed
 
   if (loading) {
     return (
@@ -384,7 +378,7 @@ const TransparencyDashboard = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
+        <div className="grid md:grid-cols-3 gap-8 mb-12">
           <div className="bg-white rounded-lg p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -401,12 +395,25 @@ const TransparencyDashboard = () => {
           <div className="bg-white rounded-lg p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
+                <p className="text-sm font-medium text-gray-600">Total Expenses</p>
+                <p className="text-3xl font-bold text-red-600">₱{processedData.totalExpenses.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">pending/approved</p>
+              </div>
+              <div className="bg-red-100 rounded-full p-3">
+                <DollarSign className="h-6 w-6 text-red-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-sm font-medium text-gray-600">Net Funds Available</p>
                 <p className={`text-3xl font-bold ${processedData.netFunds >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                   ₱{processedData.netFunds.toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  ₱{processedData.totalExpenses.toLocaleString()} spent
+                  {processedData.netFunds >= 0 ? 'Available' : 'Negative'}
                 </p>
               </div>
               <div className={`rounded-full p-3 ${processedData.netFunds >= 0 ? 'bg-blue-100' : 'bg-red-100'}`}>
@@ -414,124 +421,11 @@ const TransparencyDashboard = () => {
               </div>
             </div>
           </div>
-
-          {/* Removed Animals Helped card */}
         </div>
 
-        {/* Charts Grid */}
-        <div className="grid lg:grid-cols-2 gap-8 mb-12">
-          {/* Monthly Donations Chart */}
+
+        <div className="grid md:grid-cols-2 gap-8 mb-12">
           <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <BarChart3 className="h-6 w-6 mr-2" />
-              Monthly Donations
-            </h2>
-            {processedData.monthlyData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={processedData.monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: number) => [`₱${value.toLocaleString()}`, 'Amount']}
-                    labelFormatter={(label) => `Month: ${label}`}
-                  />
-                  <Bar dataKey="donations" fill="#f97316" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-64 text-gray-500">
-                <p>No donation data available yet</p>
-              </div>
-            )}
-          </div>
-
-          {/* Payment Methods Chart */}
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <TrendingUp className="h-6 w-6 mr-2" />
-              Payment Methods
-            </h2>
-            {processedData.paymentMethodData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={processedData.paymentMethodData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {processedData.paymentMethodData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => [`₱${value.toLocaleString()}`, 'Amount']} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex items-center justify-center h-64 text-gray-500">
-                <p>No payment data available yet</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Fund Usage Breakdown */}
-        {processedData.fundUsageBreakdown.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-8 mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <BarChart3 className="h-6 w-6 mr-2" />
-              Fund Usage Breakdown
-            </h2>
-            <p className="text-gray-600 mb-6">
-              How your donations are allocated to help animals in need. Every peso is accounted for.
-            </p>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {processedData.fundUsageBreakdown.map((item, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 rounded-full" style={{ backgroundColor: `${item.color}20` }}>
-                      <DollarSign className="h-6 w-6" style={{ color: item.color }} />
-                    </div>
-                    <span className="text-2xl font-bold" style={{ color: item.color }}>
-                      {item.percentage}%
-                    </span>
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-2">{item.category}</h3>
-                  <p className="text-lg font-bold text-gray-700">₱{item.amount.toLocaleString()}</p>
-                  <div className="mt-3 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full" 
-                      style={{ 
-                        width: `${item.percentage}%`, 
-                        backgroundColor: item.color 
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-blue-50 rounded-lg p-6">
-              <div className="flex items-center mb-4">
-                <BarChart3 className="h-6 w-6 text-blue-600 mr-2" />
-                <h3 className="text-lg font-semibold text-blue-900">Financial Accountability</h3>
-              </div>
-              <p className="text-blue-800 text-sm">
-                All fund allocations are tracked and verified. We maintain detailed records of every expense 
-                to ensure complete transparency in how your donations are used to help animals.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Recent Donations */}
-        <div className="bg-white rounded-lg shadow-sm p-8 mb-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
             <Calendar className="h-6 w-6 mr-2" />
             Recent Verified Donations
@@ -561,47 +455,120 @@ const TransparencyDashboard = () => {
           )}
         </div>
 
-        {/* Running Balance (Cumulative Cash Flow) */}
-        <div className="bg-white rounded-lg shadow-sm p-8 mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Running Balance</h2>
-          <p className="text-sm text-gray-500 mb-6">One line, dots per transaction. 🟢 donations increase, 🔴 expenses decrease.</p>
-          {processedData.runningBalanceData && processedData.runningBalanceData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={320}>
-              <LineChart data={processedData.runningBalanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip 
-                  formatter={(value: number, _name: string, p: any) => {
-                    const delta = p?.payload?.delta as number
-                    const direction = delta >= 0 ? 'Donation (+)' : 'Expense (-)'
-                    return [`₱${value.toLocaleString()}`, direction]
-                  }}
-                  labelFormatter={(label) => `Date: ${label}`}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="balance" 
-                  stroke="#94a3b8" 
-                  strokeWidth={2} 
-                  dot={<RenderCashFlowDot />} 
-                  activeDot={{ r: 6 }}
-                  name="Balance"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-64 text-gray-500">
-              <p>No cash flow data available yet</p>
-            </div>
-          )}
+          <div className="bg-white rounded-lg shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <Calendar className="h-6 w-6 mr-2" />
+              Recent Expenses
+          </h2>
+            {processedData.recentExpenses && processedData.recentExpenses.length > 0 ? (
+              <div className="space-y-4">
+                {processedData.recentExpenses.map((exp: any) => {
+                  const IconComponent = exp.icon === 'Stethoscope' ? Stethoscope :
+                                       exp.icon === 'Home' ? Home :
+                                       exp.icon === 'Utensils' ? Utensils :
+                                       exp.icon === 'Truck' ? Truck :
+                                       exp.icon === 'FileText' ? FileText : DollarSign
+                  return (
+                    <div key={exp.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-red-100 rounded-full">
+                          <IconComponent className="h-4 w-4 text-red-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{exp.category}</p>
+                          <p className="text-xs text-gray-500">{exp.date}</p>
+                          <p className="text-xs text-gray-600 mt-1 truncate max-w-xs">{exp.description}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-red-600">₱{exp.amount.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>No expenses yet</p>
+              </div>
+            )}
+                </div>
+              </div>
+
+        {/* Running Balance + Payment Methods side-by-side */}
+        <div className="grid lg:grid-cols-2 gap-8 mb-12">
+          {/* Running Balance */}
+          <div className="bg-white rounded-lg shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Running Balance</h2>
+            <p className="text-sm text-gray-500 mb-6">One line, dots per transaction. 🟢 donations increase, 🔴 expenses decrease.</p>
+            {processedData.runningBalanceData && processedData.runningBalanceData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={processedData.runningBalanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value: number, _name: string, p: any) => {
+                      const delta = p?.payload?.delta as number
+                      const direction = delta >= 0 ? 'Donation (+)' : 'Expense (-)'
+                      return [`₱${value.toLocaleString()}`, direction]
+                    }}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="balance" 
+                    stroke="#94a3b8" 
+                    strokeWidth={2} 
+                    dot={<RenderCashFlowDot />} 
+                    activeDot={{ r: 6 }}
+                    name="Balance"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-gray-500">
+                <p>No cash flow data available yet</p>
+              </div>
+            )}
+          </div>
+
+          {/* Payment Methods */}
+          <div className="bg-white rounded-lg shadow-sm p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Payment Methods</h2>
+            <p className="text-sm text-gray-500 mb-6">How donors contribute (GCash, Maya, etc.)</p>
+            {processedData.paymentMethodData && processedData.paymentMethodData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={320}>
+                <PieChart>
+                  <Pie
+                    data={processedData.paymentMethodData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {processedData.paymentMethodData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={['#22c55e', '#3b82f6', '#f97316', '#a855f7', '#ef4444'][index % 5]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => [`₱${value.toLocaleString()}`, 'Amount']} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-gray-500">
+                <p>No payment data available yet</p>
+              </div>
+            )}
+          </div>
         </div>
 
 
         {/* Data Last Updated */}
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>Verified donations increase Net Funds; pending/approved expenses decrease it.</p>
-          <p className="mt-1">Data updated in real-time • Last updated: {new Date().toLocaleString()}</p>
+          <p>Data updated in real-time • Last updated: {new Date().toLocaleString()}</p>
         </div>
       </div>
     </div>
